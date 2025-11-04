@@ -29,6 +29,7 @@ list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
 # Add algorithm-specific sources
 file(GLOB SPH_DISPH_SOURCES "${SPH_SRC_DIR}/disph/*.cpp")
 file(GLOB SPH_GSPH_SOURCES "${SPH_SRC_DIR}/gsph/*.cpp")
+file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 
 # Add core parameter validation/estimation sources (exclude plugin_loader which needs C++17)
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
@@ -40,6 +41,7 @@ add_library(shock_tube_plugin SHARED
     ${SPH_SOURCES}
     ${SPH_DISPH_SOURCES}
     ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
     ${SPH_CORE_SOURCES}
 )
 

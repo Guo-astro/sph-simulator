@@ -41,7 +41,6 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
     // Get combined particle list for neighbor search (includes ghosts if available)
     auto search_particles = sim->get_all_particles_for_search();
-    const int search_num = sim->get_total_particle_count();
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
@@ -106,7 +105,7 @@ real FluidForce<Dim>::artificial_conductivity(const SPHParticle<Dim> & p_i, cons
     // Wadsley et al. (2008) or Price (2008)
     const real v_sig = m_use_gravity ?
         std::abs(inner_product(p_i.vel - p_j.vel, r_ij) / abs(r_ij)) :
-        std::sqrt(2.0 * std::abs(p_i.pres - p_j.pres) / (p_i.dens + p_j.dens));
+        std::sqrt(utilities::constants::AC_PRESSURE_COEFF * std::abs(p_i.pres - p_j.pres) / (p_i.dens + p_j.dens));
 
     return m_alpha_ac * p_j.mass * v_sig * (p_i.ene - p_j.ene) * inner_product(dw_ij, r_ij) / abs(r_ij);
 }

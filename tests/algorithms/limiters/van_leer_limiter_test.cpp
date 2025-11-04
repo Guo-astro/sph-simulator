@@ -16,16 +16,16 @@
 
 #include <gtest/gtest.h>
 #include <cmath>
-#include "tests/bdd_helpers.hpp"
+#include "../../bdd_helpers.hpp"
 #include "algorithms/limiters/van_leer_limiter.hpp"
 #include "utilities/constants.hpp"
 
 using namespace sph::algorithms::limiters;
 using namespace sph::utilities::constants;
 
-FEATURE("Van Leer Slope Limiter") {
+FEATURE(VanLeerLimiter) {
     
-    SCENARIO("Basic functionality and properties") {
+    SCENARIO(VanLeerLimiter, BasicFunctionalityAndProperties) {
         GIVEN("a Van Leer limiter instance") {
             VanLeerLimiter limiter;
             
@@ -37,7 +37,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("TVD property - monotonicity preservation") {
+    SCENARIO(VanLeerLimiter, TVDPropertyMonotonicityPreservation) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -64,7 +64,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Extrema detection and preservation") {
+    SCENARIO(VanLeerLimiter, ExtremaDetectionAndPreservation) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -100,7 +100,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Symmetry property: φ(r) = φ(1/r) / r") {
+    SCENARIO(VanLeerLimiter, SymmetryProperty) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -119,7 +119,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Smooth region behavior - second-order accuracy") {
+    SCENARIO(VanLeerLimiter, SmoothRegionBehavior) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -145,7 +145,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Van Leer formula: φ = 2*dq1*dq2 / (dq1 + dq2)") {
+    SCENARIO(VanLeerLimiter, VanLeerFormula) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -172,7 +172,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Edge cases and numerical stability") {
+    SCENARIO(VanLeerLimiter, EdgeCasesAndNumericalStability) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             
@@ -220,7 +220,7 @@ FEATURE("Van Leer Slope Limiter") {
         }
     }
     
-    SCENARIO("Comparison with other gradient ratios") {
+    SCENARIO(VanLeerLimiter, ComparisonWithGradientRatios) {
         GIVEN("a Van Leer limiter") {
             VanLeerLimiter limiter;
             

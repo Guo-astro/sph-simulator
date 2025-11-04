@@ -160,7 +160,7 @@ public:
                 // Time configuration
                 .with_time(
                     0.0,    // start time
-                    0.2,    // end time  
+                    0.15,    // end time  
                     0.01,   // output interval
                     0.01    // energy output interval
                 )

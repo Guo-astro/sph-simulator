@@ -61,6 +61,12 @@ constexpr real MUSCL_EXTRAPOLATION_COEFF = HALF;
  */
 constexpr real SIGNAL_VELOCITY_COEFF = THREE;
 
+/** Artificial conductivity: signal velocity pressure coefficient (typically 2.0)
+ *  Used in: v_sig = sqrt(AC_PRESSURE_COEFF * |P_i - P_j| / (ρ_i + ρ_j))
+ *  Reference: Wadsley et al. (2008), Price (2008)
+ */
+constexpr real AC_PRESSURE_COEFF = TWO;
+
 /** Default BH-tree size multiplier for memory allocation */
 constexpr int BHTREE_SIZE_MULTIPLIER = 5;
 

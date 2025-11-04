@@ -19,6 +19,10 @@ target_sources(sph_lib
     ${CMAKE_CURRENT_SOURCE_DIR}/solver.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/timestep.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/timestep.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/riemann/riemann_solver.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/riemann/hll_solver.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/limiters/slope_limiter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/limiters/van_leer_limiter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/viscosity/artificial_viscosity.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/viscosity/monaghan_viscosity.hpp
   )

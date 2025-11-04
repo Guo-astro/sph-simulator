@@ -79,7 +79,7 @@ target_compile_options(sph_lib
 target_include_directories(sph_lib PUBLIC include)
 target_link_libraries(sph_lib
   PUBLIC
-    Boost::boost
+    Boost::headers
     nlohmann_json::nlohmann_json
   )
 

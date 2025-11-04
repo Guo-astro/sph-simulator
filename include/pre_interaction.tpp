@@ -54,7 +54,6 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
     // Get combined particle list for neighbor search (includes ghosts if available)
     auto search_particles = sim->get_all_particles_for_search();
-    const int search_num = sim->get_total_particle_count();
 
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
@@ -183,7 +182,6 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
 
     // Get combined particle list for neighbor search (includes ghosts if available)
     auto search_particles = sim->get_all_particles_for_search();
-    const int search_num = sim->get_total_particle_count();
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles
