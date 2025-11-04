@@ -28,9 +28,10 @@
 
 #include "artificial_viscosity.hpp"
 #include "../../utilities/constants.hpp"
-#include "../../core/math_utils.hpp"
+#include "../../core/vector.hpp"
 #include <algorithm>
 #include <string>
+#include <cmath>
 
 namespace sph {
 namespace algorithms {
@@ -81,7 +82,7 @@ public:
         const Vector<Dim> v_ij = p_i.vel - p_j.vel;
         
         // Relative velocity along line of centers
-        const real vr = inner_product(v_ij, r_ij);
+        const real vr = sph::inner_product(v_ij, r_ij);
         
         // Only apply viscosity for approaching particles
         if (vr >= ZERO) {
