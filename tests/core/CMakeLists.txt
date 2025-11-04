@@ -8,9 +8,11 @@ target_sources(sph_tests
         parameter_categories_test.cpp
         dimension_system_test_simple.cpp
         kernel_function_test.cpp
-        # bhtree_test.cpp  # TODO: Fix SCENARIO macro usage
-        # sph_2_5d_test.cpp  # TODO: Fix compilation errors
-        # ghost_particle_manager_test.cpp  # TODO: Fix member names (r,v,rho vs pos,vel,dens)
-        # ghost_particle_integration_test.cpp  # TODO: Fix constructor and TEST macro errors
+        ghost_particle_boundary_edge_cases_test.cpp
+        ghost_particle_debug_test.cpp
+        ghost_particle_regression_test.cpp
+        # ghost_particle_integration_test.cpp  # TODO: Vector initialization syntax issues - needs manual cleanup
+        # sph_2_5d_test.cpp  # TODO: 2.5D implementation headers have compilation errors - needs major refactoring
+        # ghost_particle_manager_test.cpp  # TODO: Too many member name issues, covered by new tests
         # dimension_system_test.cpp  # TODO: Fix syntax errors
 )

@@ -13,11 +13,15 @@ target_sources(sph_lib
 
 target_sources(sph
     PRIVATE
-        main.cpp
         solver.cpp
     )
 
 target_sources(sph2d
+    PRIVATE
+        solver.cpp
+    )
+
+target_sources(sph3d
     PRIVATE
         solver.cpp
     )

@@ -64,10 +64,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
-        constexpr real A = DIM == 1 ? 2.0 :
-                           DIM == 2 ? M_PI :
+        constexpr real A = Dim == 1 ? 2.0 :
+                           Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM) * m_kernel_ratio;
+        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * m_kernel_ratio;
         
         // neighbor search (searches in real + ghost particles)
 #ifdef EXHAUSTIVE_SEARCH
@@ -110,7 +110,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
         p_i.dens = dens_i;
         p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
-        p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
+        p_i.gradh = 1.0 / (1.0 + p_i.sml / (Dim * dens_i) * dh_dens_i);
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;
@@ -119,15 +119,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         // Artificial viscosity
-        if(m_use_balsara_switch && DIM != 1) {
-#if DIM != 1
+        if(m_use_balsara_switch && Dim != 1) {
             // balsara switch
             real div_v = 0.0;
-#if DIM == 2
             real rot_v = 0.0;
-#else
-            Vector<Dim> rot_v = 0.0;
-#endif
             for(int n = 0; n < n_neighbor; ++n) {
                 int const j = neighbor_list[n];
                 auto & p_j = search_particles[j];  // Access from combined list
@@ -136,7 +131,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);
                 const Vector<Dim> v_ij = p_i.vel - p_j.vel;
                 div_v -= p_j.mass * inner_product(v_ij, dw);
-                rot_v += vector_product(v_ij, dw) * p_j.mass;
+                if constexpr (Dim == 2) {
+                    rot_v += vector_product(v_ij, dw) * p_j.mass;
+                } else if constexpr (Dim == 3) {
+                    rot_v += abs(cross_product(v_ij, dw)) * p_j.mass;
+                }
             }
             div_v /= p_i.dens;
             rot_v /= p_i.dens;
@@ -148,7 +147,6 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const real dalpha = (-(p_i.alpha - m_alpha_min) * tau_inv + std::max(-div_v, (real)0.0) * (m_alpha_max - p_i.alpha)) * dt;
                 p_i.alpha += dalpha;
             }
-#endif
         } else if(m_use_time_dependent_av) {
             real div_v = 0.0;
             for(int n = 0; n < n_neighbor; ++n) {
@@ -194,10 +192,10 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
-        constexpr real A = DIM == 1 ? 2.0 :
-                           DIM == 2 ? M_PI :
+        constexpr real A = Dim == 1 ? 2.0 :
+                           Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM);
+        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim);
         
         // neighbor search (searches in real + ghost particles)
 #ifdef EXHAUSTIVE_SEARCH
@@ -225,14 +223,15 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
     }
 }
 
-inline real powh_(const real h) {
-#if DIM == 1
-    return 1;
-#elif DIM == 2
-    return h;
-#elif DIM == 3
-    return h * h;
-#endif
+template<int Dim>
+real powh_(const real h) {
+    if constexpr(Dim == 1) {
+        return 1;
+    } else if constexpr(Dim == 2) {
+        return h;
+    } else if constexpr(Dim == 3) {
+        return h * h;
+    }
 }
 
 template<int Dim>
@@ -246,8 +245,8 @@ real PreInteraction<Dim>::newton_raphson(
 )
 {
     real h_i = p_i.sml / m_kernel_ratio;
-    constexpr real A = DIM == 1 ? 2.0 :
-                       DIM == 2 ? M_PI :
+    constexpr real A = Dim == 1 ? 2.0 :
+                       Dim == 2 ? M_PI :
                                   4.0 * M_PI / 3.0;
     const real b = p_i.mass * m_neighbor_number / A;
 
@@ -277,7 +276,7 @@ real PreInteraction<Dim>::newton_raphson(
         }
 
         const real f = dens * powh<Dim>(h_i) - b;
-        const real df = ddens * powh<Dim>(h_i) + DIM * dens * powh_(h_i);
+        const real df = ddens * powh<Dim>(h_i) + Dim * dens * powh_<Dim>(h_i);
 
         h_i -= f / df;
 

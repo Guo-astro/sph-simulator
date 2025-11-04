@@ -11,8 +11,8 @@
 
 # Paths
 SPH_ROOT := ../../..
-SPH_BIN := $(SPH_ROOT)/build/sph
 BUILD_DIR := build
+SPH_BIN := $(BUILD_DIR)/sph
 LIB_DIR := lib
 PLUGIN := $(LIB_DIR)/libshock_tube_plugin.dylib
 CONFIG_DIR := config
@@ -87,14 +87,14 @@ clean-all: clean clean-outputs
 run-gsph: build
 	@echo "=== Running GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
-	@cd $(SPH_ROOT) && ./build/sph workflows/shock_tube_workflow/01_simulation/$(PLUGIN) workflows/shock_tube_workflow/01_simulation/$(GSPH_CONFIG)
+	$(SPH_BIN) $(PLUGIN) $(GSPH_CONFIG)
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
 run-disph: build
 	@echo "=== Running DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
-	@cd $(SPH_ROOT) && ./build/sph workflows/shock_tube_workflow/01_simulation/$(PLUGIN) workflows/shock_tube_workflow/01_simulation/$(DISPH_CONFIG)
+	$(SPH_BIN) $(PLUGIN) $(DISPH_CONFIG)
 	@echo "✓ DISPH simulation complete"
 
 # Run both simulations

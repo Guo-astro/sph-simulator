@@ -6,7 +6,7 @@ if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
   include(${SPH_ROOT}/build/conan_toolchain.cmake)
 endif()
 
-project(shock_tube_plugin)
+project(shock_tube_workflow)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -67,5 +67,33 @@ set_target_properties(shock_tube_plugin PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )
 
+# Build standalone SPH executable for this workflow
+add_executable(sph 
+    ${SPH_SRC_DIR}/main.cpp
+    ${SPH_SRC_DIR}/solver.cpp
+    ${SPH_SRC_DIR}/core/plugin_loader.cpp
+)
+
+target_compile_definitions(sph PRIVATE DIM=1)
+target_compile_options(sph PRIVATE
+    -Wall
+    -Wno-sign-compare
+    -funroll-loops
+    -ffast-math
+)
+
+target_include_directories(sph PUBLIC 
+    ${SPH_INCLUDE_DIR}
+)
+
+target_link_libraries(sph PUBLIC
+    shock_tube_plugin
+)
+
+set_target_properties(sph PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)
+
 message(STATUS "Building shock_tube_plugin for 1D")
+message(STATUS "Building local sph executable")
 message(STATUS "SPH root: ${SPH_ROOT}")

@@ -6,11 +6,11 @@
 #include <memory>
 #include <cmath>
 
-FEATURE(BHTreeConstruction) {
+// FEATURE: BHTreeConstruction
 
 SCENARIO(TreeCreation, EmptyTree) {
     GIVEN("A BH tree with no particles") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         
         // Set default parameters
@@ -31,7 +31,7 @@ SCENARIO(TreeCreation, EmptyTree) {
 
 SCENARIO(TreeCreation, SingleParticle) {
     GIVEN("A BH tree with one particle") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -65,7 +65,7 @@ SCENARIO(TreeCreation, SingleParticle) {
 
 SCENARIO(TreeCreation, MultipleParticles) {
     GIVEN("A BH tree with multiple particles") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -101,8 +101,8 @@ SCENARIO(TreeCreation, MultipleParticles) {
 }
 
 SCENARIO(TreeCreation, EdgeCaseParticleCount) {
-    GIVEN("A BH tree") {
-        sph::BHTree tree;
+    GIVEN("A BH tree with 2 particles") {
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -127,6 +127,18 @@ SCENARIO(TreeCreation, EdgeCaseParticleCount) {
                 SUCCEED();
             }
         }
+    }
+}
+
+SCENARIO(TreeCreation, PowerOfTwoParticles) {
+    GIVEN("A BH tree with power-of-2 particles") {
+        sph::BHTree<DIM> tree;
+        auto param = std::make_shared<sph::SPHParameters>();
+        param->tree.max_level = 20;
+        param->tree.leaf_particle_num = 1;
+        param->periodic.is_valid = false;
+        
+        tree.initialize(param);
         
         WHEN("Building tree with power-of-2 particles") {
             const int n = 64;
@@ -149,9 +161,9 @@ SCENARIO(TreeCreation, EdgeCaseParticleCount) {
     }
 }
 
-SCENARIO(TreeCreation, SpatialDistributions) {
-    GIVEN("Particles with different spatial distributions") {
-        sph::BHTree tree;
+SCENARIO(TreeCreation, SameLocationParticles) {
+    GIVEN("Particles at the same location") {
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -182,6 +194,17 @@ SCENARIO(TreeCreation, SpatialDistributions) {
                 SUCCEED();
             }
         }
+    }
+}
+
+SCENARIO(TreeCreation, LinearDistribution) {
+    GIVEN("Particles in a line") {
+        sph::BHTree<DIM> tree;
+        auto param = std::make_shared<sph::SPHParameters>();
+        param->tree.max_level = 20;
+        param->tree.leaf_particle_num = 1;
+        param->periodic.is_valid = false;
+        tree.initialize(param);
         
         WHEN("Particles in a line") {
             const int n = 10;
@@ -210,13 +233,13 @@ SCENARIO(TreeCreation, SpatialDistributions) {
     }
 }
 
-} // FEATURE(BHTreeConstruction)
+// End FEATURE: BHTreeConstruction
 
-FEATURE(BHTreeEdgeCases) {
+// FEATURE: BHTreeEdgeCases
 
 SCENARIO(TreeLimits, MaximumTreeDepth) {
     GIVEN("A tree with limited depth") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 5;  // Shallow tree
         param->tree.leaf_particle_num = 1;
@@ -249,7 +272,7 @@ SCENARIO(TreeLimits, MaximumTreeDepth) {
 
 SCENARIO(TreeLimits, LeafParticleNumber) {
     GIVEN("A tree with multiple particles per leaf") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 5;  // Multiple particles per leaf
@@ -278,7 +301,7 @@ SCENARIO(TreeLimits, LeafParticleNumber) {
 
 SCENARIO(TreeEdgeCases, ExtremeMasses) {
     GIVEN("Particles with extreme mass values") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -311,7 +334,7 @@ SCENARIO(TreeEdgeCases, ExtremeMasses) {
 
 SCENARIO(TreeEdgeCases, BoundaryParticles) {
     GIVEN("Particles at domain boundaries") {
-        sph::BHTree tree;
+        sph::BHTree<DIM> tree;
         auto param = std::make_shared<sph::SPHParameters>();
         param->tree.max_level = 20;
         param->tree.leaf_particle_num = 1;
@@ -342,4 +365,4 @@ SCENARIO(TreeEdgeCases, BoundaryParticles) {
     }
 }
 
-} // FEATURE(BHTreeEdgeCases)
+// End FEATURE: BHTreeEdgeCases

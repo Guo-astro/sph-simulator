@@ -319,7 +319,8 @@ SCENARIO(PowerFunctions, NumericalPrecision) {
             
             THEN("Lower powers should be finite") {
                 EXPECT_TRUE(std::isfinite(sqr(x)));
-                EXPECT_TRUE(std::isfinite(pow3(x)));
+                // pow3 may overflow for values near sqrt(max)/10, which is acceptable
+                // The cube of ~1.34e153 is ~2.4e459, which exceeds max double (~1.8e308)
             }
         }
         

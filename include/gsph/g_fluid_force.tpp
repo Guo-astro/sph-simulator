@@ -50,15 +50,14 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     // for MUSCL
     auto & grad_d = sim->get_vector_array("grad_density");
     auto & grad_p = sim->get_vector_array("grad_pressure");
-    Vector<Dim> * grad_v[DIM] = {
-        sim->get_vector_array("grad_velocity_0").data(),
-#if DIM == 2
-        sim->get_vector_array("grad_velocity_1").data(),
-#elif DIM == 3
-        sim->get_vector_array("grad_velocity_1").data(),
-        sim->get_vector_array("grad_velocity_2").data(),
-#endif
-    };
+    Vector<Dim> * grad_v[Dim];
+    grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
+    if constexpr (Dim >= 2) {
+        grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
+    }
+    if constexpr (Dim == 3) {
+        grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+    }
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {

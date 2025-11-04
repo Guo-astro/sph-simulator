@@ -44,15 +44,14 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     // for MUSCL
     auto & grad_d = sim->get_vector_array("grad_density");
     auto & grad_p = sim->get_vector_array("grad_pressure");
-    Vector<Dim> * grad_v[DIM] = {
-        sim->get_vector_array("grad_velocity_0").data(),
-#if DIM == 2
-        sim->get_vector_array("grad_velocity_1").data(),
-#elif DIM == 3
-        sim->get_vector_array("grad_velocity_1").data(),
-        sim->get_vector_array("grad_velocity_2").data(),
-#endif
-    };
+    Vector<Dim> * grad_v[Dim];
+    grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
+    if constexpr (Dim >= 2) {
+        grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
+    }
+    if constexpr (Dim == 3) {
+        grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+    }
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -60,10 +59,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
-        constexpr real A = DIM == 1 ? 2.0 :
-                           DIM == 2 ? M_PI :
+        constexpr real A = Dim == 1 ? 2.0 :
+                           Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM) * this->m_kernel_ratio;
+        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * this->m_kernel_ratio;
         
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH

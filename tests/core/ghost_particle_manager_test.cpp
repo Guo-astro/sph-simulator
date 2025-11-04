@@ -23,7 +23,7 @@ protected:
         int count = 0;
         const auto& ghosts = manager.get_ghost_particles();
         for (const auto& ghost : ghosts) {
-            if (ghost.r[dim] >= min_val && ghost.r[dim] <= max_val) {
+            if (ghost.pos[dim] >= min_val && ghost.pos[dim] <= max_val) {
                 count++;
             }
         }
@@ -39,8 +39,8 @@ TEST_F(GhostParticleManagerTest, Periodic1D_Basic) {
     BoundaryConfiguration<1> config;
     config.is_valid = true;
     config.types[0] = BoundaryType::PERIODIC;
-    config.range_min = {0.0};
-    config.range_max = {1.0};
+    config.range_min = Vector<1>{0.0};
+    config.range_max = Vector<1>{1.0};
     
     GhostParticleManager<1> manager;
     manager.initialize(config);
@@ -51,32 +51,32 @@ TEST_F(GhostParticleManagerTest, Periodic1D_Basic) {
     
     // Particle near lower boundary (should create ghost at upper side)
     SPHParticle<1> p1;
-    p1.r = {0.05};
-    p1.v = {1.0};
-    p1.rho = 1.0;
-    p1.p = 1.0;
-    p1.m = 1.0;
-    p1.h = 0.05;
+    p1.presos = Vector<1>{0.05};
+    p1.vel = Vector<1>{1.0};
+    p1.dens = 1.0;
+    p1.pres = 1.0;
+    p1.mass = 1.0;
+    p1.sml = 0.05;
     particles.push_back(p1);
     
     // Particle near upper boundary (should create ghost at lower side)
     SPHParticle<1> p2;
-    p2.r = {0.95};
-    p2.v = {-1.0};
-    p2.rho = 1.0;
-    p2.p = 1.0;
-    p2.m = 1.0;
-    p2.h = 0.05;
+    p2.presos = Vector<1>{0.95};
+    p2.vel = Vector<1>{-1.0};
+    p2.dens = 1.0;
+    p2.pres = 1.0;
+    p2.mass = 1.0;
+    p2.sml = 0.05;
     particles.push_back(p2);
     
     // Particle in the middle (no ghosts)
     SPHParticle<1> p3;
-    p3.r = {0.5};
-    p3.v = {0.0};
-    p3.rho = 1.0;
-    p3.p = 1.0;
-    p3.m = 1.0;
-    p3.h = 0.05;
+    p3.presos = Vector<1>{0.5};
+    p3.vel = Vector<1>{0.0};
+    p3.dens = 1.0;
+    p3.pres = 1.0;
+    p3.mass = 1.0;
+    p3.sml = 0.05;
     particles.push_back(p3);
     
     // Generate ghosts
@@ -91,12 +91,12 @@ TEST_F(GhostParticleManagerTest, Periodic1D_Basic) {
     ASSERT_EQ(ghosts.size(), 2);
     
     // Ghost from p1 should be at ~1.05
-    EXPECT_NEAR(ghosts[0].r[0], 1.05, 1e-10);
-    EXPECT_NEAR(ghosts[0].v[0], 1.0, 1e-10);
+    EXPECT_NEAR(ghosts[0].pos[0], 1.05, 1e-10);
+    EXPECT_NEAR(ghosts[0].vel[0], 1.0, 1e-10);
     
     // Ghost from p2 should be at ~-0.05
-    EXPECT_NEAR(ghosts[1].r[0], -0.05, 1e-10);
-    EXPECT_NEAR(ghosts[1].v[0], -1.0, 1e-10);
+    EXPECT_NEAR(ghosts[1].pos[0], -0.05, 1e-10);
+    EXPECT_NEAR(ghosts[1].vel[0], -1.0, 1e-10);
 }
 
 /**
@@ -107,8 +107,8 @@ TEST_F(GhostParticleManagerTest, Periodic2D_Corners) {
     config.is_valid = true;
     config.types[0] = BoundaryType::PERIODIC;
     config.types[1] = BoundaryType::PERIODIC;
-    config.range_min = {0.0, 0.0};
-    config.range_max = {1.0, 1.0};
+    config.range_min = Vector<1>{0.0, 0.0};
+    config.range_max = Vector<1>{1.0, 1.0};
     
     GhostParticleManager<2> manager;
     manager.initialize(config);
@@ -117,9 +117,9 @@ TEST_F(GhostParticleManagerTest, Periodic2D_Corners) {
     // Create particle near corner (both x and y boundaries)
     std::vector<SPHParticle<2>> particles;
     SPHParticle<2> p;
-    p.r = {0.05, 0.05};  // Near lower-left corner
-    p.v = {1.0, 1.0};
-    p.rho = 1.0;
+    p.r = Vector<1>{0.05, 0.05};  // Near lower-left corner
+    p.v = Vector<1>{1.0, 1.0};
+    p.dens = 1.0;
     p.p = 1.0;
     p.m = 1.0;
     p.h = 0.05;
@@ -142,13 +142,13 @@ TEST_F(GhostParticleManagerTest, Periodic2D_Corners) {
     bool has_corner_ghost = false;
     
     for (const auto& ghost : ghosts) {
-        if (std::abs(ghost.r[0] - 1.05) < 1e-6 && std::abs(ghost.r[1] - 0.05) < 1e-6) {
+        if (std::abs(ghost.pos[0] - 1.05) < 1e-6 && std::abs(ghost.pos[1] - 0.05) < 1e-6) {
             has_x_ghost = true;
         }
-        if (std::abs(ghost.r[0] - 0.05) < 1e-6 && std::abs(ghost.r[1] - 1.05) < 1e-6) {
+        if (std::abs(ghost.pos[0] - 0.05) < 1e-6 && std::abs(ghost.pos[1] - 1.05) < 1e-6) {
             has_y_ghost = true;
         }
-        if (std::abs(ghost.r[0] - 1.05) < 1e-6 && std::abs(ghost.r[1] - 1.05) < 1e-6) {
+        if (std::abs(ghost.pos[0] - 1.05) < 1e-6 && std::abs(ghost.pos[1] - 1.05) < 1e-6) {
             has_corner_ghost = true;
         }
     }
@@ -169,8 +169,8 @@ TEST_F(GhostParticleManagerTest, Mixed2D_PeriodicAndMirror) {
     config.enable_lower[1] = true;
     config.enable_upper[1] = true;
     config.mirror_types[1] = MirrorType::NO_SLIP;
-    config.range_min = {0.0, 0.0};
-    config.range_max = {1.0, 1.0};
+    config.range_min = Vector<1>{0.0, 0.0};
+    config.range_max = Vector<1>{1.0, 1.0};
     
     GhostParticleManager<2> manager;
     manager.initialize(config);
@@ -179,9 +179,9 @@ TEST_F(GhostParticleManagerTest, Mixed2D_PeriodicAndMirror) {
     // Create test particle near y lower boundary
     std::vector<SPHParticle<2>> particles;
     SPHParticle<2> p;
-    p.r = {0.5, 0.05};
-    p.v = {1.0, 0.5};  // vx=1, vy=0.5
-    p.rho = 1.0;
+    p.r = Vector<1>{0.5, 0.05};
+    p.v = Vector<1>{1.0, 0.5};  // vx=1, vy=0.5
+    p.dens = 1.0;
     p.p = 1.0;
     p.m = 1.0;
     p.h = 0.05;
@@ -197,11 +197,11 @@ TEST_F(GhostParticleManagerTest, Mixed2D_PeriodicAndMirror) {
     bool found_mirror = false;
     for (const auto& ghost : ghosts) {
         // Mirror ghost should be at y=-0.05 with reflected velocity
-        if (std::abs(ghost.r[1] - (-0.05)) < 1e-6) {
+        if (std::abs(ghost.pos[1] - (-0.05)) < 1e-6) {
             found_mirror = true;
             // Check velocity reflection (no-slip: all components reflected)
-            EXPECT_NEAR(ghost.v[0], -1.0, 1e-6) << "x-velocity should be reflected";
-            EXPECT_NEAR(ghost.v[1], -0.5, 1e-6) << "y-velocity should be reflected";
+            EXPECT_NEAR(ghost.vel[0], -1.0, 1e-6) << "x-velocity should be reflected";
+            EXPECT_NEAR(ghost.vel[1], -0.5, 1e-6) << "y-velocity should be reflected";
         }
     }
     
@@ -219,8 +219,8 @@ TEST_F(GhostParticleManagerTest, Mirror_FreeSlip) {
     config.enable_lower[1] = true;
     config.enable_upper[1] = false;
     config.mirror_types[1] = MirrorType::FREE_SLIP;
-    config.range_min = {0.0, 0.0};
-    config.range_max = {1.0, 1.0};
+    config.range_min = Vector<1>{0.0, 0.0};
+    config.range_max = Vector<1>{1.0, 1.0};
     
     GhostParticleManager<2> manager;
     manager.initialize(config);
@@ -228,9 +228,9 @@ TEST_F(GhostParticleManagerTest, Mirror_FreeSlip) {
     
     std::vector<SPHParticle<2>> particles;
     SPHParticle<2> p;
-    p.r = {0.5, 0.05};
-    p.v = {1.0, 0.5};  // tangential=1.0, normal=0.5
-    p.rho = 1.0;
+    p.r = Vector<1>{0.5, 0.05};
+    p.v = Vector<1>{1.0, 0.5};  // tangential=1.0, normal=0.5
+    p.dens = 1.0;
     p.p = 1.0;
     p.m = 1.0;
     p.h = 0.05;
@@ -243,10 +243,10 @@ TEST_F(GhostParticleManagerTest, Mirror_FreeSlip) {
     // Find mirror ghost and check free-slip velocity
     const auto& ghosts = manager.get_ghost_particles();
     for (const auto& ghost : ghosts) {
-        if (std::abs(ghost.r[1] - (-0.05)) < 1e-6) {
+        if (std::abs(ghost.pos[1] - (-0.05)) < 1e-6) {
             // Free-slip: tangential velocity preserved, normal reflected
-            EXPECT_NEAR(ghost.v[0], 1.0, 1e-6) << "Tangential velocity preserved";
-            EXPECT_NEAR(ghost.v[1], -0.5, 1e-6) << "Normal velocity reflected";
+            EXPECT_NEAR(ghost.vel[0], 1.0, 1e-6) << "Tangential velocity preserved";
+            EXPECT_NEAR(ghost.vel[1], -0.5, 1e-6) << "Normal velocity reflected";
         }
     }
 }
@@ -258,8 +258,8 @@ TEST_F(GhostParticleManagerTest, UpdateGhosts) {
     BoundaryConfiguration<1> config;
     config.is_valid = true;
     config.types[0] = BoundaryType::PERIODIC;
-    config.range_min = {0.0};
-    config.range_max = {1.0};
+    config.range_min = Vector<1>{0.0};
+    config.range_max = Vector<1>{1.0};
     
     GhostParticleManager<1> manager;
     manager.initialize(config);
@@ -267,9 +267,9 @@ TEST_F(GhostParticleManagerTest, UpdateGhosts) {
     
     std::vector<SPHParticle<1>> particles;
     SPHParticle<1> p;
-    p.r = {0.05};
-    p.v = {1.0};
-    p.rho = 1.0;
+    p.r = Vector<1>{0.05};
+    p.v = Vector<1>{1.0};
+    p.dens = 1.0;
     p.p = 1.0;
     particles.push_back(p);
     
@@ -277,16 +277,16 @@ TEST_F(GhostParticleManagerTest, UpdateGhosts) {
     EXPECT_EQ(manager.get_ghost_count(), 1);
     
     // Modify real particle
-    particles[0].v = {2.0};
-    particles[0].rho = 2.0;
+    particles[0].v = Vector<1>{2.0};
+    particles[0].dens = 2.0;
     
     // Update ghosts
     manager.update_ghosts(particles);
     
     // Ghost should now have updated properties
     const auto& ghosts = manager.get_ghost_particles();
-    EXPECT_NEAR(ghosts[0].v[0], 2.0, 1e-10);
-    EXPECT_NEAR(ghosts[0].rho, 2.0, 1e-10);
+    EXPECT_NEAR(ghosts[0].vel[0], 2.0, 1e-10);
+    EXPECT_NEAR(ghosts[0].dens, 2.0, 1e-10);
 }
 
 /**
@@ -296,8 +296,8 @@ TEST_F(GhostParticleManagerTest, PeriodicWrapping) {
     BoundaryConfiguration<1> config;
     config.is_valid = true;
     config.types[0] = BoundaryType::PERIODIC;
-    config.range_min = {0.0};
-    config.range_max = {1.0};
+    config.range_min = Vector<1>{0.0};
+    config.range_max = Vector<1>{1.0};
     
     GhostParticleManager<1> manager;
     manager.initialize(config);
@@ -306,19 +306,19 @@ TEST_F(GhostParticleManagerTest, PeriodicWrapping) {
     
     // Particle that moved outside lower boundary
     SPHParticle<1> p1;
-    p1.r = {-0.1};
+    p1.presos = Vector<1>{-0.1};
     particles.push_back(p1);
     
     // Particle that moved outside upper boundary
     SPHParticle<1> p2;
-    p2.r = {1.1};
+    p2.presos = Vector<1>{1.1};
     particles.push_back(p2);
     
     manager.apply_periodic_wrapping(particles);
     
     // Should be wrapped back
-    EXPECT_NEAR(particles[0].r[0], 0.9, 1e-10);  // -0.1 + 1.0
-    EXPECT_NEAR(particles[1].r[0], 0.1, 1e-10);  // 1.1 - 1.0
+    EXPECT_NEAR(particles[0].pos[0], 0.9, 1e-10);  // -0.1 + 1.0
+    EXPECT_NEAR(particles[1].pos[0], 0.1, 1e-10);  // 1.1 - 1.0
 }
 
 /**
@@ -347,8 +347,8 @@ TEST(BoundaryConfigurationTest, Helpers) {
     EXPECT_TRUE(config.has_periodic());
     EXPECT_TRUE(config.has_mirror());
     
-    config.range_min = {0.0, 0.0};
-    config.range_max = {1.0, 2.0};
+    config.range_min = Vector<1>{0.0, 0.0};
+    config.range_max = Vector<1>{1.0, 2.0};
     
     EXPECT_DOUBLE_EQ(config.get_range(0), 1.0);
     EXPECT_DOUBLE_EQ(config.get_range(1), 2.0);
@@ -363,8 +363,8 @@ TEST_F(GhostParticleManagerTest, Periodic3D_Corners) {
     config.types[0] = BoundaryType::PERIODIC;
     config.types[1] = BoundaryType::PERIODIC;
     config.types[2] = BoundaryType::PERIODIC;
-    config.range_min = {0.0, 0.0, 0.0};
-    config.range_max = {1.0, 1.0, 1.0};
+    config.range_min = Vector<1>{0.0, 0.0, 0.0};
+    config.range_max = Vector<1>{1.0, 1.0, 1.0};
     
     GhostParticleManager<3> manager;
     manager.initialize(config);
@@ -373,9 +373,9 @@ TEST_F(GhostParticleManagerTest, Periodic3D_Corners) {
     // Particle near corner (all three boundaries)
     std::vector<SPHParticle<3>> particles;
     SPHParticle<3> p;
-    p.r = {0.05, 0.05, 0.05};
-    p.v = {1.0, 1.0, 1.0};
-    p.rho = 1.0;
+    p.r = Vector<1>{0.05, 0.05, 0.05};
+    p.v = Vector<1>{1.0, 1.0, 1.0};
+    p.dens = 1.0;
     p.p = 1.0;
     p.m = 1.0;
     p.h = 0.05;

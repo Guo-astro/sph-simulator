@@ -6,7 +6,7 @@ if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
   include(${SPH_ROOT}/build/conan_toolchain.cmake)
 endif()
 
-project(shock_tube_2d_plugin)
+project(shock_tube_2d_workflow)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -71,5 +71,34 @@ set_target_properties(shock_tube_2d_plugin PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )
 
+# Build standalone SPH executable for this workflow
+add_executable(sph2d 
+    ${SPH_SRC_DIR}/main.cpp
+    ${SPH_SRC_DIR}/solver.cpp
+    ${SPH_SRC_DIR}/core/plugin_loader.cpp
+)
+
+target_compile_definitions(sph2d PRIVATE DIM=2)
+target_compile_options(sph2d PRIVATE
+    -Wall
+    -Wno-sign-compare
+    -funroll-loops
+    -ffast-math
+)
+
+target_include_directories(sph2d PUBLIC 
+    ${SPH_INCLUDE_DIR}
+    ${BOOST_INCLUDE_DIRS}
+)
+
+target_link_libraries(sph2d PUBLIC
+    shock_tube_2d_plugin
+)
+
+set_target_properties(sph2d PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)
+
 message(STATUS "Building shock_tube_2d_plugin for 2D")
+message(STATUS "Building local sph2d executable")
 message(STATUS "SPH root: ${SPH_ROOT}")

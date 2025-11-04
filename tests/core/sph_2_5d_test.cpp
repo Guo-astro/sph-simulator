@@ -2,7 +2,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
-#include "bdd_helpers.hpp"
+#include "../bdd_helpers.hpp"
 
 // Include 2.5D headers
 #include "../../include/core/sph_particle_2_5d.hpp"
@@ -17,9 +17,8 @@ using namespace sph;
 // SCENARIO: 2.5D SPH Particle coordinate transformations
 // ============================================================================
 TEST(SPH25DTest, CoordinateTransformations) {
-    SCENARIO("2.5D particle coordinate transformations") {
-        GIVEN("A 2.5D particle with 2D hydro position") {
-            SPHParticle<DIM>25D particle;
+GIVEN("A 2.5D particle with 2D hydro position") {
+            SPHParticle2_5D particle;
             particle.pos = Vector<2>{1.0, 2.0}; // r=1, z=2
             particle.vel = Vector<2>{0.1, 0.2};
             particle.mass = 1.0;
@@ -51,8 +50,7 @@ TEST(SPH25DTest, CoordinateTransformations) {
 // SCENARIO: 2.5D kernel functions
 // ============================================================================
 TEST(SPH25DTest, KernelFunctions) {
-    SCENARIO("2.5D cubic spline kernel") {
-        GIVEN("A 2.5D cubic spline kernel") {
+GIVEN("A 2.5D cubic spline kernel") {
             Cubic25D kernel;
             
             WHEN("Evaluating kernel at origin") {
@@ -87,9 +85,8 @@ TEST(SPH25DTest, KernelFunctions) {
 // SCENARIO: 2.5D BHTree gravity calculations
 // ============================================================================
 TEST(SPH25DTest, BHTree25DGravity) {
-    SCENARIO("2.5D Barnes-Hut tree gravity calculations") {
-        GIVEN("Two 2.5D particles") {
-            std::vector<SPHParticle<DIM>25D> particles(2);
+GIVEN("Two 2.5D particles") {
+            std::vector<SPHParticle2_5D> particles(2);
             
             // Particle 1 at origin
             particles[0].id = 0;
@@ -138,8 +135,7 @@ TEST(SPH25DTest, BHTree25DGravity) {
 // SCENARIO: 2.5D Simulation initialization
 // ============================================================================
 TEST(SPH25DTest, Simulation25DInitialization) {
-    SCENARIO("2.5D simulation initialization") {
-        GIVEN("SPH parameters for 2.5D simulation") {
+GIVEN("SPH parameters for 2.5D simulation") {
             auto params = std::make_shared<SPHParameters>();
             params->kernel = KernelType::CUBIC_SPLINE;
             params->tree.max_level = 5;
@@ -165,9 +161,8 @@ TEST(SPH25DTest, Simulation25DInitialization) {
 // SCENARIO: 2.5D particle property updates
 // ============================================================================
 TEST(SPH25DTest, ParticlePropertyUpdates) {
-    SCENARIO("2.5D particle property updates") {
-        GIVEN("A 2.5D particle") {
-            SPHParticle<DIM>25D particle;
+GIVEN("A 2.5D particle") {
+            SPHParticle2_5D particle;
             particle.pos = Vector<2>{2.0, 1.0};
             particle.vel = Vector<2>{0.1, 0.05};
             particle.mass = 0.5;
@@ -199,8 +194,7 @@ TEST(SPH25DTest, ParticlePropertyUpdates) {
 // SCENARIO: Dimension policy correctness
 // ============================================================================
 TEST(SPH25DTest, DimensionPolicy) {
-    SCENARIO("Dimension policy for 2.5D") {
-        GIVEN("The 2.5D dimension policy") {
+GIVEN("The 2.5D dimension policy") {
             WHEN("Checking dimensions") {
                 THEN("Hydro dimension should be 2") {
                     EXPECT_EQ(Dimension2_5D::hydro_dim, 2);
@@ -236,8 +230,7 @@ TEST(SPH25DTest, DimensionPolicy) {
 // SCENARIO: 2.5D kernel normalization
 // ============================================================================
 TEST(SPH25DTest, KernelNormalization) {
-    SCENARIO("2.5D kernel normalization constants") {
-        GIVEN("2.5D cubic spline kernel") {
+GIVEN("2.5D cubic spline kernel") {
             WHEN("Checking 2D normalization") {
                 real h = 1.0;
                 real sigma_2d = 10.0 / (7.0 * M_PI * h * h);

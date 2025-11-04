@@ -5,6 +5,11 @@
 #include <cmath>
 #include <set>
 
+#ifdef DEBUG_GHOST_PARTICLES
+#include <iostream>
+#include <iomanip>
+#endif
+
 namespace sph {
 
 template<int Dim>
@@ -343,7 +348,13 @@ bool GhostParticleManager<Dim>::is_near_boundary(
         (boundary_pos - position[dim]) : 
         (position[dim] - boundary_pos);
     
-    return distance < kernel_support_radius_ && distance >= 0.0;
+    // Use small epsilon for floating point comparison to handle edge cases
+    // where distance is exactly equal to kernel_support_radius_
+    constexpr real epsilon = 1e-10;
+    
+    // Changed from < to <= with epsilon tolerance to include particles 
+    // exactly at kernel support radius (accounting for floating point precision)
+    return (distance <= kernel_support_radius_ + epsilon) && (distance >= -epsilon);
 }
 
 template<int Dim>

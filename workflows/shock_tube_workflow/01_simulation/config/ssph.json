@@ -1,5 +1,5 @@
 {
-    "outputDirectory": "workflows/shock_tube_workflow/01_simulation/results/ssph",
+    "outputDirectory": "results/ssph",
     "endTime": 0.2,
     "outputTime": 0.01,
     "SPHType": "ssph",

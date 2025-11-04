@@ -63,7 +63,7 @@ protected:
 TEST_F(GhostParticleIntegrationTest, ParticleNearBoundaryFindsGhostNeighbor) {
     // GIVEN a particle near the lower boundary in a periodic domain
     std::vector<SPHParticle<1>> particles;
-    Vector<1> pos = {0.02};  // Very close to lower boundary (0.0)
+    Vector<1> pos(0.02);  // Very close to lower boundary (0.0)
     particles.push_back(create_particle(pos));
     
     // AND ghost particles are generated
@@ -93,7 +93,7 @@ TEST_F(GhostParticleIntegrationTest, ParticleNearBoundaryFindsGhostNeighbor) {
 TEST_F(GhostParticleIntegrationTest, GhostParticlesShouldNotReceiveForces) {
     // GIVEN a simulation with real and ghost particles
     std::vector<SPHParticle<1>> real_particles;
-    real_particles.push_back(create_particle(Vector<1>{0.05}));
+    real_particles.push_back(create_particle<1>(Vector<1>(0.05));
     
     GhostParticleManager<1> ghost_manager;
     auto config = create_1d_periodic_config();
@@ -125,9 +125,9 @@ TEST_F(GhostParticleIntegrationTest, GhostParticlesShouldNotReceiveForces) {
 TEST_F(GhostParticleIntegrationTest, CombinedListPreservesRealParticleIndices) {
     // GIVEN multiple real particles
     std::vector<SPHParticle<1>> real_particles;
-    real_particles.push_back(create_particle(Vector<1>{0.05}));
-    real_particles.push_back(create_particle(Vector<1>{0.5}));
-    real_particles.push_back(create_particle(Vector<1>{0.95}));
+    real_particles.push_back(create_particle<1>(Vector<1>(0.05));
+    real_particles.push_back(create_particle<1>(Vector<1>(0.5));
+    real_particles.push_back(create_particle<1>(Vector<1>(0.95));
     
     // AND ghost particles are generated
     GhostParticleManager<1> ghost_manager;
@@ -161,11 +161,11 @@ TEST_F(GhostParticleIntegrationTest, CombinedListPreservesRealParticleIndices) {
 /**
  * Scenario: Particle finds neighbors across periodic boundary
  */
-TEST_F(GhostParticleIntegrationTest, ParticleFin dsNeighborsAcrossPeriodicBoundary) {
+TEST_F(GhostParticleIntegrationTest, ParticleFindsNeighborsAcrossPeriodicBoundary) {
     // GIVEN two particles on opposite sides of periodic boundary
     std::vector<SPHParticle<1>> particles;
-    particles.push_back(create_particle(Vector<1>{0.02}));   // Near x=0
-    particles.push_back(create_particle(Vector<1>{0.98}));   // Near x=1
+    particles.push_back(create_particle<1>(Vector<1>(0.02));   // Near x=0
+    particles.push_back(create_particle<1>(Vector<1>(0.98));   // Near x=1
     
     // AND ghost particles for periodic boundaries
     GhostParticleManager<1> ghost_manager;
@@ -210,8 +210,8 @@ TEST_F(GhostParticleIntegrationTest, ParticleFin dsNeighborsAcrossPeriodicBounda
 TEST_F(GhostParticleIntegrationTest, GhostPropertiesUpdateWithRealParticles) {
     // GIVEN a particle with initial velocity
     std::vector<SPHParticle<1>> particles;
-    Vector<1> initial_vel = {1.0};
-    particles.push_back(create_particle(Vector<1>{0.05}, initial_vel));
+    Vector<1> initial_vel(1.0};
+    particles.push_back(create_particle<1>(Vector<1>(0.05}, initial_vel));
     
     // AND ghosts are generated
     GhostParticleManager<1> ghost_manager;
@@ -239,7 +239,7 @@ TEST_F(GhostParticleIntegrationTest, GhostPropertiesUpdateWithRealParticles) {
 TEST_F(GhostParticleIntegrationTest, GhostDensityReflectsRealParticleDensity) {
     // GIVEN a particle with initial density
     std::vector<SPHParticle<1>> particles;
-    auto p = create_particle(Vector<1>{0.05});
+    auto p = create_particle<1>(Vector<1>(0.05);
     p.dens = 1.0;
     particles.push_back(p);
     
@@ -309,7 +309,7 @@ TEST_F(GhostParticleIntegrationTest, MirrorBoundaryReflectsVelocityCorrectly) {
     // AND a particle moving toward the wall
     std::vector<SPHParticle<2>> particles;
     Vector<2> pos = {0.5, 0.05};
-    Vector<2> vel = {1.0, 0.5};  // Moving in +x and +y
+    Vector<2> vel = {1.0, 0.5);  // Moving in +x and +y
     particles.push_back(create_particle(pos, vel));
     
     // WHEN ghosts are generated
@@ -341,8 +341,8 @@ TEST_F(GhostParticleIntegrationTest, ParticleMovedOutsideDomainIsWrappedBack) {
     
     // AND particles that have moved outside the domain
     std::vector<SPHParticle<1>> particles;
-    particles.push_back(create_particle(Vector<1>{-0.1}));  // Below lower boundary
-    particles.push_back(create_particle(Vector<1>{1.2}));   // Above upper boundary
+    particles.push_back(create_particle<1>(Vector<1>(-0.1));  // Below lower boundary
+    particles.push_back(create_particle<1>(Vector<1>(1.2));   // Above upper boundary
     
     // WHEN periodic wrapping is applied
     ghost_manager.apply_periodic_wrapping(particles);
@@ -358,7 +358,7 @@ TEST_F(GhostParticleIntegrationTest, ParticleMovedOutsideDomainIsWrappedBack) {
 TEST_F(GhostParticleIntegrationTest, WrappingPreservesOtherParticleProperties) {
     // GIVEN a particle outside domain with specific properties
     std::vector<SPHParticle<1>> particles;
-    auto p = create_particle(Vector<1>{-0.1}, Vector<1>{2.0});
+    auto p = create_particle<1>(Vector<1>(-0.1}, Vector<1>(2.0);
     p.dens = 1.5;
     p.pres = 2.0;
     particles.push_back(p);

@@ -41,10 +41,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
-        constexpr real A = DIM == 1 ? 2.0 :
-                           DIM == 2 ? M_PI :
+        constexpr real A = Dim == 1 ? 2.0 :
+                           Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM) * this->m_kernel_ratio;
+        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * this->m_kernel_ratio;
         
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH
@@ -96,7 +96,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.dens = dens_i;
         p_i.pres = (this->m_gamma - 1.0) * pres_i;
         // f_ij = 1 - p_i.gradh / (p_j.mass * p_j.ene)
-        p_i.gradh = p_i.sml / (DIM * n_i) * dh_pres_i / (1.0 + p_i.sml / (DIM * n_i) * dh_n_i);
+        p_i.gradh = p_i.sml / (Dim * n_i) * dh_pres_i / (1.0 + p_i.sml / (Dim * n_i) * dh_n_i);
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;
@@ -105,15 +105,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         // Artificial viscosity
-        if(this->m_use_balsara_switch && DIM != 1) {
-#if DIM != 1
+        if(this->m_use_balsara_switch && Dim != 1) {
             // balsara switch
             real div_v = 0.0;
-#if DIM == 2
             real rot_v = 0.0;
-#else
-            Vector<Dim> rot_v = 0.0;
-#endif
             for(int n = 0; n < n_neighbor; ++n) {
                 int const j = neighbor_list[n];
                 auto & p_j = particles[j];
@@ -122,7 +117,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);
                 const Vector<Dim> v_ij = p_i.vel - p_j.vel;
                 div_v -= p_j.mass * p_j.ene * inner_product(v_ij, dw);
-                rot_v += vector_product(v_ij, dw) * (p_j.mass * p_j.ene);
+                if constexpr (Dim == 2) {
+                    rot_v += vector_product(v_ij, dw) * (p_j.mass * p_j.ene);
+                } else if constexpr (Dim == 3) {
+                    rot_v += abs(cross_product(v_ij, dw)) * (p_j.mass * p_j.ene);
+                }
             }
             const real p_inv = (this->m_gamma - 1.0) / p_i.pres;
             div_v *= p_inv;
@@ -135,7 +134,6 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const real dalpha = (-(p_i.alpha - this->m_alpha_min) * tau_inv + std::max(-div_v, (real)0.0) * (this->m_alpha_max - p_i.alpha)) * dt;
                 p_i.alpha += dalpha;
             }
-#endif
         } else if(this->m_use_time_dependent_av) {
             real div_v = 0.0;
             for(int n = 0; n < n_neighbor; ++n) {
@@ -162,14 +160,15 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 #endif
 }
 
-inline real powh_(const real h) {
-#if DIM == 1
-    return 1;
-#elif DIM == 2
-    return h;
-#elif DIM == 3
-    return h * h;
-#endif
+template<int Dim>
+real dpowh_(const real h) {
+    if constexpr(Dim == 1) {
+        return 1;
+    } else if constexpr(Dim == 2) {
+        return h;
+    } else if constexpr(Dim == 3) {
+        return h * h;
+    }
 }
 
 template<int Dim>
@@ -183,10 +182,10 @@ real PreInteraction<Dim>::newton_raphson(
 )
 {
     real h_i = p_i.sml / this->m_kernel_ratio;
-    constexpr real A = DIM == 1 ? 2.0 :
-                       DIM == 2 ? M_PI :
+    constexpr real A = Dim == 1 ? 2.0 :
+                       Dim == 2 ? M_PI :
                                   4.0 * M_PI / 3.0;
-    const real b = this->m_neighbor_number / A;
+    const real b = p_i.mass * this->m_neighbor_number / A;
 
     // f = n h^d - b
     // f' = dn/dh h^d + d n h^{d-1}
@@ -214,7 +213,7 @@ real PreInteraction<Dim>::newton_raphson(
         }
 
         const real f = dens * powh<Dim>(h_i) - b;
-        const real df = ddens * powh<Dim>(h_i) + DIM * dens * powh_(h_i);
+        const real df = ddens * powh<Dim>(h_i) + Dim * dens * dpowh_<Dim>(h_i);
 
         h_i -= f / df;
 

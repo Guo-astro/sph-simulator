@@ -1,0 +1,9 @@
+-O3
+-funroll-loops
+-ffast-math
+-fopenmp
+-Wall
+-Wno-sign-compare
+-Wno-maybe-uninitialized
+-MM
+src/core/simulation_parameters.cpp
