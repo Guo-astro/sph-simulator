@@ -6,5 +6,6 @@ target_sources(sph_tests
         parameter_builder_test.cpp
         parameter_categories_test.cpp
         dimension_system_test_simple.cpp
+        kernel_function_test.cpp
         # dimension_system_test.cpp  # TODO: Fix syntax errors
 )
