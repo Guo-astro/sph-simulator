@@ -9,6 +9,7 @@ target_sources(sph_lib
         core/output_parameters.cpp
         core/simulation_parameters.cpp
         core/simulation_templates.cpp
+        algorithms/riemann/hll_solver.cpp
     )
 
 target_sources(sph

@@ -48,6 +48,7 @@ endif()
 
 # Create library for core SPH functionality (used by both executable and tests)
 add_library(sph_lib STATIC)
+set_target_properties(sph_lib PROPERTIES LINKER_LANGUAGE CXX)
 target_compile_features(sph_lib PUBLIC cxx_std_17)
 target_compile_options(sph_lib
   PUBLIC
