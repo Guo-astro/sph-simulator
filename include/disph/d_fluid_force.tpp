@@ -75,7 +75,9 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             const real f_ji = 1.0 - p_j.gradh * m_u_inv;
             const real u_per_pres_j = p_j.ene / p_j.pres;
 
-            const real pi_ij = this->artificial_viscosity(p_i, p_j, r_ij);
+            // Use modular artificial viscosity
+            algorithms::viscosity::ViscosityState<Dim> visc_state{p_i, p_j, r_ij, r};
+            const real pi_ij = this->m_artificial_viscosity->compute(visc_state);
             const real dene_ac = this->m_use_ac ? this->artificial_conductivity(p_i, p_j, r_ij, dw_ij) : 0.0;
 
             acc -= dw_i * (p_j.mass * (gamma2_u_per_pres_i * p_j.ene * f_ij + 0.5 * pi_ij)) + dw_j * (p_j.mass * (gamma2_u_i * u_per_pres_j * f_ji + 0.5 * pi_ij));
