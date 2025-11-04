@@ -6,6 +6,7 @@
 #include "core/kernel_function.hpp"
 #include "gsph/g_fluid_force.hpp"
 #include "algorithms/riemann/hll_solver.hpp"
+#include "algorithms/limiters/van_leer_limiter.hpp"
 #include "utilities/constants.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH
@@ -26,18 +27,9 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 
     // Create HLL Riemann solver for interface state computation
     this->m_riemann_solver = std::make_unique<algorithms::riemann::HLLSolver>();
-}
-
-// van Leer (1979) limiter - prevents spurious oscillations in MUSCL reconstruction
-inline real limiter(const real dq1, const real dq2)
-{
-    using namespace utilities::constants;
-    const real dq1dq2 = dq1 * dq2;
-    if(dq1dq2 <= ZERO) {
-        return ZERO;
-    } else {
-        return TWO * dq1dq2 / (dq1 + dq2);
-    }
+    
+    // Create Van Leer slope limiter for MUSCL reconstruction
+    this->m_slope_limiter = std::make_unique<algorithms::limiters::VanLeerLimiter>();
 }
 
 // Cha & Whitworth (2003)
@@ -116,22 +108,22 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 }
                 const real dve_i = inner_product(dv_i, e_ij) * r;
                 const real dve_j = inner_product(dv_j, e_ij) * r;
-                right[0] = ve_i - limiter(dv_ij, dve_i) * delta_i;
-                left[0] = ve_j + limiter(dv_ij, dve_j) * delta_j;
+                right[0] = ve_i - this->m_slope_limiter->limit(dv_ij, dve_i) * delta_i;
+                left[0] = ve_j + this->m_slope_limiter->limit(dv_ij, dve_j) * delta_j;
 
                 // density
                 const real dd_ij = p_i.dens - p_j.dens;
                 const real dd_i = inner_product(grad_d[i], e_ij) * r;
                 const real dd_j = inner_product(grad_d[j], e_ij) * r;
-                right[1] = p_i.dens - limiter(dd_ij, dd_i) * delta_i;
-                left[1] = p_j.dens + limiter(dd_ij, dd_j) * delta_j;
+                right[1] = p_i.dens - this->m_slope_limiter->limit(dd_ij, dd_i) * delta_i;
+                left[1] = p_j.dens + this->m_slope_limiter->limit(dd_ij, dd_j) * delta_j;
 
                 // pressure
                 const real dp_ij = p_i.pres - p_j.pres;
                 const real dp_i = inner_product(grad_p[i], e_ij) * r;
                 const real dp_j = inner_product(grad_p[j], e_ij) * r;
-                right[2] = p_i.pres - limiter(dp_ij, dp_i) * delta_i;
-                left[2] = p_j.pres + limiter(dp_ij, dp_j) * delta_j;
+                right[2] = p_i.pres - this->m_slope_limiter->limit(dp_ij, dp_i) * delta_i;
+                left[2] = p_j.pres + this->m_slope_limiter->limit(dp_ij, dp_j) * delta_j;
 
                 // sound speed
                 right[3] = std::sqrt(this->m_gamma * right[2] / right[1]);

@@ -3,4 +3,5 @@ target_sources(sph_tests
         disph/d_fluid_force_test.cpp
         gsph/g_fluid_force_test.cpp
         riemann/hll_solver_test.cpp
+        limiters/van_leer_limiter_test.cpp
 )

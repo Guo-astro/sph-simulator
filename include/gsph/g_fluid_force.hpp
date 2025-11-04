@@ -3,6 +3,7 @@
 #include <memory>
 #include "fluid_force.hpp"
 #include "algorithms/riemann/riemann_solver.hpp"
+#include "algorithms/limiters/slope_limiter.hpp"
 
 namespace sph
 {
@@ -16,6 +17,9 @@ class FluidForce : public sph::FluidForce<Dim> {
 
     // Riemann solver for interface state computation
     std::unique_ptr<algorithms::riemann::RiemannSolver> m_riemann_solver;
+    
+    // Slope limiter for MUSCL reconstruction
+    std::unique_ptr<algorithms::limiters::SlopeLimiter> m_slope_limiter;
 
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
