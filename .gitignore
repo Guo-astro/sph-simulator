@@ -1,21 +1,59 @@
-*.exe
-obj/
-x64/
-sph\.exe\.stackdump
-.vs/
-*.vcxproj.user
-
-parameters\.json
-sample/shock_tube/results/
-
-sample/gresho_chan_vortex/results/
-
-sample/hydrostatic/results/
-
-sample/khi/results/
-
-sample/evrard/results/
-
-sample/pairing_instability/results/
-
+# Build directories
 build/
+!build/.gitkeep
+
+# Output and results
+output/
+!output/.gitkeep
+*.dat
+*.txt
+*.csv
+results
+# Compiled files
+*.o
+*.so
+*.dylib
+*.a
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeUserPresets.json
+
+# IDE
+.idea/
+*.swp
+*~
+
+# System
+.DS_Store
+__pycache__/
+*.pyc
+
+# Conan
+conan.lock
+conanbuild*/
+conanrun*/
+*.cmake
+!CMakeLists.txt
+!cmake/
+conan_toolchain.cmake
+conandeps*.cmake
+*Targets.cmake
+*Config.cmake
+*ConfigVersion.cmake
+*-data.cmake
+*-debug-*.cmake
+*-release-*.cmake
+Find*.cmake
+module-*.cmake
+deactivate_*.sh
+conanbuild.sh
+conanrun.sh
+
+# Workflow outputs
+workflows/*/output/
+workflows/*/build/
+workflows/**/output/
+workflows/**/build/

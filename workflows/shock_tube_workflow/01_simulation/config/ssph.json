@@ -1,0 +1,17 @@
+{
+    "outputDirectory": "workflows/shock_tube_workflow/01_simulation/results/ssph",
+    "endTime": 0.2,
+    "outputTime": 0.01,
+    "SPHType": "ssph",
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    "avAlpha": 1.0,
+    "useBalsaraSwitch": true,
+    "neighborNumber": 50,
+    "gamma": 1.4,
+    "kernel": "cubic_spline",
+    "periodic": true,
+    "iterativeSmoothingLength": true,
+    "rangeMax": [1.5],
+    "rangeMin": [-0.5]
+}

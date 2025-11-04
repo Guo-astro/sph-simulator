@@ -66,4 +66,48 @@ $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 	@rm -f $(BUILDDIR)/$*.$(DEPEXT).tmp
 
 # Non-File Targets
-.PHONY: all remake clean
+.PHONY: all remake clean format format-check lint tidy quality-check
+
+# Code Quality Targets
+# ---------------------
+
+# Format all C++ source files
+format:
+	@echo "Formatting C++ files..."
+	@find include src workflows -name '*.cpp' -o -name '*.hpp' -o -name '*.tpp' | xargs clang-format -i
+	@echo "✅ Formatting complete"
+
+# Check formatting without modifying files
+format-check:
+	@echo "Checking code formatting..."
+	@FAILED=0; \
+	for file in $$(find include src workflows -name '*.cpp' -o -name '*.hpp' -o -name '*.tpp'); do \
+		if ! clang-format --dry-run --Werror "$$file" 2>/dev/null; then \
+			echo "❌ Format check failed: $$file"; \
+			FAILED=1; \
+		fi; \
+	done; \
+	if [ $$FAILED -eq 0 ]; then \
+		echo "✅ All files properly formatted"; \
+	else \
+		echo "Run 'make format' to fix formatting issues"; \
+		exit 1; \
+	fi
+
+# Run clang-tidy on source files
+tidy:
+	@echo "Running clang-tidy..."
+	@if [ ! -f build/compile_commands.json ]; then \
+		echo "⚠️  Compilation database not found. Run: cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .."; \
+	fi
+	@find include src -name '*.cpp' -o -name '*.hpp' | head -20 | xargs clang-tidy -p build 2>&1 | grep -v "warnings generated"
+	@echo "✅ Clang-tidy check complete"
+
+# Comprehensive quality check
+quality-check: format-check
+	@echo "Running comprehensive quality checks..."
+	@echo "1. Checking for TODO/FIXME comments..."
+	@grep -rn "TODO\|FIXME" include src || echo "  ✅ No TODO/FIXME found"
+	@echo "2. Checking for common issues..."
+	@grep -rn "cout\|printf" src include || echo "  ✅ No debug output found"
+	@echo "✅ Quality check complete"

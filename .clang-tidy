@@ -1,0 +1,116 @@
+---
+# Clang-Tidy configuration for SPH Simulation project
+# This file defines code quality checks for C++ code
+
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  cert-*,
+  -cert-err58-cpp,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-macro-usage,
+  google-*,
+  -google-runtime-references,
+  -google-readability-todo,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity,
+  -readability-else-after-return,
+
+# Warnings as errors - enforce critical checks
+WarningsAsErrors: ''
+
+# Header filter - check all project headers
+HeaderFilterRegex: '(include|src)/.*\.(h|hpp|tpp)$'
+
+# Check options
+CheckOptions:
+  # Naming conventions
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: '_'
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.MemberConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.StaticConstantCase
+    value: lower_case
+    
+  # Line length
+  - key: readability-function-size.LineThreshold
+    value: 150
+  - key: readability-function-size.StatementThreshold
+    value: 100
+  - key: readability-function-size.BranchThreshold
+    value: 20
+  - key: readability-function-size.ParameterThreshold
+    value: 8
+    
+  # Braces
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
+    
+  # Modern C++ features
+  - key: modernize-use-auto.MinTypeNameLength
+    value: 5
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+    
+  # Performance
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: true
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: ''
+    
+  # Const-correctness
+  - key: cppcoreguidelines-avoid-const-or-ref-data-members.ConstRefOnly
+    value: false
+    
+  # Include sorting
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: false
+    
+  # Misc
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true
+...

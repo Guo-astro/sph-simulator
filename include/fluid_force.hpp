@@ -1,25 +1,33 @@
 #pragma once
 
 #include "module.hpp"
-#include "vector_type.hpp"
+#include "core/vector.hpp"
+#include "core/sph_particle.hpp"
+#include "core/periodic.hpp"
 
 namespace sph
 {
-class SPHParticle;
-class Periodic;
 
-class FluidForce : public Module {
+template<int Dim>
+class FluidForce : public Module<Dim> {
 protected:
     int  m_neighbor_number;
     bool m_use_ac;
     real m_alpha_ac;
     bool m_use_gravity;
 
-    real artificial_viscosity(const SPHParticle & p_i, const SPHParticle & p_j, const vec_t & r_ij);
-    real artificial_conductivity(const SPHParticle & p_i, const SPHParticle & p_j, const vec_t & r_ij, const vec_t & dw_ij);
+    real artificial_viscosity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij);
+    real artificial_conductivity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij, const Vector<Dim> & dw_ij);
 
 public:
-    virtual void initialize(std::shared_ptr<SPHParameters> param) override;
-    virtual void calculation(std::shared_ptr<Simulation> sim) override;
+    void initialize(std::shared_ptr<SPHParameters> param) override;
+    void calculation(std::shared_ptr<Simulation<Dim>> sim) override;
 };
+
+using FluidForce1D = FluidForce<1>;
+using FluidForce2D = FluidForce<2>;
+using FluidForce3D = FluidForce<3>;
+
 }
+
+#include "fluid_force.tpp"

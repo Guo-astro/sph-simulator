@@ -1,7 +1,88 @@
-# SPHCODE
-Smoothed Particle Hydrodynamics (SPH)法のサンプルコードです。圧縮性流体専用です。
+# SPH Simulation
 
-## コンパイル
+Smoothed Particle Hydrodynamics (SPH) code for compressible fluids with support for multiple SPH variants and modern plugin-based architecture.
+
+## 📚 Documentation
+
+For detailed documentation, see:
+- 🚀 [Quick Start Guide](docs/QUICKSTART.md) - Get running in 5 minutes
+- 🔧 [Build Instructions](docs/BUILD.md) - Detailed compilation guide
+- 📖 [Full Documentation](docs/README.md) - Complete documentation index
+
+## Quick Start
+
+### Prerequisites
+- CMake 3.15+
+- C++14 compiler (GCC 7.4+, Clang, MSVC 2017+)
+- Conan package manager
+- Boost library
+
+### Build
+```bash
+# Install Conan
+pip3 install conan
+
+# Configure and build
+mkdir build && cd build
+conan install .. --output-folder=. --build=missing
+cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
+make -j$(nproc)
+```
+
+### Run Examples
+```bash
+./sph <sample> <threads>
+```
+
+## Features
+
+- **Multiple SPH Variants**: Standard SPH, DISPH, GSPH, GDISPH
+- **2.5D Simulations**: Hydrodynamics in 2D with gravity in 3D for axisymmetric systems
+- **Plugin Architecture**: Modern, self-contained simulation workflows
+- **Dimensional Flexibility**: 1D, 2D, 3D, and 2.5D support
+- **Advanced Physics**: Artificial viscosity, conductivity, self-gravity
+- **Optimized**: OpenMP parallelization, tree-based neighbor search
+
+## 2.5D Simulations
+
+The simulator now supports 2.5D simulations where hydrodynamic forces are computed in 2D (assuming azimuthal symmetry) while gravity is calculated in full 3D. This approach is particularly useful for axisymmetric astrophysical systems like protoplanetary disks, galactic disks, and accretion disks.
+
+### Key Benefits
+- **Computational Efficiency**: Hydrodynamics computed in 2D reduces computational cost
+- **Physical Accuracy**: Gravity computed in 3D captures non-axisymmetric gravitational effects
+- **Memory Efficiency**: ~60% reduction compared to full 3D simulation
+
+### Usage
+```cpp
+#include "core/simulation_2_5d.hpp"
+
+// Create 2.5D simulation
+auto sim = std::make_shared<Simulation25D>(params);
+
+// Set up particles in r-z coordinates
+particle.pos = Vector<2>{r, z};  // 2D hydro position
+particle.update_gravity_position(phi);  // Convert to 3D for gravity
+
+// Calculate forces
+sim->calculate_gravity();      // 3D gravity
+sim->calculate_hydrodynamics(); // 2D hydro
+```
+
+For detailed documentation, see [2.5D Simulations Guide](docs/SPH_2_5D_SIMULATIONS.md).
+
+## Project Structure
+
+```
+sph-simulation/
+├── docs/          # Documentation
+├── include/       # Public headers
+├── src/           # Core implementation
+├── workflows/     # Plugin-based simulations
+├── tests/         # Unit tests
+└── build/         # Build artifacts (gitignored)
+```
+
+## コンパイル (Legacy)
 次元を `include/defines.hpp` の `DIM` に設定してからコンパイルします。
 
 ### Visual Studio 2017

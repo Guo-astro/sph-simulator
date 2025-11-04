@@ -35,7 +35,7 @@
 #pragma once
 
 #include "defines.hpp"
-#include "particle.hpp"
+#include "core/sph_particle.hpp"
 #include <vector>
 #include <utility>
 
@@ -68,7 +68,7 @@ struct ParameterSuggestions {
  * 
  * Usage:
  * @code
- *   std::vector<SPHParticle> particles = initialize_particles();
+ *   std::vector<SPHParticle<DIM>> particles = initialize_particles();
  *   
  *   // Get suggestions
  *   auto suggestions = ParameterEstimator::suggest_parameters(particles);
@@ -138,11 +138,13 @@ public:
      * 
      * Extracts characteristic properties from particle distribution.
      * 
+     * @tparam Dim Spatial dimension (1, 2, or 3)
      * @param particles Particle distribution
      * @return Configuration analysis
      */
+    template<int Dim>
     static ParticleConfig analyze_particle_config(
-        const std::vector<SPHParticle>& particles
+        const std::vector<SPHParticle<Dim>>& particles
     );
     
     /**
@@ -151,12 +153,14 @@ public:
      * Comprehensive analysis and suggestion for all configuration-dependent
      * parameters. This is the recommended entry point.
      * 
+     * @tparam Dim Spatial dimension (1, 2, or 3)
      * @param particles Particle distribution
      * @param kernel_support Kernel support radius (default: 2.0)
      * @return Complete parameter suggestions with rationale
      */
+    template<int Dim>
     static ParameterSuggestions suggest_parameters(
-        const std::vector<SPHParticle>& particles,
+        const std::vector<SPHParticle<Dim>>& particles,
         real kernel_support = 2.0
     );
 
@@ -164,12 +168,14 @@ private:
     /**
      * @brief Calculate characteristic spacing in 1D
      */
-    static real calculate_spacing_1d(const std::vector<SPHParticle>& particles);
+    template<int Dim>
+    static real calculate_spacing_1d(const std::vector<SPHParticle<Dim>>& particles);
     
     /**
      * @brief Estimate effective dimension from particle distribution
      */
-    static int estimate_dimension(const std::vector<SPHParticle>& particles);
+    template<int Dim>
+    static int estimate_dimension(const std::vector<SPHParticle<Dim>>& particles);
     
     /**
      * @brief Generate rationale string explaining suggestions
@@ -181,3 +187,5 @@ private:
 };
 
 } // namespace sph
+
+#include "core/parameter_estimator.tpp"

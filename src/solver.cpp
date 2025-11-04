@@ -1,19 +1,22 @@
-﻿#include <cassert>
-
+#include <cassert>
 #include <iostream>
 #include <chrono>
 
 #include "solver.hpp"
 #include "parameters.hpp"
-#include "particle.hpp"
+#include "core/sph_particle.hpp"
 #include "logger.hpp"
 #include "exception.hpp"
 #include "output.hpp"
-#include "simulation.hpp"
-#include "periodic.hpp"
-#include "bhtree.hpp"
+#include "core/simulation.hpp"
+#include "core/periodic.hpp"
+#include "core/bhtree.hpp"
+#include "core/plugin_loader.hpp"
+#include "core/simulation_plugin.hpp"
+#include "core/sph_algorithm_registry.hpp"
+#include "core/sph_parameters_builder.hpp"
 
-// modules
+// SPH modules
 #include "timestep.hpp"
 #include "pre_interaction.hpp"
 #include "fluid_force.hpp"
@@ -33,21 +36,56 @@ namespace sph
 Solver::Solver(int argc, char * argv[])
 {
     std::cout << "--------------SPH simulation-------------\n\n";
+    
+    // Validate arguments
     if(argc == 1) {
-        std::cerr << "how to use\n" << std::endl;
-        std::cerr << "sph <paramter.json>" << std::endl;
+        std::cerr << "Usage: sph <plugin.dylib|.so|.dll> [config.json]\n" << std::endl;
+        std::cerr << "Examples:" << std::endl;
+        std::cerr << "  sph shock_tube.dylib                 # Plugin with defaults" << std::endl;
+        std::cerr << "  sph shock_tube.dylib gsph.json       # Plugin with GSPH config" << std::endl;
         std::exit(EXIT_FAILURE);
-    } else {
-        read_parameterfile(argv[1]);
     }
-
+    
+    // First argument must be a plugin
+    std::string first_arg = argv[1];
+    bool is_plugin = (first_arg.find(".dylib") != std::string::npos ||
+                      first_arg.find(".so") != std::string::npos ||
+                      first_arg.find(".dll") != std::string::npos);
+    
+    if (!is_plugin) {
+        std::cerr << "Error: First argument must be a plugin file (.dylib/.so/.dll)" << std::endl;
+        std::cerr << "Legacy JSON-only mode is no longer supported." << std::endl;
+        std::cerr << "Please convert your simulation to a plugin." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    
+    // Load plugin
+    m_plugin_path = first_arg;
+    load_plugin();
+    
+    // Initialize parameters (will be configured by plugin or JSON)
+    m_param = std::make_shared<SPHParameters>();
+    
+    // Read configuration file if provided
+    if (argc >= 3) {
+        std::string second_arg = argv[2];
+        if (second_arg.find(".json") != std::string::npos) {
+            read_parameterfile(argv[2]);
+        }
+    }
+    
+    // Set output directory (from JSON or default)
+    if (m_output_dir.empty()) {
+        m_output_dir = "output/" + m_plugin->get_name();
+    }
+    
     Logger::open(m_output_dir);
 
 #ifdef _OPENMP
     WRITE_LOG << "Open MP is valid.";
     int num_threads;
-    if(argc == 3) {
-        num_threads = std::atoi(argv[2]);
+    if(argc == 4) {  // plugin config threads
+        num_threads = std::atoi(argv[3]);
         omp_set_num_threads(num_threads);
     } else {
         num_threads = omp_get_max_threads();
@@ -56,15 +94,15 @@ Solver::Solver(int argc, char * argv[])
 #else
     WRITE_LOG << "OpenMP is invalid.\n";
 #endif
-    WRITE_LOG << "parameters";
 
+    WRITE_LOG << "parameters";
     WRITE_LOG << "output directory     = " << m_output_dir;
 
     WRITE_LOG << "time";
     WRITE_LOG << "* start time         = " << m_param->time.start;
     WRITE_LOG << "* end time           = " << m_param->time.end;
     WRITE_LOG << "* output time        = " << m_param->time.output;
-    WRITE_LOG << "* enerty output time = " << m_param->time.energy;
+    WRITE_LOG << "* energy output time = " << m_param->time.energy;
 
     switch(m_param->type) {
     case SPHType::SSPH:
@@ -93,9 +131,9 @@ Solver::Solver(int argc, char * argv[])
     }
     if(m_param->av.use_time_dependent_av) {
         WRITE_LOG << "* use time dependent AV";
-        WRITE_LOG << "* alpha max = " << m_param->av.alpha_max;
-        WRITE_LOG << "* alpha min = " << m_param->av.alpha_min;
-        WRITE_LOG << "* epsilon   = " << m_param->av.epsilon;
+        WRITE_LOG << "  * alpha max = " << m_param->av.alpha_max;
+        WRITE_LOG << "  * alpha min = " << m_param->av.alpha_min;
+        WRITE_LOG << "  * epsilon   = " << m_param->av.epsilon;
     }
 
     if(m_param->ac.is_valid) {
@@ -112,12 +150,16 @@ Solver::Solver(int argc, char * argv[])
     WRITE_LOG << "* gamma           = " << m_param->physics.gamma;
 
     WRITE_LOG << "Kernel";
-    if(m_param->kernel == KernelType::CUBIC_SPLINE) {
+    switch(m_param->kernel) {
+    case KernelType::CUBIC_SPLINE:
         WRITE_LOG << "* Cubic Spline";
-    } else if(m_param->kernel == KernelType::WENDLAND) {
+        break;
+    case KernelType::WENDLAND:
         WRITE_LOG << "* Wendland";
-    } else {
-        THROW_ERROR("kernel is unknown.");
+        break;
+    case KernelType::UNKNOWN:
+        WRITE_LOG << "* Unknown";
+        break;
     }
 
     if(m_param->iterative_sml) {
@@ -127,118 +169,49 @@ Solver::Solver(int argc, char * argv[])
     if(m_param->periodic.is_valid) {
         WRITE_LOG << "Periodic boundary condition is valid.";
     }
-    
+
     if(m_param->gravity.is_valid) {
         WRITE_LOG << "Gravity is valid.";
-        WRITE_LOG << "G     = " << m_param->gravity.constant;
-        WRITE_LOG << "theta = " << m_param->gravity.theta;
+        WRITE_LOG << "* G     = " << m_param->gravity.constant;
+        WRITE_LOG << "* theta = " << m_param->gravity.theta;
     }
 
-    switch(m_sample) {
-#define WRITE_SAMPLE(a, b) case a: WRITE_LOG << "Sample: " b " test"; break
-        WRITE_SAMPLE(Sample::ShockTube, "shock tube");
-        WRITE_SAMPLE(Sample::GreshoChanVortex, "Gresho-Chan vortex");
-        WRITE_SAMPLE(Sample::PairingInstability, "Pairing Instability");
-        WRITE_SAMPLE(Sample::HydroStatic, "Hydro static");
-        WRITE_SAMPLE(Sample::KHI, "Kelvin-Helmholtz Instability");
-        WRITE_SAMPLE(Sample::Evrard, "Evrard collapse");
-#undef WRITE_SAMPLE
-        default:
-            break;
-    }
+    // Display plugin information
+    WRITE_LOG << "Simulation: " << m_plugin->get_name();
+    WRITE_LOG << "Description: " << m_plugin->get_description();
+    WRITE_LOG << "Version: " << m_plugin->get_version();
 
-    WRITE_LOG;
-
-    m_output = std::make_shared<Output>();
+    m_output = std::make_shared<Output<DIM>>();
 }
 
 void Solver::read_parameterfile(const char * filename)
 {
     namespace pt = boost::property_tree;
 
-    m_param = std::make_shared<SPHParameters>();
-
-    pt::ptree input;
-
-    std::string name_str = filename;
-    
-    // Detect sample name from filename or direct sample name
-    if(name_str == "shock_tube" || name_str.find("shock_tube") != std::string::npos) {
-        if(name_str != "shock_tube") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/shock_tube/shock_tube.json", input);
-        }
-        m_sample = Sample::ShockTube;
-        m_sample_parameters["N"] = input.get<int>("N", 100);
-    } else if(name_str == "gresho_chan_vortex" || name_str.find("gresho_chan_vortex") != std::string::npos) {
-        if(name_str != "gresho_chan_vortex") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/gresho_chan_vortex/gresho_chan_vortex.json", input);
-        }
-        m_sample = Sample::GreshoChanVortex;
-        m_sample_parameters["N"] = input.get<int>("N", 64);
-    } else if(name_str == "pairing_instability" || name_str.find("pairing_instability") != std::string::npos) {
-        if(name_str != "pairing_instability") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/pairing_instability/pairing_instability.json", input);
-        }
-        m_sample = Sample::PairingInstability;
-        m_sample_parameters["N"] = input.get<int>("N", 64);
-    } else if(name_str == "hydrostatic" || name_str.find("hydrostatic") != std::string::npos) {
-        if(name_str != "hydrostatic") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/hydrostatic/hydrostatic.json", input);
-        }
-        m_sample = Sample::HydroStatic;
-        m_sample_parameters["N"] = input.get<int>("N", 32);
-    } else if(name_str == "khi" || name_str.find("khi") != std::string::npos) {
-        if(name_str != "khi") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/khi/khi.json", input);
-        }
-        m_sample = Sample::KHI;
-        m_sample_parameters["N"] = input.get<int>("N", 128);
-    } else if(name_str == "evrard" || name_str.find("evrard") != std::string::npos) {
-        if(name_str != "evrard") {
-            pt::read_json(filename, input);
-        } else {
-            pt::read_json("sample/evrard/evrard.json", input);
-        }
-        m_sample = Sample::Evrard;
-        m_sample_parameters["N"] = input.get<int>("N", 20);
-    } else {
-        pt::read_json(filename, input);
-        m_sample = Sample::DoNotUse;
-        // Read N parameter for sample cases even when using custom JSON path
-        m_sample_parameters["N"] = input.get<int>("N", 100);
+    if (!m_param) {
+        m_param = std::make_shared<SPHParameters>();
     }
 
-    m_output_dir = input.get<std::string>("outputDirectory");
+    pt::ptree input;
+    pt::read_json(filename, input);
+
+    m_output_dir = input.get<std::string>("outputDirectory", "");
 
     // time
     m_param->time.start = input.get<real>("startTime", real(0));
-    m_param->time.end   = input.get<real>("endTime");
-    if(m_param->time.end < m_param->time.start) {
+    m_param->time.end   = input.get<real>("endTime", real(0));
+    if(m_param->time.end < m_param->time.start && m_param->time.end != 0) {
         THROW_ERROR("endTime < startTime");
     }
     m_param->time.output = input.get<real>("outputTime", (m_param->time.end - m_param->time.start) / 100);
     m_param->time.energy = input.get<real>("energyTime", m_param->time.output);
 
-    // type
+    // SPH type - use registry instead of hardcoded if-else
     std::string sph_type = input.get<std::string>("SPHType", "ssph");
-    if(sph_type == "ssph") {
-        m_param->type = SPHType::SSPH;
-    } else if(sph_type == "disph") {
-        m_param->type = SPHType::DISPH;
-    } else if(sph_type == "gsph") {
-        m_param->type = SPHType::GSPH;
-    } else {
-        THROW_ERROR("Unknown SPH type");
+    try {
+        m_param->type = SPHAlgorithmRegistry::get_type(sph_type);
+    } catch (const std::exception& e) {
+        THROW_ERROR(std::string("Failed to set SPH type: ") + e.what());
     }
 
     // CFL
@@ -270,7 +243,7 @@ void Solver::read_parameterfile(const char * filename)
 
     // Physics
     m_param->physics.neighbor_number = input.get<int>("neighborNumber", 32);
-    m_param->physics.gamma = input.get<real>("gamma");
+    m_param->physics.gamma = input.get<real>("gamma", 1.4);
 
     // Kernel
     std::string kernel_name = input.get<std::string>("kernel", "cubic_spline");
@@ -329,7 +302,7 @@ void Solver::read_parameterfile(const char * filename)
 void Solver::run()
 {
     initialize();
-    assert(m_sim->get_particles().size() == m_sim->get_particle_num());
+    assert(m_sim->particles.size() == m_sim->particle_num);
 
     const real t_end = m_param->time.end;
     real t_out = m_param->time.output;
@@ -342,17 +315,17 @@ void Solver::run()
     auto t_cout_i = start;
     int loop = 0;
 
-    real t = m_sim->get_time();
+    real t = m_sim->time;
     while(t < t_end) {
         integrate();
-        const real dt = m_sim->get_dt();
-        const int num = m_sim->get_particle_num();
+        const real dt = m_sim->dt;
+        const int num = m_sim->particle_num;
         ++loop;
 
         m_sim->update_time();
-        t = m_sim->get_time();
+        t = m_sim->time;
         
-        // 1秒毎に画面出力
+        // Print status every second
         const auto t_cout_f = std::chrono::system_clock::now();
         const real t_cout_s = std::chrono::duration_cast<std::chrono::seconds>(t_cout_f - t_cout_i).count();
         if(t_cout_s >= 1.0) {
@@ -375,27 +348,27 @@ void Solver::run()
     const auto end = std::chrono::system_clock::now();
     const real calctime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     WRITE_LOG << "\ncalculation is finished";
-    WRITE_LOG << "calclation time: " << calctime << " ms";
+    WRITE_LOG << "calculation time: " << calctime << " ms";
 }
 
 void Solver::initialize()
 {
-    m_sim = std::make_shared<Simulation>(m_param);
+    m_sim = std::make_shared<Simulation<DIM>>(m_param);
 
     make_initial_condition();
 
-    m_timestep = std::make_shared<TimeStep>();
+    m_timestep = std::make_shared<TimeStep<DIM>>();
     if(m_param->type == SPHType::SSPH) {
-        m_pre = std::make_shared<PreInteraction>();
-        m_fforce = std::make_shared<FluidForce>();
+        m_pre = std::make_shared<PreInteraction<DIM>>();
+        m_fforce = std::make_shared<FluidForce<DIM>>();
     } else if(m_param->type == SPHType::DISPH) {
-        m_pre = std::make_shared<disph::PreInteraction>();
-        m_fforce = std::make_shared<disph::FluidForce>();
+        m_pre = std::make_shared<disph::PreInteraction<DIM>>();
+        m_fforce = std::make_shared<disph::FluidForce<DIM>>();
     } else if(m_param->type == SPHType::GSPH) {
-        m_pre = std::make_shared<gsph::PreInteraction>();
-        m_fforce = std::make_shared<gsph::FluidForce>();
+        m_pre = std::make_shared<gsph::PreInteraction<DIM>>();
+        m_fforce = std::make_shared<gsph::FluidForce<DIM>>();
     }
-    m_gforce = std::make_shared<GravityForce>();
+    m_gforce = std::make_shared<GravityForce<DIM>>();
 
     // GSPH
     if(m_param->type == SPHType::GSPH) {
@@ -403,12 +376,15 @@ void Solver::initialize()
         names.push_back("grad_density");
         names.push_back("grad_pressure");
         names.push_back("grad_velocity_0");
-#if DIM == 2
-        names.push_back("grad_velocity_1");
-#elif DIM == 3
-        names.push_back("grad_velocity_1");
-        names.push_back("grad_velocity_2");
-#endif
+        
+        // Add gradient components based on dimension
+        if(DIM >= 2) {
+            names.push_back("grad_velocity_1");
+        }
+        if(DIM >= 3) {
+            names.push_back("grad_velocity_2");
+        }
+        
         m_sim->add_vector_array(names);
     }
 
@@ -417,8 +393,12 @@ void Solver::initialize()
     m_fforce->initialize(m_param);
     m_gforce->initialize(m_param);
 
-    auto & p = m_sim->get_particles();
-    const int num = m_sim->get_particle_num();
+    // Ghost particle system is initialized by plugins or can be configured here
+    // Plugins handle their own boundary conditions - no additional initialization needed
+    // The ghost_manager is already created in Simulation constructor
+
+    auto & p = m_sim->particles;
+    const int num = m_sim->particle_num;
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
@@ -432,7 +412,7 @@ void Solver::initialize()
     }
 
 #ifndef EXHAUSTIVE_SEARCH
-    auto tree = m_sim->get_tree();
+    auto tree = m_sim->tree;
     tree->resize(num);
     tree->make(p, num);
 #endif
@@ -444,6 +424,11 @@ void Solver::initialize()
 
 void Solver::integrate()
 {
+    // Update ghost particle properties before neighbor search
+    if (m_sim->ghost_manager) {
+        m_sim->ghost_manager->update_ghosts(m_sim->particles);
+    }
+
     m_timestep->calculation(m_sim);
 
     predict();
@@ -458,10 +443,10 @@ void Solver::integrate()
 
 void Solver::predict()
 {
-    auto & p = m_sim->get_particles();
-    const int num = m_sim->get_particle_num();
-    auto * periodic = m_sim->get_periodic().get();
-    const real dt = m_sim->get_dt();
+    auto & p = m_sim->particles;
+    const int num = m_sim->particle_num;
+    auto * periodic = m_sim->periodic.get();
+    const real dt = m_sim->dt;
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
@@ -479,15 +464,21 @@ void Solver::predict()
         p[i].ene += p[i].dene * dt;
         p[i].sound = std::sqrt(c_sound * p[i].ene);
 
-        periodic->apply(p[i].pos);
+        // Apply legacy periodic boundary condition (for backward compatibility)
+        periodic->apply_periodic_condition(p[i].pos);
+    }
+    
+    // Apply periodic wrapping using new ghost particle system if available
+    if (m_sim->ghost_manager) {
+        m_sim->ghost_manager->apply_periodic_wrapping(p);
     }
 }
 
 void Solver::correct()
 {
-    auto & p = m_sim->get_particles();
-    const int num = m_sim->get_particle_num();
-    const real dt = m_sim->get_dt();
+    auto & p = m_sim->particles;
+    const int num = m_sim->particle_num;
+    const real dt = m_sim->dt;
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
@@ -503,22 +494,42 @@ void Solver::correct()
 
 void Solver::make_initial_condition()
 {
-    switch(m_sample) {
-#define MAKE_SAMPLE(a, b) case a: make_##b(); break
-        MAKE_SAMPLE(Sample::ShockTube, shock_tube);
-        MAKE_SAMPLE(Sample::GreshoChanVortex, gresho_chan_vortex);
-        MAKE_SAMPLE(Sample::PairingInstability, pairing_instability);
-        MAKE_SAMPLE(Sample::HydroStatic, hydrostatic);
-        MAKE_SAMPLE(Sample::KHI, khi);
-        MAKE_SAMPLE(Sample::Evrard, evrard);
-        case Sample::DoNotUse:
+    if (!m_plugin) {
+        THROW_ERROR("No plugin loaded. Plugin is required for simulation.");
+    }
+    
+    WRITE_LOG << "Initializing simulation from plugin: " << m_plugin->get_name();
+    
+    // Let plugin configure the simulation
+    m_plugin->initialize(m_sim, m_param);
+    
+    WRITE_LOG << "Plugin initialization complete";
+}
 
-            // サンプルを使わない場合はここを実装
-            
-            break;
-        default:
-            THROW_ERROR("unknown sample type.");
-#undef MAKE_SAMPLE
+void Solver::load_plugin()
+{
+    WRITE_LOG << "Loading plugin: " << m_plugin_path;
+    
+    try {
+        m_plugin_loader = std::make_unique<PluginLoader>(m_plugin_path);
+        
+        if (!m_plugin_loader->is_loaded()) {
+            THROW_ERROR("Failed to load plugin: " + m_plugin_loader->get_error());
+        }
+        
+        m_plugin = m_plugin_loader->create_plugin();
+        
+        if (!m_plugin) {
+            THROW_ERROR("Failed to create plugin instance");
+        }
+        
+        WRITE_LOG << "Plugin loaded successfully";
+        WRITE_LOG << "* Name:        " << m_plugin->get_name();
+        WRITE_LOG << "* Description: " << m_plugin->get_description();
+        WRITE_LOG << "* Version:     " << m_plugin->get_version();
+        
+    } catch (const PluginLoadError& e) {
+        THROW_ERROR(std::string("Plugin error: ") + e.what());
     }
 }
 

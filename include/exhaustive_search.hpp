@@ -3,21 +3,24 @@
 #include <vector>
 
 #include "defines.hpp"
+#include "core/sph_particle.hpp"
+#include "core/periodic.hpp"
 
 namespace sph
 {
 
-struct SPHParticle;
-class Periodic;
-
+// Exhaustive neighbor search (O(N^2) - use for testing only)
+template<int Dim>
 int exhaustive_search(
-    SPHParticle & p_i,
+    SPHParticle<Dim> & p_i,
     const real kernel_size,
-    const std::vector<SPHParticle> & particles,
+    const std::vector<SPHParticle<Dim>> & particles,
     const int num,
     std::vector<int> & neighbor_list,
     const int list_size,
-    Periodic const * periodic,
+    Periodic<Dim> const * periodic,
     const bool is_ij);
 
 }
+
+#include "exhaustive_search.tpp"

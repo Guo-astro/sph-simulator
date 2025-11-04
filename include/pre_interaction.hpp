@@ -1,40 +1,49 @@
 #pragma once
 
-#include <vector>
-
 #include "module.hpp"
-#include "particle.hpp"
+#include "core/vector.hpp"
+#include "core/sph_particle.hpp"
 
 namespace sph
 {
-class Periodic;
-class KernelFunction;
 
-class PreInteraction : public Module {
+template<int Dim>
+class PreInteraction : public Module<Dim> {
 protected:
+    int  m_neighbor_number;
     bool m_use_balsara_switch;
     bool m_use_time_dependent_av;
     real m_alpha_max;
     real m_alpha_min;
-    real m_epsilon; // tau = h / (epsilon * c)
+    real m_epsilon;
+    bool m_iterative_sml;
+    
     real m_gamma;
-    int  m_neighbor_number;
-    real m_kernel_ratio;
     bool m_iteration;
+    real m_kernel_ratio;
     bool m_first;
 
+protected:
+    void initial_smoothing(std::shared_ptr<Simulation<Dim>> sim);
+    
     virtual real newton_raphson(
-        const SPHParticle & p_i,
-        const std::vector<SPHParticle> & particles,
+        const SPHParticle<Dim> & p_i,
+        const std::vector<SPHParticle<Dim>> & particles,
         const std::vector<int> & neighbor_list,
         const int n_neighbor,
-        const Periodic * periodic,
-        const KernelFunction * kernel
+        const Periodic<Dim> * periodic,
+        const KernelFunction<Dim> * kernel
     );
-    void initial_smoothing(std::shared_ptr<Simulation> sim);
 
 public:
-    virtual void initialize(std::shared_ptr<SPHParameters> param) override;
-    virtual void calculation(std::shared_ptr<Simulation> sim) override;
+    void initialize(std::shared_ptr<SPHParameters> param) override;
+    void calculation(std::shared_ptr<Simulation<Dim>> sim) override;
 };
+
+using PreInteraction1D = PreInteraction<1>;
+using PreInteraction2D = PreInteraction<2>;
+using PreInteraction3D = PreInteraction<3>;
+
 }
+
+#include "pre_interaction.tpp"

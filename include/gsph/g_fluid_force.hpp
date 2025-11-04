@@ -8,7 +8,8 @@ namespace sph
 namespace gsph
 {
 
-class FluidForce : public sph::FluidForce {
+template<int Dim>
+class FluidForce : public sph::FluidForce<Dim> {
     bool m_is_2nd_order;
     real m_gamma;
 
@@ -18,8 +19,14 @@ class FluidForce : public sph::FluidForce {
     void hll_solver();
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
-    void calculation(std::shared_ptr<Simulation> sim) override;
+    void calculation(std::shared_ptr<Simulation<Dim>> sim) override;
 };
+
+using FluidForce1D = FluidForce<1>;
+using FluidForce2D = FluidForce<2>;
+using FluidForce3D = FluidForce<3>;
 
 }
 }
+
+#include "g_fluid_force.tpp"

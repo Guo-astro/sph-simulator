@@ -1,25 +1,25 @@
-target_sources(sph
+target_sources(sph_lib
   PUBLIC
-    bhtree.hpp
-    defines.hpp
-    exception.hpp
-    exhaustive_search.hpp
-    fluid_force.hpp
-    gravity_force.hpp
-    logger.hpp
-    module.hpp
-    openmp.hpp
-    output.hpp
-    parameters.hpp
-    particle.hpp
-    periodic.hpp
-    pre_interaction.hpp
-    simulation.hpp
-    solver.hpp
-    timestep.hpp
-    vector_type.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/defines.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/exception.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/exhaustive_search.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/exhaustive_search.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fluid_force.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fluid_force.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gravity_force.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gravity_force.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logger.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/module.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/openmp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/output.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/output.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/parameters.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pre_interaction.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pre_interaction.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/timestep.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/timestep.tpp
   )
 
 add_subdirectory(disph)
 add_subdirectory(gsph)
-add_subdirectory(kernel)

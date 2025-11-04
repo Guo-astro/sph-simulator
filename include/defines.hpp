@@ -2,29 +2,32 @@
 
 #include <cmath>
 
+// DIM should be defined by CMakeLists.txt via add_compile_definitions()
+// Default to 1 if not defined
+#ifndef DIM
 #define DIM 1
+#endif
+
 typedef double real;
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795028841971693993751
 #endif
 
-inline real inner_product(const real (&v1)[DIM], const real (&v2)[DIM])
-{
-#if DIM == 1
-    return v1[0] * v2[0];
-#elif DIM == 2
-    return v1[0] * v2[0] + v1[1] * v2[1];
-#elif DIM == 3
-    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-#endif
-}
-
+// Helper functions for power operations
 inline real sqr(real x) { return x * x; }
 inline real pow3(real x) { return x * x * x; }
 inline real pow4(real x) { return x * x * x * x; }
 inline real pow5(real x) { return x * x * x * x * x; }
 inline real pow6(real x) { return x * x * x * x * x * x; }
+
+// Template helper for h^Dim used in kernel normalization
+template<int Dim>
+inline constexpr real powh(real h) {
+    if constexpr(Dim == 1) return h;
+    else if constexpr(Dim == 2) return h * h;
+    else if constexpr(Dim == 3) return h * h * h;
+}
 
 constexpr int neighbor_list_size = 20;
 

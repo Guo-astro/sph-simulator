@@ -1,0 +1,65 @@
+cmake_minimum_required(VERSION 3.13)
+
+# Load Conan toolchain before project()
+get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
+if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+endif()
+
+project(pairing_instability_plugin)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Paths
+set(SPH_INCLUDE_DIR "${SPH_ROOT}/include")
+set(SPH_SRC_DIR "${SPH_ROOT}/src")
+
+# Find dependencies
+find_package(OpenMP REQUIRED)
+find_package(Boost REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+# Collect SPH library sources (excluding main.cpp, solver.cpp, and sample files)
+file(GLOB SPH_SOURCES "${SPH_SRC_DIR}/*.cpp")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "solver\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
+
+# Add algorithm-specific sources
+file(GLOB SPH_DISPH_SOURCES "${SPH_SRC_DIR}/disph/*.cpp")
+file(GLOB SPH_GSPH_SOURCES "${SPH_SRC_DIR}/gsph/*.cpp")
+
+# Build plugin as shared library
+add_library(pairing_instability_plugin SHARED 
+    src/plugin.cpp
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+)
+
+target_compile_features(pairing_instability_plugin PUBLIC cxx_std_14)
+target_compile_options(pairing_instability_plugin PRIVATE
+    -Wall
+    -Wno-sign-compare
+    -funroll-loops
+    -ffast-math
+)
+
+target_include_directories(pairing_instability_plugin PUBLIC 
+    ${SPH_INCLUDE_DIR}
+)
+
+target_link_libraries(pairing_instability_plugin PUBLIC
+    OpenMP::OpenMP_CXX
+    Boost::headers
+    nlohmann_json::nlohmann_json
+)
+
+set_target_properties(pairing_instability_plugin PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
+)
+
+message(STATUS "Building pairing_instability_plugin for 2D")
+message(STATUS "SPH root: ${SPH_ROOT}")

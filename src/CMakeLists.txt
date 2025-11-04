@@ -1,18 +1,26 @@
+target_sources(sph_lib
+    PRIVATE
+        logger.cpp
+        core/plugin_loader.cpp
+        core/sph_algorithm_registry.cpp
+        core/sph_parameters_builder.cpp
+        core/physics_parameters.cpp
+        core/computational_parameters.cpp
+        core/output_parameters.cpp
+        core/simulation_parameters.cpp
+        core/simulation_templates.cpp
+    )
+
 target_sources(sph
     PRIVATE
         main.cpp
-        bhtree.cpp
-        exhaustive_search.cpp
-        fluid_force.cpp
-        gravity_force.cpp
-        logger.cpp
-        output.cpp
-        pre_interaction.cpp
-        simulation.cpp
         solver.cpp
-        timestep.cpp
+    )
+
+target_sources(sph2d
+    PRIVATE
+        solver.cpp
     )
 
 add_subdirectory(disph)
 add_subdirectory(gsph)
-add_subdirectory(sample)

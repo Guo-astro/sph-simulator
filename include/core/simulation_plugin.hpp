@@ -7,7 +7,7 @@
 namespace sph {
 
 // Forward declarations
-class Simulation;
+template<int Dim> class Simulation;
 struct SPHParameters;
 
 /**
@@ -15,6 +15,9 @@ struct SPHParameters;
  * 
  * Simulation plugins allow cases to be developed as self-contained modules
  * that can be dynamically loaded or statically linked.
+ * 
+ * Note: The initialize method uses DIM macro which must be defined when
+ * implementing or using plugins, but not when just loading them.
  */
 class SimulationPlugin {
 public:
@@ -25,9 +28,11 @@ public:
     virtual std::string get_description() const = 0;
     virtual std::string get_version() const = 0;
 
-    // Core functionality
-    virtual void initialize(std::shared_ptr<Simulation> sim,
+    // Core functionality - DIM must be defined when implementing/calling this
+    #ifdef DIM
+    virtual void initialize(std::shared_ptr<Simulation<DIM>> sim,
                           std::shared_ptr<SPHParameters> params) = 0;
+    #endif
 
     // Reproducibility - return list of source files for archiving
     virtual std::vector<std::string> get_source_files() const = 0;

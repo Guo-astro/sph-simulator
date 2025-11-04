@@ -1,0 +1,16 @@
+{
+    "outputDirectory": "workflows/shock_tube_workflow/02_simulation_2d/results/gsph",
+    "endTime": 0.2,
+    "outputTime": 0.01,
+    "avAlpha": 1.0,
+    "neighborNumber": 16,
+    "gamma": 1.4,
+    "kernel": "cubic_spline",
+    "periodic": false,
+    "iterativeSmoothingLength": true,
+    "rangeMax": [1.5, 0.5],
+    "rangeMin": [-0.5, 0.0],
+    "useTimeDependentAV": false,
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true
+}

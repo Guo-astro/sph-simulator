@@ -1,0 +1,89 @@
+[ 26%] Building CXX object CMakeFiles/evrard_plugin.dir/Users/guo/sph-simulation/src/bhtree.cpp.o
+[ 26%] Building CXX object CMakeFiles/evrard_plugin.dir/src/plugin.cpp.o
+[ 26%] Building CXX object CMakeFiles/evrard_plugin.dir/Users/guo/sph-simulation/src/fluid_force.cpp.o
+[ 26%] Building CXX object CMakeFiles/evrard_plugin.dir/Users/guo/sph-simulation/src/exhaustive_search.cpp.o
+In file included from /Users/guo/sph-simulation/src/bhtree.cpp:3:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+In file included from /Users/guo/sph-simulation/src/fluid_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+In file included from /Users/guo/sph-simulation/src/exhaustive_search.cpp:3:
+In file included from /Users/guo/sph-simulation/include/vector_type.hpp:5:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+In file included from /Users/guo/sph-simulation/src/exhaustive_search.cpp:6:
+/Users/guo/sph-simulation/include/exhaustive_search.hpp:10:1: warning: struct 'SPHParticle' was previously declared as a class; this is valid, but may result in linker errors under the Microsoft C++ ABI [-Wmismatched-tags]
+struct SPHParticle;
+^
+/Users/guo/sph-simulation/include/particle.hpp:8:7: note: previous use is here
+class SPHParticle {
+      ^
+/Users/guo/sph-simulation/include/exhaustive_search.hpp:10:1: note: did you mean class here?
+struct SPHParticle;
+^~~~~~
+class
+In file included from /Users/guo/sph-simulation/workflows/evrard_workflow/01_simulation/src/plugin.cpp:2:
+In file included from /Users/guo/sph-simulation/include/simulation.hpp:7:
+In file included from /Users/guo/sph-simulation/include/particle.hpp:3:
+In file included from /Users/guo/sph-simulation/include/vector_type.hpp:5:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+2 warnings generated.
+/Users/guo/sph-simulation/src/bhtree.cpp:147:9: warning: variable 'num_child' set but not used [-Wunused-but-set-variable]
+    int num_child = 0;
+        ^
+/Users/guo/sph-simulation/workflows/evrard_workflow/01_simulation/src/plugin.cpp:59:27: error: no matching constructor for initialization of 'vec_t'
+                    vec_t r = {
+                          ^   ~
+/Users/guo/sph-simulation/include/vector_type.hpp:12:5: note: candidate constructor not viable: allows at most single argument 'x', but 3 arguments were provided
+    vec_t(const real x = 0) {
+    ^
+/Users/guo/sph-simulation/include/vector_type.hpp:28:5: note: candidate constructor not viable: requires single argument 'a', but 3 arguments were provided
+    vec_t(const vec_t & a) {
+    ^
+/Users/guo/sph-simulation/include/vector_type.hpp:32:5: note: candidate constructor not viable: requires single argument 'a', but 3 arguments were provided
+    vec_t(const real (&a)[DIM]) {
+    ^
+[ 33%] Building CXX object CMakeFiles/evrard_plugin.dir/Users/guo/sph-simulation/src/gravity_force.cpp.o
+1 warning generated.
+[ 40%] Building CXX object CMakeFiles/evrard_plugin.dir/Users/guo/sph-simulation/src/logger.cpp.o
+1 warning and 1 error generated.
+make[2]: *** [CMakeFiles/evrard_plugin.dir/src/plugin.cpp.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+2 warnings generated.
+In file included from /Users/guo/sph-simulation/src/gravity_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+1 warning generated.
+In file included from /Users/guo/sph-simulation/src/logger.cpp:6:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 3
+        ^
+1 warning generated.
+make[1]: *** [CMakeFiles/evrard_plugin.dir/all] Error 2
+make: *** [all] Error 2

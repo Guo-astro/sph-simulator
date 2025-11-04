@@ -1,0 +1,18 @@
+{
+    "outputDirectory" : "workflows/shock_tube_workflow/01_simulation/results/disph",
+    "endTime" : 0.2,
+    "outputTime" : 0.01,
+    "avAlpha" : 1.0,
+    "neighborNumber" : 4,
+    "gamma" : 1.4,
+    "kernel" : "cubic_spline",
+    "N" : 100,
+    "periodic" : true,
+    "iterativeSmoothingLength" : true,
+    "rangeMax" : [1.5],
+    "rangeMin" : [-0.5],
+    "useTimeDependentAV" : false,
+    "SPHType" : "disph",
+    "useArtificialConductivity" : true,
+    "alphaAC" : 1.0
+}

@@ -2,7 +2,7 @@
 #include "../bdd_helpers.hpp"
 #include "core/plugin_loader.hpp"
 #include "core/simulation_plugin.hpp"
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include "parameters.hpp"
 #include <memory>
 #include <string>
@@ -88,13 +88,13 @@ FEATURE(PluginLoaderFeature) {
             ASSERT_NE(plugin, nullptr);
             
             auto params = std::make_shared<SPHParameters>();
-            auto sim = std::make_shared<Simulation>(params);
+            auto sim = std::make_shared<Simulation<DIM>>(params);
             
             WHEN("We initialize the plugin") {
                 plugin->initialize(sim, params);
                 
                 THEN("The simulation should have particles") {
-                    EXPECT_GT(sim->get_particle_num(), 0);
+                    EXPECT_GT(sim->particle_num, 0);
                 }
                 
                 AND("The parameters should be configured") {
@@ -103,7 +103,7 @@ FEATURE(PluginLoaderFeature) {
                 }
                 
                 AND("Particles should have valid physical properties") {
-                    const auto& particles = sim->get_particles();
+                    const auto& particles = sim->particles;
                     for (const auto& p : particles) {
                         EXPECT_GT(p.dens, 0.0) << "Density must be positive";
                         EXPECT_GT(p.mass, 0.0) << "Mass must be positive";
@@ -206,12 +206,12 @@ FEATURE(PluginLoaderIntegration) {
                 PluginLoader loader(plugin_path);
                 auto plugin = loader.create_plugin();
                 auto params = std::make_shared<SPHParameters>();
-                auto sim = std::make_shared<Simulation>(params);
+                auto sim = std::make_shared<Simulation<DIM>>(params);
                 
                 plugin->initialize(sim, params);
                 
                 THEN("The configuration should be complete for simulation") {
-                    EXPECT_GT(sim->get_particle_num(), 0);
+                    EXPECT_GT(sim->particle_num, 0);
                     EXPECT_GT(params->time.end, 0.0);
                     EXPECT_GT(params->physics.gamma, 0.0);
                     EXPECT_GT(params->physics.neighbor_number, 0);

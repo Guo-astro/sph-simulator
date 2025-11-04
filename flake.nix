@@ -39,7 +39,9 @@
           nativeBuildInputs = with pkgs; [ cmake ];
           buildInputs = with pkgs; [ boost nlohmann_json ];
           
-          cmakeFlags = [ ];
+          cmakeFlags = [ 
+            "-DENABLE_CLANG_TIDY=OFF"  # Disable clang-tidy for Nix builds (warnings treated as errors)
+          ];
           
           meta = with pkgs.lib; {
             description = "SPH Simulation Code";

@@ -1,0 +1,595 @@
+#include <gtest/gtest.h>
+#include <memory>
+#include <vector>
+#include <algorithm>
+#include "../bdd_helpers.hpp"
+
+// Include template headers directly - avoid legacy wrapper conflicts
+#include "../../include/core/bhtree.hpp"
+#include "../../include/core/sph_particle.hpp"
+#include "../../include/core/periodic.hpp"
+#include "../../include/parameters.hpp"
+
+using namespace sph;
+
+// Helper function to create test parameters
+std::shared_ptr<SPHParameters> create_test_params(int dim, bool periodic = false) {
+    auto params = std::make_shared<SPHParameters>();
+    params->tree.max_level = 10;
+    params->tree.leaf_particle_num = 8;
+    params->periodic.is_valid = periodic;
+    
+    if (periodic) {
+        for (int i = 0; i < 3; ++i) {
+            params->periodic.range_min[i] = 0.0;
+            params->periodic.range_max[i] = 10.0;
+        }
+    }
+    
+    params->gravity.is_valid = true;
+    params->gravity.constant = 1.0;
+    params->gravity.theta = 0.5;
+    
+    return params;
+}
+
+// ============================================================================
+// SCENARIO: BHTree initialization in 1D
+// ============================================================================
+TEST(BHTreeTest, Initialization1D) {
+    SCENARIO("BHTree initialization in 1D") {
+        GIVEN("A 1D BHTree and parameters") {
+            BHTree<1> tree;
+            auto params = create_test_params(1);
+            
+            WHEN("Tree is initialized") {
+                tree.initialize(params);
+                
+                THEN("Tree should accept the parameters without error") {
+                    EXPECT_NO_THROW(tree.initialize(params));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree initialization in 2D
+// ============================================================================
+TEST(BHTreeTest, Initialization2D) {
+    SCENARIO("BHTree initialization in 2D") {
+        GIVEN("A 2D BHTree and parameters") {
+            BHTree<2> tree;
+            auto params = create_test_params(2);
+            
+            WHEN("Tree is initialized") {
+                tree.initialize(params);
+                
+                THEN("Tree should accept the parameters without error") {
+                    EXPECT_NO_THROW(tree.initialize(params));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree initialization in 3D
+// ============================================================================
+TEST(BHTreeTest, Initialization3D) {
+    SCENARIO("BHTree initialization in 3D") {
+        GIVEN("A 3D BHTree and parameters") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            
+            WHEN("Tree is initialized") {
+                tree.initialize(params);
+                
+                THEN("Tree should accept the parameters without error") {
+                    EXPECT_NO_THROW(tree.initialize(params));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree initialization with periodic boundaries
+// ============================================================================
+TEST(BHTreeTest, InitializationWithPeriodicBoundaries) {
+    SCENARIO("BHTree initialization with periodic boundaries") {
+        GIVEN("A 3D BHTree and periodic parameters") {
+            BHTree<3> tree;
+            auto params = create_test_params(3, true);
+            
+            WHEN("Tree is initialized with periodic boundaries") {
+                tree.initialize(params);
+                
+                THEN("Tree should handle periodic boundaries") {
+                    EXPECT_NO_THROW(tree.initialize(params));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree memory allocation
+// ============================================================================
+TEST(BHTreeTest, MemoryAllocation1D) {
+    SCENARIO("BHTree memory allocation in 1D") {
+        GIVEN("A 1D BHTree") {
+            BHTree<1> tree;
+            auto params = create_test_params(1);
+            tree.initialize(params);
+            
+            WHEN("Memory is allocated for 100 particles") {
+                const int particle_num = 100;
+                
+                THEN("Tree should allocate memory without error") {
+                    EXPECT_NO_THROW(tree.resize(particle_num));
+                }
+            }
+        }
+    }
+}
+
+TEST(BHTreeTest, MemoryAllocation2D) {
+    SCENARIO("BHTree memory allocation in 2D") {
+        GIVEN("A 2D BHTree") {
+            BHTree<2> tree;
+            auto params = create_test_params(2);
+            tree.initialize(params);
+            
+            WHEN("Memory is allocated for 100 particles") {
+                const int particle_num = 100;
+                
+                THEN("Tree should allocate memory without error") {
+                    EXPECT_NO_THROW(tree.resize(particle_num));
+                }
+            }
+        }
+    }
+}
+
+TEST(BHTreeTest, MemoryAllocation3D) {
+    SCENARIO("BHTree memory allocation in 3D") {
+        GIVEN("A 3D BHTree") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            
+            WHEN("Memory is allocated for 100 particles") {
+                const int particle_num = 100;
+                
+                THEN("Tree should allocate memory without error") {
+                    EXPECT_NO_THROW(tree.resize(particle_num));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree construction with particles in 1D
+// ============================================================================
+TEST(BHTreeTest, TreeConstruction1D) {
+    SCENARIO("BHTree construction with particles in 1D") {
+        GIVEN("A 1D BHTree and uniformly distributed particles") {
+            BHTree<1> tree;
+            auto params = create_test_params(1);
+            tree.initialize(params);
+            tree.resize(10);
+            
+            std::vector<SPHParticle<1>> particles(10);
+            for (int i = 0; i < 10; ++i) {
+                particles[i].id = i;
+                particles[i].pos[0] = i * 1.0;
+                particles[i].mass = 1.0;
+                particles[i].sml = 0.5;
+            }
+            
+            WHEN("Tree is constructed from particles") {
+                THEN("Tree construction should not throw") {
+                    EXPECT_NO_THROW(tree.make(particles, 10));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree construction with particles in 2D
+// ============================================================================
+TEST(BHTreeTest, TreeConstruction2D) {
+    SCENARIO("BHTree construction with particles in 2D") {
+        GIVEN("A 2D BHTree and particles on a grid") {
+            BHTree<2> tree;
+            auto params = create_test_params(2);
+            tree.initialize(params);
+            tree.resize(25);
+            
+            std::vector<SPHParticle<2>> particles(25);
+            int idx = 0;
+            for (int i = 0; i < 5; ++i) {
+                for (int j = 0; j < 5; ++j) {
+                    particles[idx].id = idx;
+                    particles[idx].pos[0] = i * 1.0;
+                    particles[idx].pos[1] = j * 1.0;
+                    particles[idx].mass = 1.0;
+                    particles[idx].sml = 0.5;
+                    ++idx;
+                }
+            }
+            
+            WHEN("Tree is constructed from 2D grid particles") {
+                THEN("Tree construction should not throw") {
+                    EXPECT_NO_THROW(tree.make(particles, 25));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree construction with particles in 3D
+// ============================================================================
+TEST(BHTreeTest, TreeConstruction3D) {
+    SCENARIO("BHTree construction with particles in 3D") {
+        GIVEN("A 3D BHTree and particles in a cube") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            tree.resize(27);
+            
+            std::vector<SPHParticle<3>> particles(27);
+            int idx = 0;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    for (int k = 0; k < 3; ++k) {
+                        particles[idx].id = idx;
+                        particles[idx].pos[0] = i * 1.0;
+                        particles[idx].pos[1] = j * 1.0;
+                        particles[idx].pos[2] = k * 1.0;
+                        particles[idx].mass = 1.0;
+                        particles[idx].sml = 0.5;
+                        ++idx;
+                    }
+                }
+            }
+            
+            WHEN("Tree is constructed from 3D cube particles") {
+                THEN("Tree construction should not throw") {
+                    EXPECT_NO_THROW(tree.make(particles, 27));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree neighbor search in 1D
+// ============================================================================
+TEST(BHTreeTest, NeighborSearch1D) {
+    SCENARIO("BHTree neighbor search in 1D") {
+        GIVEN("A 1D BHTree with particles and a query particle") {
+            BHTree<1> tree;
+            auto params = create_test_params(1);
+            tree.initialize(params);
+            tree.resize(10);
+            
+            std::vector<SPHParticle<1>> particles(10);
+            for (int i = 0; i < 10; ++i) {
+                particles[i].id = i;
+                particles[i].pos[0] = i * 1.0;
+                particles[i].mass = 1.0;
+                particles[i].sml = 1.5;  // Should find neighbors within ~1.5 units
+            }
+            
+            tree.make(particles, 10);
+            tree.set_kernel();
+            
+            WHEN("Searching for neighbors of particle at position 5.0") {
+                SPHParticle<1> query_particle = particles[5];
+                std::vector<int> neighbor_list(100);
+                
+                int n_neighbors = tree.neighbor_search(query_particle, neighbor_list, particles);
+                
+                THEN("Should find neighbors within smoothing length") {
+                    EXPECT_GT(n_neighbors, 0);
+                    EXPECT_LT(n_neighbors, 10);
+                    
+                    // Verify neighbors are sorted by distance
+                    for (int i = 0; i < n_neighbors - 1; ++i) {
+                        real dist_i = std::abs(particles[neighbor_list[i]].pos[0] - query_particle.pos[0]);
+                        real dist_j = std::abs(particles[neighbor_list[i + 1]].pos[0] - query_particle.pos[0]);
+                        EXPECT_LE(dist_i, dist_j);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree neighbor search in 2D
+// ============================================================================
+TEST(BHTreeTest, NeighborSearch2D) {
+    SCENARIO("BHTree neighbor search in 2D") {
+        GIVEN("A 2D BHTree with grid particles") {
+            BHTree<2> tree;
+            auto params = create_test_params(2);
+            tree.initialize(params);
+            tree.resize(25);
+            
+            std::vector<SPHParticle<2>> particles(25);
+            int idx = 0;
+            for (int i = 0; i < 5; ++i) {
+                for (int j = 0; j < 5; ++j) {
+                    particles[idx].id = idx;
+                    particles[idx].pos[0] = i * 1.0;
+                    particles[idx].pos[1] = j * 1.0;
+                    particles[idx].mass = 1.0;
+                    particles[idx].sml = 1.5;
+                    ++idx;
+                }
+            }
+            
+            tree.make(particles, 25);
+            tree.set_kernel();
+            
+            WHEN("Searching for neighbors of center particle") {
+                SPHParticle<2> query_particle = particles[12]; // Center of 5x5 grid
+                std::vector<int> neighbor_list(100);
+                
+                int n_neighbors = tree.neighbor_search(query_particle, neighbor_list, particles);
+                
+                THEN("Should find multiple neighbors in 2D") {
+                    EXPECT_GT(n_neighbors, 4);  // At least the 4 adjacent cells
+                    EXPECT_LT(n_neighbors, 25);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree neighbor search in 3D
+// ============================================================================
+TEST(BHTreeTest, NeighborSearch3D) {
+    SCENARIO("BHTree neighbor search in 3D") {
+        GIVEN("A 3D BHTree with cube particles") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            tree.resize(27);
+            
+            std::vector<SPHParticle<3>> particles(27);
+            int idx = 0;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    for (int k = 0; k < 3; ++k) {
+                        particles[idx].id = idx;
+                        particles[idx].pos[0] = i * 1.0;
+                        particles[idx].pos[1] = j * 1.0;
+                        particles[idx].pos[2] = k * 1.0;
+                        particles[idx].mass = 1.0;
+                        particles[idx].sml = 1.5;
+                        ++idx;
+                    }
+                }
+            }
+            
+            tree.make(particles, 27);
+            tree.set_kernel();
+            
+            WHEN("Searching for neighbors of center particle") {
+                SPHParticle<3> query_particle = particles[13]; // Center of 3x3x3 cube
+                std::vector<int> neighbor_list(100);
+                
+                int n_neighbors = tree.neighbor_search(query_particle, neighbor_list, particles);
+                
+                THEN("Should find multiple neighbors in 3D") {
+                    EXPECT_GT(n_neighbors, 6);  // At least the 6 face-adjacent cells
+                    EXPECT_LT(n_neighbors, 27);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree kernel size propagation
+// ============================================================================
+TEST(BHTreeTest, KernelSizePropagation) {
+    SCENARIO("BHTree kernel size propagation") {
+        GIVEN("A 3D BHTree with varying smoothing lengths") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            tree.resize(27);
+            
+            std::vector<SPHParticle<3>> particles(27);
+            for (int i = 0; i < 27; ++i) {
+                particles[i].id = i;
+                particles[i].pos[0] = (i % 3) * 1.0;
+                particles[i].pos[1] = ((i / 3) % 3) * 1.0;
+                particles[i].pos[2] = (i / 9) * 1.0;
+                particles[i].mass = 1.0;
+                particles[i].sml = 0.5 + (i % 5) * 0.1;  // Varying smoothing lengths
+            }
+            
+            tree.make(particles, 27);
+            
+            WHEN("Kernel sizes are set") {
+                THEN("Setting kernel should not throw") {
+                    EXPECT_NO_THROW(tree.set_kernel());
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree with periodic boundaries neighbor search
+// ============================================================================
+TEST(BHTreeTest, PeriodicNeighborSearch) {
+    SCENARIO("BHTree neighbor search with periodic boundaries") {
+        GIVEN("A 2D BHTree with periodic boundaries") {
+            BHTree<2> tree;
+            auto params = create_test_params(2, true);
+            tree.initialize(params);
+            tree.resize(9);
+            
+            std::vector<SPHParticle<2>> particles(9);
+            int idx = 0;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    particles[idx].id = idx;
+                    particles[idx].pos[0] = 2.0 + i * 3.0;
+                    particles[idx].pos[1] = 2.0 + j * 3.0;
+                    particles[idx].mass = 1.0;
+                    particles[idx].sml = 2.0;
+                    ++idx;
+                }
+            }
+            
+            tree.make(particles, 9);
+            tree.set_kernel();
+            
+            WHEN("Searching for neighbors near boundary") {
+                SPHParticle<2> query_particle = particles[0]; // Corner particle
+                std::vector<int> neighbor_list(100);
+                
+                int n_neighbors = tree.neighbor_search(query_particle, neighbor_list, particles);
+                
+                THEN("Should find neighbors across periodic boundary") {
+                    EXPECT_GT(n_neighbors, 0);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree gravity force calculation (tree_force)
+// ============================================================================
+TEST(BHTreeTest, GravityForceCalculation1D) {
+    SCENARIO("BHTree gravity force calculation in 1D") {
+        GIVEN("A 1D BHTree with two particles") {
+            BHTree<1> tree;
+            auto params = create_test_params(1);
+            params->gravity.constant = 1.0;
+            tree.initialize(params);
+            tree.resize(2);
+            
+            std::vector<SPHParticle<1>> particles(2);
+            particles[0].id = 0;
+            particles[0].pos[0] = 0.0;
+            particles[0].mass = 1.0;
+            particles[0].sml = 0.5;
+            particles[0].phi = 0.0;
+            particles[0].acc = Vector<1>(0.0);
+            
+            particles[1].id = 1;
+            particles[1].pos[0] = 2.0;
+            particles[1].mass = 1.0;
+            particles[1].sml = 0.5;
+            
+            tree.make(particles, 2);
+            tree.set_kernel();
+            
+            WHEN("Gravity force is calculated") {
+                tree.tree_force(particles[0]);
+                
+                THEN("Particle should have non-zero potential and acceleration") {
+                    EXPECT_NE(particles[0].phi, 0.0);
+                    EXPECT_NE(particles[0].acc[0], 0.0);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: nchild template function correctness
+// ============================================================================
+TEST(BHTreeTest, NChildCorrectness) {
+    SCENARIO("nchild template function returns correct child count") {
+        GIVEN("Different dimensions") {
+            WHEN("Dimension is 1") {
+                THEN("nchild should return 2") {
+                    EXPECT_EQ(nchild<1>(), 2);
+                }
+            }
+            
+            WHEN("Dimension is 2") {
+                THEN("nchild should return 4") {
+                    EXPECT_EQ(nchild<2>(), 4);
+                }
+            }
+            
+            WHEN("Dimension is 3") {
+                THEN("nchild should return 8") {
+                    EXPECT_EQ(nchild<3>(), 8);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree edge cases - empty tree
+// ============================================================================
+TEST(BHTreeTest, EmptyTree) {
+    SCENARIO("BHTree with zero particles") {
+        GIVEN("A 3D BHTree") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            
+            WHEN("Tree is constructed with zero particles") {
+                std::vector<SPHParticle<3>> particles;
+                
+                THEN("Should handle empty particle list gracefully") {
+                    // This might need adjustment based on actual implementation behavior
+                    // For now, we just check it doesn't crash
+                    EXPECT_NO_THROW(tree.resize(0));
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SCENARIO: BHTree edge cases - single particle
+// ============================================================================
+TEST(BHTreeTest, SingleParticle) {
+    SCENARIO("BHTree with single particle") {
+        GIVEN("A 3D BHTree with one particle") {
+            BHTree<3> tree;
+            auto params = create_test_params(3);
+            tree.initialize(params);
+            tree.resize(1);
+            
+            std::vector<SPHParticle<3>> particles(1);
+            particles[0].id = 0;
+            particles[0].pos[0] = 1.0;
+            particles[0].pos[1] = 1.0;
+            particles[0].pos[2] = 1.0;
+            particles[0].mass = 1.0;
+            particles[0].sml = 0.5;
+            
+            WHEN("Tree is constructed with single particle") {
+                tree.make(particles, 1);
+                tree.set_kernel();
+                
+                THEN("Neighbor search should work") {
+                    std::vector<int> neighbor_list(10);
+                    int n_neighbors = tree.neighbor_search(particles[0], neighbor_list, particles);
+                    EXPECT_GE(n_neighbors, 0);
+                }
+            }
+        }
+    }
+}

@@ -16,7 +16,7 @@
 namespace sph
 {
 
-inline void make_error_message(std::ostringstream & os) {}
+inline void make_error_message(std::ostringstream & /* os */) {}
 
 template <typename Head, typename... Tail>
 inline void make_error_message(std::ostringstream & os, Head && head, Tail &&... tail)

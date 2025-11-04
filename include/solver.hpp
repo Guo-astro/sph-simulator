@@ -1,62 +1,63 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
+#include <string>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <boost/any.hpp>
 
 #include "defines.hpp"
+#include "core/plugin_loader.hpp"  // For PluginDeleter type
 
 namespace sph
 {
 
 struct SPHParameters;
-class Simulation;
-class Output;
+template<int Dim> class Simulation;
+template<int Dim> class Output;
+template<int Dim> class Module;
+class PluginLoader;
+class SimulationPlugin;
 
-class Module;
-
-enum struct Sample {
-    ShockTube,
-    GreshoChanVortex,
-    PairingInstability,
-    HydroStatic,
-    KHI,
-    Evrard,
-    DoNotUse,
-};
-
+/**
+ * @brief Main SPH simulation orchestrator using pure plugin architecture.
+ * 
+ * The Solver class manages the simulation lifecycle:
+ * - Loads simulation setup from plugins (.dylib/.so/.dll)
+ * - Reads SPH parameters from JSON configuration files
+ * - Orchestrates time integration using appropriate SPH method (SSPH/DISPH/GSPH)
+ * 
+ * Usage:
+ *   sph plugin.dylib [config.json]
+ * 
+ * @note This is a legacy class that uses DIM macro. Each plugin is compiled with specific DIM.
+ */
 class Solver {
-    std::shared_ptr<SPHParameters>  m_param;
-    std::shared_ptr<Output>         m_output;
-    std::string                     m_output_dir;
-    std::shared_ptr<Simulation>     m_sim;
+    // Core simulation components
+    std::shared_ptr<SPHParameters>      m_param;
+    std::shared_ptr<Output<DIM>>        m_output;
+    std::string                         m_output_dir;
+    std::shared_ptr<Simulation<DIM>>    m_sim;
 
-    // modules
-    std::shared_ptr<Module> m_timestep;
-    std::shared_ptr<Module> m_pre;
-    std::shared_ptr<Module> m_fforce;
-    std::shared_ptr<Module> m_gforce;
+    // SPH computation modules (type-specific)
+    std::shared_ptr<Module<DIM>> m_timestep;
+    std::shared_ptr<Module<DIM>> m_pre;        // Pre-interaction (density, etc.)
+    std::shared_ptr<Module<DIM>> m_fforce;     // Fluid forces
+    std::shared_ptr<Module<DIM>> m_gforce;     // Gravity forces
 
+    // Plugin system
+    std::unique_ptr<PluginLoader>                    m_plugin_loader;
+    std::unique_ptr<SimulationPlugin, PluginDeleter> m_plugin;
+    std::string                                      m_plugin_path;
+    
+    // Private methods
     void read_parameterfile(const char * filename);
+    void load_plugin();
     void make_initial_condition();
     void initialize();
     void predict();
     void correct();
     void integrate();
-
-    // for sample
-    Sample                                      m_sample;
-    std::unordered_map<std::string, boost::any> m_sample_parameters;
-
-    void make_shock_tube();
-    void make_gresho_chan_vortex();
-    void make_pairing_instability();
-    void make_hydrostatic();
-    void make_khi();
-    void make_evrard();
 
 public:
     Solver(int argc, char * argv[]);

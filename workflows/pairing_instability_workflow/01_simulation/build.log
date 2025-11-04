@@ -1,0 +1,195 @@
+[ 13%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/src/plugin.cpp.o
+[ 13%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/bhtree.cpp.o
+[ 20%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/fluid_force.cpp.o
+[ 26%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/exhaustive_search.cpp.o
+In file included from /Users/guo/sph-simulation/src/bhtree.cpp:3:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/fluid_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/exhaustive_search.cpp:3:
+In file included from /Users/guo/sph-simulation/include/vector_type.hpp:5:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/workflows/pairing_instability_workflow/01_simulation/src/plugin.cpp:2:
+In file included from /Users/guo/sph-simulation/include/simulation.hpp:7:
+In file included from /Users/guo/sph-simulation/include/particle.hpp:3:
+In file included from /Users/guo/sph-simulation/include/vector_type.hpp:5:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/exhaustive_search.cpp:6:
+/Users/guo/sph-simulation/include/exhaustive_search.hpp:10:1: warning: struct 'SPHParticle' was previously declared as a class; this is valid, but may result in linker errors under the Microsoft C++ ABI [-Wmismatched-tags]
+struct SPHParticle;
+^
+/Users/guo/sph-simulation/include/particle.hpp:8:7: note: previous use is here
+class SPHParticle {
+      ^
+/Users/guo/sph-simulation/include/exhaustive_search.hpp:10:1: note: did you mean class here?
+struct SPHParticle;
+^~~~~~
+class
+/Users/guo/sph-simulation/src/bhtree.cpp:147:9: warning: variable 'num_child' set but not used [-Wunused-but-set-variable]
+    int num_child = 0;
+        ^
+2 warnings generated.
+1 warning generated.
+[ 40%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/gravity_force.cpp.o
+[ 40%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/logger.cpp.o
+2 warnings generated.
+[ 46%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/output.cpp.o
+In file included from /Users/guo/sph-simulation/src/gravity_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+1 warning generated.
+[ 53%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/pre_interaction.cpp.o
+1 warning generated.
+[ 60%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/simulation.cpp.o
+In file included from /Users/guo/sph-simulation/src/pre_interaction.cpp:3:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/simulation.cpp:1:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/output.cpp:5:
+In file included from /Users/guo/sph-simulation/include/output.hpp:6:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/logger.cpp:6:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+1 warning generated.
+[ 66%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/timestep.cpp.o
+1 warning generated.
+1 warning generated.
+[ 73%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/disph/d_fluid_force.cpp.o
+[ 80%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/disph/d_pre_interaction.cpp.o
+In file included from /Users/guo/sph-simulation/src/timestep.cpp:1:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/disph/d_fluid_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/simulation.cpp:2:
+In file included from /Users/guo/sph-simulation/include/simulation.hpp:3:
+In file included from /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/memory:898:
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:324:9: warning: destructor called on non-final 'sph::Spline::Cubic' that has virtual functions but non-virtual destructor [-Wdelete-non-abstract-non-virtual-dtor]
+        __get_elem()->~_Tp();
+        ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:290:14: note: in instantiation of member function 'std::__shared_ptr_emplace<sph::Spline::Cubic, std::allocator<sph::Spline::Cubic>>::__on_zero_shared' requested here
+    explicit __shared_ptr_emplace(_Alloc __a, _Args&& ...__args)
+             ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:1023:55: note: in instantiation of function template specialization 'std::__shared_ptr_emplace<sph::Spline::Cubic, std::allocator<sph::Spline::Cubic>>::__shared_ptr_emplace<>' requested here
+    ::new ((void*)_VSTD::addressof(*__guard.__get())) _ControlBlock(__a, _VSTD::forward<_Args>(__args)...);
+                                                      ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:1032:19: note: in instantiation of function template specialization 'std::allocate_shared<sph::Spline::Cubic, std::allocator<sph::Spline::Cubic>, void>' requested here
+    return _VSTD::allocate_shared<_Tp>(allocator<_Tp>(), _VSTD::forward<_Args>(__args)...);
+                  ^
+/Users/guo/sph-simulation/src/simulation.cpp:15:25: note: in instantiation of function template specialization 'std::make_shared<sph::Spline::Cubic, void>' requested here
+        m_kernel = std::make_shared<Spline::Cubic>();
+                        ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:324:24: note: qualify call to silence this warning
+        __get_elem()->~_Tp();
+                       ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:324:9: warning: destructor called on non-final 'sph::Wendland::C4Kernel' that has virtual functions but non-virtual destructor [-Wdelete-non-abstract-non-virtual-dtor]
+        __get_elem()->~_Tp();
+        ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:290:14: note: in instantiation of member function 'std::__shared_ptr_emplace<sph::Wendland::C4Kernel, std::allocator<sph::Wendland::C4Kernel>>::__on_zero_shared' requested here
+    explicit __shared_ptr_emplace(_Alloc __a, _Args&& ...__args)
+             ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:1023:55: note: in instantiation of function template specialization 'std::__shared_ptr_emplace<sph::Wendland::C4Kernel, std::allocator<sph::Wendland::C4Kernel>>::__shared_ptr_emplace<>' requested here
+    ::new ((void*)_VSTD::addressof(*__guard.__get())) _ControlBlock(__a, _VSTD::forward<_Args>(__args)...);
+                                                      ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:1032:19: note: in instantiation of function template specialization 'std::allocate_shared<sph::Wendland::C4Kernel, std::allocator<sph::Wendland::C4Kernel>, void>' requested here
+    return _VSTD::allocate_shared<_Tp>(allocator<_Tp>(), _VSTD::forward<_Args>(__args)...);
+                  ^
+/Users/guo/sph-simulation/src/simulation.cpp:17:25: note: in instantiation of function template specialization 'std::make_shared<sph::Wendland::C4Kernel, void>' requested here
+        m_kernel = std::make_shared<Wendland::C4Kernel>();
+                        ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1/__memory/shared_ptr.h:324:24: note: qualify call to silence this warning
+        __get_elem()->~_Tp();
+                       ^
+In file included from /Users/guo/sph-simulation/src/disph/d_pre_interaction.cpp:3:
+In file included from /Users/guo/sph-simulation/include/disph/d_pre_interaction.hpp:3:
+In file included from /Users/guo/sph-simulation/include/pre_interaction.hpp:6:
+In file included from /Users/guo/sph-simulation/include/particle.hpp:3:
+In file included from /Users/guo/sph-simulation/include/vector_type.hpp:5:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+3 warnings generated.
+1 warning generated.
+1 warning generated.
+[ 86%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/gsph/g_fluid_force.cpp.o
+1 warning generated.
+[ 93%] Building CXX object CMakeFiles/pairing_instability_plugin.dir/Users/guo/sph-simulation/src/gsph/g_pre_interaction.cpp.o
+In file included from /Users/guo/sph-simulation/src/gsph/g_fluid_force.cpp:1:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+In file included from /Users/guo/sph-simulation/src/gsph/g_pre_interaction.cpp:3:
+In file included from /Users/guo/sph-simulation/include/parameters.hpp:3:
+/Users/guo/sph-simulation/include/defines.hpp:5:9: warning: 'DIM' macro redefined [-Wmacro-redefined]
+#define DIM 1
+        ^
+<command line>:1:9: note: previous definition is here
+#define DIM 2
+        ^
+1 warning generated.
+1 warning generated.
+[100%] Linking CXX shared library /Users/guo/sph-simulation/workflows/pairing_instability_workflow/01_simulation/lib/libpairing_instability_plugin.dylib
+[100%] Built target pairing_instability_plugin
