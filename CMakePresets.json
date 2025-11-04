@@ -18,8 +18,8 @@
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
                 "CMAKE_BUILD_TYPE": "Debug"
             },
-            "toolchainFile": "${sourceDir}/build/conan_toolchain.cmake",
-            "binaryDir": "${sourceDir}/build"
+            "toolchainFile": "conan_toolchain.cmake",
+            "binaryDir": "/Users/guo/sph-simulation"
         }
     ],
     "buildPresets": [
@@ -32,10 +32,7 @@
     "testPresets": [
         {
             "name": "conan-debug",
-            "configurePreset": "conan-debug",
-            "execution": {
-                "jobs": 8
-            }
+            "configurePreset": "conan-debug"
         }
     ]
 }

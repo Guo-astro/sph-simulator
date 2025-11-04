@@ -8,6 +8,7 @@
 #include "core/kernel_function.hpp"
 #include "exception.hpp"
 #include "core/bhtree.hpp"
+#include "utilities/constants.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
@@ -59,10 +60,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
-        constexpr real A = Dim == 1 ? 2.0 :
-                           Dim == 2 ? M_PI :
-                                      4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * this->m_kernel_ratio;
+        constexpr real A = Dim == 1 ? utilities::constants::UNIT_SPHERE_VOLUME_1D :
+                           Dim == 2 ? utilities::constants::UNIT_SPHERE_VOLUME_2D :
+                                      utilities::constants::UNIT_SPHERE_VOLUME_3D;
+        p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), utilities::constants::ONE / Dim) * this->m_kernel_ratio;
         
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH
@@ -76,8 +77,8 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         // density etc.
-        real dens_i = 0.0;
-        real v_sig_max = p_i.sound * 2.0;
+        real dens_i = utilities::constants::ZERO;
+        real v_sig_max = p_i.sound * utilities::constants::TWO;
         const Vector<Dim> & pos_i = p_i.pos;
         int n_neighbor = 0;
         for(int n = 0; n < n_neighbor_tmp; ++n) {
@@ -94,7 +95,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
 
             if(i != j) {
-                const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, p_i.vel - p_j.vel) / r;
+                const real v_sig = p_i.sound + p_j.sound - utilities::constants::SIGNAL_VELOCITY_COEFF * inner_product(r_ij, p_i.vel - p_j.vel) / r;
                 if(v_sig > v_sig_max) {
                     v_sig_max = v_sig;
                 }
@@ -102,7 +103,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         p_i.dens = dens_i;
-        p_i.pres = (this->m_gamma - 1.0) * dens_i * p_i.ene;
+        p_i.pres = (this->m_gamma - utilities::constants::ONE) * dens_i * p_i.ene;
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;
@@ -130,8 +131,8 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             }
         }
         grad_d[i] = dd;
-        grad_p[i] = (dd * p_i.ene + du) * (this->m_gamma - 1.0);
-        const real rho_inv = 1.0 / p_i.dens;
+        grad_p[i] = (dd * p_i.ene + du) * (this->m_gamma - utilities::constants::ONE);
+        const real rho_inv = utilities::constants::ONE / p_i.dens;
         for(int k = 0; k < DIM; ++k) {
             grad_v[k][i] = dv[k] * rho_inv;
         }

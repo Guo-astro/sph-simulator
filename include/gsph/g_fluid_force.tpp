@@ -79,10 +79,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         const Vector<Dim> & r_i = p_i.pos;
         const Vector<Dim> & v_i = p_i.vel;
         const real h_i = p_i.sml;
-        const real rho2_inv_i = 1.0 / sqr(p_i.dens);
+        const real rho2_inv_i = utilities::constants::ONE / sqr(p_i.dens);
 
         Vector<Dim> acc{};  // Default constructor initializes to zero
-        real dene = 0.0;
+        real dene = utilities::constants::ZERO;
 
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
@@ -90,11 +90,11 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
 
-            if(r >= std::max(h_i, p_j.sml) || r == 0.0) {
+            if(r >= std::max(h_i, p_j.sml) || r == utilities::constants::ZERO) {
                 continue;
             }
 
-            const real r_inv = 1.0 / r;
+            const real r_inv = utilities::constants::ONE / r;
             const Vector<Dim> e_ij = r_ij * r_inv;
             const real ve_i = inner_product(v_i, e_ij);
             const real ve_j = inner_product(p_j.vel, e_ij);
@@ -104,8 +104,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 // Murante et al. (2011)
 
                 real right[4], left[4];
-                const real delta_i = 0.5 * (1.0 - p_i.sound * dt * r_inv);
-                const real delta_j = 0.5 * (1.0 - p_j.sound * dt * r_inv);
+                const real delta_i = utilities::constants::MUSCL_EXTRAPOLATION_COEFF * (utilities::constants::ONE - p_i.sound * dt * r_inv);
+                const real delta_j = utilities::constants::MUSCL_EXTRAPOLATION_COEFF * (utilities::constants::ONE - p_j.sound * dt * r_inv);
 
                 // velocity
                 const real dv_ij = ve_i - ve_j;
@@ -168,7 +168,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             const Vector<Dim> dw_i = kernel->dw(r_ij, r, h_i);
             const Vector<Dim> dw_j = kernel->dw(r_ij, r, p_j.sml);
             const Vector<Dim> v_ij = e_ij * vstar;
-            const real rho2_inv_j = 1.0 / sqr(p_j.dens);
+            const real rho2_inv_j = utilities::constants::ONE / sqr(p_j.dens);
             const Vector<Dim> f = dw_i * (p_j.mass * pstar * rho2_inv_i) + dw_j * (p_j.mass * pstar * rho2_inv_j);
 
             acc -= f;
