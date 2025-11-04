@@ -1,0 +1,32 @@
+{
+  "description": "Minimal Sod shock tube test to validate refactoring",
+  "physics": {
+    "dim": 1,
+    "neighbor_number": 50,
+    "gamma": 1.4
+  },
+  "sph": {
+    "kernel": "cubic_spline",
+    "iterative_sml": false,
+    "kernel_ratio": 1.2
+  },
+  "time": {
+    "dt": 0.0001,
+    "max_iteration": 100,
+    "output_interval": 100
+  },
+  "av": {
+    "use_av": true,
+    "alpha": 1.0,
+    "beta": 2.0,
+    "use_balsara_switch": false,
+    "use_time_dependent_av": false
+  },
+  "gsph": {
+    "is_2nd_order": true
+  },
+  "output": {
+    "directory": "validation_output",
+    "format": "json"
+  }
+}

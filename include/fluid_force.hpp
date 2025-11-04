@@ -4,6 +4,8 @@
 #include "core/vector.hpp"
 #include "core/sph_particle.hpp"
 #include "core/periodic.hpp"
+#include "algorithms/viscosity/artificial_viscosity.hpp"
+#include <memory>
 
 namespace sph
 {
@@ -15,8 +17,10 @@ protected:
     bool m_use_ac;
     real m_alpha_ac;
     bool m_use_gravity;
+    
+    // Modular artificial viscosity
+    std::unique_ptr<algorithms::viscosity::ArtificialViscosity<Dim>> m_artificial_viscosity;
 
-    real artificial_viscosity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij);
     real artificial_conductivity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij, const Vector<Dim> & dw_ij);
 
 public:

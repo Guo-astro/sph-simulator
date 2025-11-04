@@ -5,6 +5,7 @@
 #include "core/simulation.hpp"
 #include "core/bhtree.hpp"
 #include "core/kernel_function.hpp"
+#include "algorithms/viscosity/monaghan_viscosity.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
@@ -22,6 +23,11 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
         m_alpha_ac = param->ac.alpha;
         m_use_gravity = param->gravity.is_valid;
     }
+    
+    // Initialize modular artificial viscosity
+    m_artificial_viscosity = std::make_unique<algorithms::viscosity::MonaghanViscosity<Dim>>(
+        param->av.use_balsara_switch
+    );
 }
 
 template<int Dim>
@@ -74,7 +80,9 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             const Vector<Dim> dw_ij = (dw_i + dw_j) * 0.5;
             const Vector<Dim> v_ij = v_i - p_j.vel;
 
-            const real pi_ij = artificial_viscosity(p_i, p_j, r_ij);
+            // Use modular artificial viscosity
+            algorithms::viscosity::ViscosityState<Dim> visc_state{p_i, p_j, r_ij, r};
+            const real pi_ij = m_artificial_viscosity->compute(visc_state);
             const real dene_ac = m_use_ac ? artificial_conductivity(p_i, p_j, r_ij, dw_ij) : 0.0;
 
 #if 0
@@ -91,27 +99,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     }
 }
 
-// Monaghan (1997)
-template<int Dim>
-real FluidForce<Dim>::artificial_viscosity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij)
-{
-    const auto v_ij = p_i.vel - p_j.vel;
-    const real vr = inner_product(v_ij, r_ij);
-
-    if(vr < 0) {
-        const real alpha = 0.5 * (p_i.alpha + p_j.alpha);
-        const real balsara = 0.5 * (p_i.balsara + p_j.balsara);
-        const real w_ij = vr / abs(r_ij);
-        const real v_sig = p_i.sound + p_j.sound - 3.0 * w_ij;
-        const real rho_ij_inv = 2.0 / (p_i.dens + p_j.dens);
-        
-        const real pi_ij = -0.5 * balsara * alpha * v_sig * w_ij * rho_ij_inv;
-        return pi_ij;
-    } else {
-        return 0;
-    }
-}
-
+// Artificial conductivity (Wadsley et al. 2008, Price 2008)
 template<int Dim>
 real FluidForce<Dim>::artificial_conductivity(const SPHParticle<Dim> & p_i, const SPHParticle<Dim> & p_j, const Vector<Dim> & r_ij, const Vector<Dim> & dw_ij)
 {

@@ -19,6 +19,8 @@ target_sources(sph_lib
     ${CMAKE_CURRENT_SOURCE_DIR}/solver.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/timestep.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/timestep.tpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/viscosity/artificial_viscosity.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/viscosity/monaghan_viscosity.hpp
   )
 
 add_subdirectory(disph)
