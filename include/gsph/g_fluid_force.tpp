@@ -5,6 +5,8 @@
 #include "core/bhtree.hpp"
 #include "core/kernel_function.hpp"
 #include "gsph/g_fluid_force.hpp"
+#include "algorithms/riemann/hll_solver.hpp"
+#include "utilities/constants.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
@@ -22,17 +24,19 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
     this->m_is_2nd_order = param->gsph.is_2nd_order;
     this->m_gamma = param->physics.gamma;
 
-    hll_solver();
+    // Create HLL Riemann solver for interface state computation
+    this->m_riemann_solver = std::make_unique<algorithms::riemann::HLLSolver>();
 }
 
-// van Leer (1979) limiter
+// van Leer (1979) limiter - prevents spurious oscillations in MUSCL reconstruction
 inline real limiter(const real dq1, const real dq2)
 {
+    using namespace utilities::constants;
     const real dq1dq2 = dq1 * dq2;
-    if(dq1dq2 <= 0) {
-        return 0.0;
+    if(dq1dq2 <= ZERO) {
+        return ZERO;
     } else {
-        return 2.0 * dq1dq2 / (dq1 + dq2);
+        return TWO * dq1dq2 / (dq1 + dq2);
     }
 }
 
@@ -133,7 +137,12 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 right[3] = std::sqrt(this->m_gamma * right[2] / right[1]);
                 left[3] = std::sqrt(this->m_gamma * left[2] / left[1]);
 
-                this->m_solver(left, right, pstar, vstar);
+                // Solve Riemann problem using modular solver
+                algorithms::riemann::RiemannState left_state{left[0], left[1], left[2], left[3]};
+                algorithms::riemann::RiemannState right_state{right[0], right[1], right[2], right[3]};
+                auto solution = this->m_riemann_solver->solve(left_state, right_state);
+                pstar = solution.pressure;
+                vstar = solution.velocity;
             } else {
                 const real right[4] = {
                     ve_i,
@@ -148,7 +157,12 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                     p_j.sound,
                 };
 
-                this->m_solver(left, right, pstar, vstar);
+                // Solve Riemann problem using modular solver
+                algorithms::riemann::RiemannState left_state{left[0], left[1], left[2], left[3]};
+                algorithms::riemann::RiemannState right_state{right[0], right[1], right[2], right[3]};
+                auto solution = this->m_riemann_solver->solve(left_state, right_state);
+                pstar = solution.pressure;
+                vstar = solution.velocity;
             }
 
             const Vector<Dim> dw_i = kernel->dw(r_ij, r, h_i);
@@ -164,40 +178,6 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.acc = acc;
         p_i.dene = dene;
     }
-}
-
-template<int Dim>
-void FluidForce<Dim>::hll_solver()
-{
-    this->m_solver = [&](const real left[], const real right[], real & pstar, real & vstar) {
-        const real u_l   = left[0];
-        const real rho_l = left[1];
-        const real p_l   = left[2];
-        const real c_l   = left[3];
-
-        const real u_r   = right[0];
-        const real rho_r = right[1];
-        const real p_r   = right[2];
-        const real c_r   = right[3];
-
-        const real roe_l = std::sqrt(rho_l);
-        const real roe_r = std::sqrt(rho_r);
-        const real roe_inv = 1.0 / (roe_l + roe_r);
-
-        const real u_t = (roe_l * u_l + roe_r * u_r) * roe_inv;
-        const real c_t = (roe_l * c_l + roe_r * c_r) * roe_inv;
-        const real s_l = std::min(u_l - c_l, u_t - c_t);
-        const real s_r = std::max(u_r + c_r, u_t + c_t);
-
-        const real c1 = rho_l * (s_l - u_l);
-        const real c2 = rho_r * (s_r - u_r);
-        const real c3 = 1.0 / (c1 - c2);
-        const real c4 = p_l - u_l * c1;
-        const real c5 = p_r - u_r * c2;
-        
-        vstar = (c5 - c4) * c3;
-        pstar = (c1 * c5 - c2 * c4) * c3;
-    };
 }
 
 }
