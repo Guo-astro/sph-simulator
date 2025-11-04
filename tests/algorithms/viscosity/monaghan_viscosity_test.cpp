@@ -14,11 +14,11 @@
 #include "../bdd_helpers.hpp"
 #include "../../include/algorithms/viscosity/monaghan_viscosity.hpp"
 #include "../../include/core/sph_particle.hpp"
-#include "../../include/utilities/constants.hpp"
 #include <cmath>
 
 using namespace sph;
 using namespace sph::algorithms::viscosity;
+using namespace sph::utilities::constants;
 
 // ============================================================
 // FEATURE: Monaghan Artificial Viscosity

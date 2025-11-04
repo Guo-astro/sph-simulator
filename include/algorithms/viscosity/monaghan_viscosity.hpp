@@ -37,6 +37,9 @@ namespace sph {
 namespace algorithms {
 namespace viscosity {
 
+// Import constants for cleaner code
+using namespace sph::utilities::constants;
+
 /**
  * @brief Monaghan (1997) artificial viscosity with optional Balsara switch
  * 
@@ -85,17 +88,17 @@ public:
         const real vr = sph::inner_product(v_ij, r_ij);
         
         // Only apply viscosity for approaching particles
-        if (vr >= sph::constants::ZERO) {
-            return sph::constants::ZERO;
+        if (vr >= ZERO) {
+            return ZERO;
         }
         
         // Average viscosity coefficient
-        const real alpha = sph::constants::HALF * (p_i.alpha + p_j.alpha);
+        const real alpha = HALF * (p_i.alpha + p_j.alpha);
         
         // Balsara switch (if enabled)
         const real balsara = m_use_balsara_switch 
-            ? sph::constants::HALF * (p_i.balsara + p_j.balsara)
-            : sph::constants::ONE;
+            ? HALF * (p_i.balsara + p_j.balsara)
+            : ONE;
         
         // Relative velocity projection: w_ij = (v_ij · r_ij) / r
         const real w_ij = vr / r;
@@ -103,14 +106,14 @@ public:
         // Signal velocity (Monaghan 1997, eq. 30)
         // v_sig = c_i + c_j - 3 w_ij
         // The factor of 3 comes from analyzing the Riemann problem
-        const real v_sig = p_i.sound + p_j.sound - sph::constants::THREE * w_ij;
+        const real v_sig = p_i.sound + p_j.sound - THREE * w_ij;
         
         // Average density (harmonic mean)
-        const real rho_ij_inv = sph::constants::TWO / (p_i.dens + p_j.dens);
+        const real rho_ij_inv = TWO / (p_i.dens + p_j.dens);
         
         // Monaghan viscosity: π_ij = -α v_sig w_ij / (2 ρ_ij)
         // The factor of 0.5 comes from averaging over particle pair
-        const real pi_ij = -sph::constants::HALF * balsara * alpha * v_sig * w_ij * rho_ij_inv;
+        const real pi_ij = -HALF * balsara * alpha * v_sig * w_ij * rho_ij_inv;
         
         return pi_ij;
     }
