@@ -13,7 +13,7 @@ namespace gsph
 template<int Dim>
 class FluidForce : public sph::FluidForce<Dim> {
     bool m_is_2nd_order;
-    real m_gamma;
+    real m_adiabatic_index;  // γ (gamma) in ideal gas EOS: P = (γ-1)ρe
 
     // Riemann solver for interface state computation
     std::unique_ptr<algorithms::riemann::RiemannSolver> m_riemann_solver;

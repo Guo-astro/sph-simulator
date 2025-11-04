@@ -94,7 +94,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         p_i.dens = dens_i;
-        p_i.pres = (this->m_gamma - 1.0) * pres_i;
+        p_i.pres = (this->m_adiabatic_index - 1.0) * pres_i;
         // f_ij = 1 - p_i.gradh / (p_j.mass * p_j.ene)
         p_i.gradh = p_i.sml / (Dim * n_i) * dh_pres_i / (1.0 + p_i.sml / (Dim * n_i) * dh_n_i);
         p_i.neighbor = n_neighbor;
@@ -123,7 +123,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                     rot_v += abs(cross_product(v_ij, dw)) * (p_j.mass * p_j.ene);
                 }
             }
-            const real p_inv = (this->m_gamma - 1.0) / p_i.pres;
+            const real p_inv = (this->m_adiabatic_index - 1.0) / p_i.pres;
             div_v *= p_inv;
             rot_v *= p_inv;
             p_i.balsara = std::abs(div_v) / (std::abs(div_v) + std::abs(rot_v) + 1e-4 * p_i.sound / p_i.sml);
@@ -145,7 +145,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const Vector<Dim> v_ij = p_i.vel - p_j.vel;
                 div_v -= p_j.mass * p_j.ene * inner_product(v_ij, dw);
             }
-            const real p_inv = (this->m_gamma - 1.0) / p_i.pres;
+            const real p_inv = (this->m_adiabatic_index - 1.0) / p_i.pres;
             div_v *= p_inv;
             const real tau_inv = this->m_epsilon * p_i.sound / p_i.sml;
             const real s_i = std::max(-div_v, (real)0.0);

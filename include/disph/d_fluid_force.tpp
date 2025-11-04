@@ -19,7 +19,7 @@ template<int Dim>
 void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::FluidForce<Dim>::initialize(param);
-    this->m_gamma = param->physics.gamma;
+    this->m_adiabatic_index = param->physics.gamma;
 }
 
 // Hopkins (2013)
@@ -48,7 +48,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         // fluid force
         const Vector<Dim> & r_i = p_i.pos;
         const Vector<Dim> & v_i = p_i.vel;
-        const real gamma2_u_i = sqr(this->m_gamma - 1.0) * p_i.ene;
+        const real gamma2_u_i = sqr(this->m_adiabatic_index - 1.0) * p_i.ene;
         const real gamma2_u_per_pres_i = gamma2_u_i / p_i.pres;
         const real m_u_inv = 1.0 / (p_i.mass * p_i.ene);
         const real h_i = p_i.sml;

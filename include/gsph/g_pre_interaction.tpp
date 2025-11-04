@@ -103,7 +103,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         p_i.dens = dens_i;
-        p_i.pres = (this->m_gamma - utilities::constants::ONE) * dens_i * p_i.ene;
+        p_i.pres = (this->m_adiabatic_index - utilities::constants::ONE) * dens_i * p_i.ene;
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;
@@ -131,7 +131,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             }
         }
         grad_d[i] = dd;
-        grad_p[i] = (dd * p_i.ene + du) * (this->m_gamma - utilities::constants::ONE);
+        grad_p[i] = (dd * p_i.ene + du) * (this->m_adiabatic_index - utilities::constants::ONE);
         const real rho_inv = utilities::constants::ONE / p_i.dens;
         for(int k = 0; k < DIM; ++k) {
             grad_v[k][i] = dv[k] * rho_inv;

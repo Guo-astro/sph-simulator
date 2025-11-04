@@ -26,7 +26,7 @@ void PreInteraction<Dim>::initialize(std::shared_ptr<SPHParameters> param)
         m_epsilon = param->av.epsilon;
     }
     m_use_balsara_switch = param->av.use_balsara_switch;
-    m_gamma = param->physics.gamma;
+    m_adiabatic_index = param->physics.gamma;
     m_neighbor_number = param->physics.neighbor_number;
     m_iteration = param->iterative_sml;
     if(m_iteration) {
@@ -109,7 +109,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         p_i.dens = dens_i;
-        p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
+        p_i.pres = (m_adiabatic_index - 1.0) * dens_i * p_i.ene;
         p_i.gradh = 1.0 / (1.0 + p_i.sml / (Dim * dens_i) * dh_dens_i);
         p_i.neighbor = n_neighbor;
 

@@ -23,7 +23,7 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::FluidForce<Dim>::initialize(param);
     this->m_is_2nd_order = param->gsph.is_2nd_order;
-    this->m_gamma = param->physics.gamma;
+    this->m_adiabatic_index = param->physics.gamma;
 
     // Create HLL Riemann solver for interface state computation
     this->m_riemann_solver = std::make_unique<algorithms::riemann::HLLSolver>();
@@ -126,8 +126,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 left[2] = p_j.pres + this->m_slope_limiter->limit(dp_ij, dp_j) * delta_j;
 
                 // sound speed
-                right[3] = std::sqrt(this->m_gamma * right[2] / right[1]);
-                left[3] = std::sqrt(this->m_gamma * left[2] / left[1]);
+                right[3] = std::sqrt(this->m_adiabatic_index * right[2] / right[1]);
+                left[3] = std::sqrt(this->m_adiabatic_index * left[2] / left[1]);
 
                 // Solve Riemann problem using modular solver
                 algorithms::riemann::RiemannState left_state{left[0], left[1], left[2], left[3]};

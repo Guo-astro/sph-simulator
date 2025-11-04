@@ -9,7 +9,7 @@ namespace disph
 
 template<int Dim>
 class FluidForce : public sph::FluidForce<Dim> {
-    real m_gamma;
+    real m_adiabatic_index;  // γ (gamma) in ideal gas EOS: P = (γ-1)ρe
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
     void calculation(std::shared_ptr<Simulation<Dim>> sim) override;

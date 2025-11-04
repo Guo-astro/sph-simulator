@@ -18,7 +18,7 @@ protected:
     real m_epsilon;
     bool m_iterative_sml;
     
-    real m_gamma;
+    real m_adiabatic_index;  // γ (gamma) in ideal gas EOS: P = (γ-1)ρe
     bool m_iteration;
     real m_kernel_ratio;
     bool m_first;
