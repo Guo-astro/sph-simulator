@@ -16,8 +16,8 @@ struct SPHParameters;
 template<int Dim> class Simulation;
 template<int Dim> class Output;
 template<int Dim> class Module;
-class PluginLoader;
-class SimulationPlugin;
+template<int Dim> class PluginLoader;
+template<int Dim> class SimulationPlugin;
 
 /**
  * @brief Main SPH simulation orchestrator using pure plugin architecture.
@@ -30,25 +30,26 @@ class SimulationPlugin;
  * Usage:
  *   sph plugin.dylib [config.json]
  * 
- * @note This is a legacy class that uses DIM macro. Each plugin is compiled with specific DIM.
+ * @tparam Dim Spatial dimension (1, 2, or 3)
  */
+template<int Dim>
 class Solver {
     // Core simulation components
     std::shared_ptr<SPHParameters>      m_param;
-    std::shared_ptr<Output<DIM>>        m_output;
+    std::shared_ptr<Output<Dim>>        m_output;
     std::string                         m_output_dir;
-    std::shared_ptr<Simulation<DIM>>    m_sim;
+    std::shared_ptr<Simulation<Dim>>    m_sim;
 
     // SPH computation modules (type-specific)
-    std::shared_ptr<Module<DIM>> m_timestep;
-    std::shared_ptr<Module<DIM>> m_pre;        // Pre-interaction (density, etc.)
-    std::shared_ptr<Module<DIM>> m_fforce;     // Fluid forces
-    std::shared_ptr<Module<DIM>> m_gforce;     // Gravity forces
+    std::shared_ptr<Module<Dim>> m_timestep;
+    std::shared_ptr<Module<Dim>> m_pre;        // Pre-interaction (density, etc.)
+    std::shared_ptr<Module<Dim>> m_fforce;     // Fluid forces
+    std::shared_ptr<Module<Dim>> m_gforce;     // Gravity forces
 
     // Plugin system
-    std::unique_ptr<PluginLoader>                    m_plugin_loader;
-    std::unique_ptr<SimulationPlugin, PluginDeleter> m_plugin;
-    std::string                                      m_plugin_path;
+    std::unique_ptr<PluginLoader<Dim>>                             m_plugin_loader;
+    std::unique_ptr<SimulationPlugin<Dim>, typename PluginLoader<Dim>::PluginDeleter> m_plugin;
+    std::string                                                     m_plugin_path;
     
     // Private methods
     void load_plugin();

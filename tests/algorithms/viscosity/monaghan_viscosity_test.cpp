@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file monaghan_viscosity_test.cpp
  * @brief BDD tests for Monaghan artificial viscosity

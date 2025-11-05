@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file ghost_particle_coordinator_test.cpp
  * @brief BDD-style tests for GhostParticleCoordinator

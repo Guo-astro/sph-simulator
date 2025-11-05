@@ -33,7 +33,7 @@ using namespace sph;
  * - Periodic or reflective boundaries in y-direction
  * - Same density/pressure jump as Sod problem
  */
-class ShockTube2DPlugin : public SimulationPlugin {
+class ShockTube2DPlugin : public SimulationPlugin<2> {
 public:
     std::string get_name() const override {
         return "shock_tube_2d";
@@ -51,10 +51,9 @@ public:
         return {"plugin_2d.cpp"};
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<2>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         static constexpr int Dim = 2;
-        static_assert(DIM == Dim, "2D shock tube requires DIM=2");
         
         std::cout << "\n=== 2D SHOCK TUBE SIMULATION ===\n";
         
@@ -295,4 +294,4 @@ public:
     }
 };
 
-DEFINE_SIMULATION_PLUGIN(ShockTube2DPlugin)
+DEFINE_SIMULATION_PLUGIN(ShockTube2DPlugin, 2)

@@ -27,7 +27,7 @@ using namespace sph;
  * 
  * See docs/CFL_THEORY.md for complete explanation.
  */
-class ShockTubePluginEnhanced : public SimulationPlugin {
+class ShockTubePluginEnhanced : public SimulationPlugin<1> {
 public:
     std::string get_name() const override {
         return "shock_tube_enhanced";
@@ -41,11 +41,10 @@ public:
         return "4.0.0";  // Physics-based parameter system
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<1>> sim,
                    std::shared_ptr<SPHParameters> params) override {
         // This plugin is for 1D simulations
         static constexpr int Dim = 1;
-        static_assert(DIM == Dim, "Shock tube requires DIM=1");
 
         std::cout << "\n=== ENHANCED SHOCK TUBE (Physics-Based Parameters) ===\n";
         
@@ -78,7 +77,7 @@ public:
         const int num = N_left + N_right;
         const real mass = 0.125 * dx_right;  // Uniform mass: m = ρ_R × dx_R = 0.125 × 0.02
         
-        std::vector<SPHParticle<DIM>> particles(num);
+        std::vector<SPHParticle<Dim>> particles(num);
         
         std::cout << "\n--- Particle Initialization ---\n";
         std::cout << "Total particles: " << num << " (" << N_left << " left + " << N_right << " right)\n";
@@ -279,7 +278,7 @@ public:
         std::cout << "\n--- Ghost Particle System ---\n";
         
         // Configure mirror boundary with ghost particles (reflective walls)
-        BoundaryConfiguration<DIM> ghost_config;
+        BoundaryConfiguration<Dim> ghost_config;
         ghost_config.is_valid = true;
         ghost_config.types[0] = BoundaryType::MIRROR;
         ghost_config.range_min[0] = -0.5;
@@ -288,9 +287,10 @@ public:
         ghost_config.enable_upper[0] = true;
         ghost_config.mirror_types[0] = MirrorType::FREE_SLIP;  // FREE_SLIP for shock tube (allows sliding along wall)
         
-        // CRITICAL: Set particle spacing for Morris 1997 wall offset calculation
-        // Use right-side spacing (larger) as representative spacing for both boundaries
-        ghost_config.particle_spacing[0] = dx_right;
+        // CRITICAL: Set per-boundary particle spacing for Morris 1997 wall offset calculation
+        // Left boundary has dense particles (dx_left), right boundary has sparse particles (dx_right)
+        ghost_config.spacing_lower[0] = dx_left;   // Left wall: use local particle spacing
+        ghost_config.spacing_upper[0] = dx_right;  // Right wall: use local particle spacing
         
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
@@ -299,8 +299,10 @@ public:
         std::cout << "  Boundary type: MIRROR (FREE_SLIP)\n";
         std::cout << "  Domain range: [" << ghost_config.range_min[0] 
                   << ", " << ghost_config.range_max[0] << "]\n";
-        std::cout << "  Particle spacing (dx): " << dx_right << "\n";
-        std::cout << "  Wall offset: ±" << (0.5 * dx_right) << "\n";
+        std::cout << "  Left particle spacing (dx_left):  " << dx_left << "\n";
+        std::cout << "  Right particle spacing (dx_right): " << dx_right << "\n";
+        std::cout << "  Left wall offset:  -" << (0.5 * dx_left) << "\n";
+        std::cout << "  Right wall offset: +" << (0.5 * dx_right) << "\n";
         std::cout << "  Left wall position:  " << ghost_config.get_wall_position(0, false) << "\n";
         std::cout << "  Right wall position: " << ghost_config.get_wall_position(0, true) << "\n";
         std::cout << "  (Ghost particles will be generated after sml calculation)\n";
@@ -331,4 +333,4 @@ public:
     }
 };
 
-DEFINE_SIMULATION_PLUGIN(ShockTubePluginEnhanced)
+DEFINE_SIMULATION_PLUGIN(ShockTubePluginEnhanced, 1)

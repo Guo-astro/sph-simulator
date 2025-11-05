@@ -24,25 +24,24 @@ namespace sph {
  * 
  * Reference: Evrard (1988)
  */
-class EvrardPlugin : public SimulationPlugin {
+class EvrardPlugin : public SimulationPlugin<3> {
 public:
     std::string get_name() const override {
-        return "evrard";
+        return "evrard_collapse";
     }
     
     std::string get_description() const override {
-        return "3D Evrard collapse test with self-gravity";
+        return "3D Evrard gravitational collapse";
     }
     
     std::string get_version() const override {
         return "2.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<3>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         // This plugin is for 3D simulations
         static constexpr int Dim = 3;
-        static_assert(DIM == Dim, "Evrard collapse requires DIM=3");
 
         std::cout << "Initializing Evrard collapse simulation...\n";
         
@@ -56,7 +55,7 @@ public:
         for(int i = 0; i < N; ++i) {
             for(int j = 0; j < N; ++j) {
                 for(int k = 0; k < N; ++k) {
-                    Vector<DIM> r = {
+                    Vector<Dim> r = {
                         (i + 0.5) * dx - 1.0,
                         (j + 0.5) * dx - 1.0,
                         (k + 0.5) * dx - 1.0
@@ -72,7 +71,7 @@ public:
                         r = r * (r_abs / r_0);
                     }
                     
-                    SPHParticle<DIM> p_i;
+                    SPHParticle<Dim> p_i;
                     p_i.pos = r;
                     particles.emplace_back(p_i);
                 }
@@ -124,4 +123,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::EvrardPlugin)
+DEFINE_SIMULATION_PLUGIN(sph::EvrardPlugin, 3)

@@ -24,7 +24,7 @@ namespace sph {
  * 
  * Reference: Gresho & Chan (1990)
  */
-class GreshoChanVortexPlugin : public SimulationPlugin {
+class GreshoChanVortexPlugin : public SimulationPlugin<2> {
 private:
     static real vortex_velocity(const real r) {
         if(r < 0.2) {
@@ -59,11 +59,10 @@ public:
         return "2.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<2>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         // This plugin is for 2D simulations
         static constexpr int Dim = 2;
-        static_assert(DIM == Dim, "Gresho-Chan vortex requires DIM=2");
 
         std::cout << "Initializing Gresho-Chan vortex...\n";
         
@@ -73,7 +72,7 @@ public:
         const real mass = 1.0 / num;
         const real gamma = param->physics.gamma;
         
-        std::vector<SPHParticle<DIM>> particles(num);
+        std::vector<SPHParticle<Dim>> particles(num);
         
         real x = -0.5 + dx * 0.5;
         real y = -0.5 + dx * 0.5;
@@ -92,11 +91,11 @@ public:
             // Velocity in azimuthal direction
             real vel = vortex_velocity(r);
             if (r > 0.0) {
-                Vector<DIM> dir = {-y, x};
+                Vector<Dim> dir = {-y, x};
                 real dir_mag = abs(dir);
                 p_i.vel = dir * (vel / dir_mag);
             } else {
-                p_i.vel = Vector<DIM>{};
+                p_i.vel = Vector<Dim>{};
             }
             
             p_i.dens = 1.0;
@@ -138,4 +137,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::GreshoChanVortexPlugin)
+DEFINE_SIMULATION_PLUGIN(sph::GreshoChanVortexPlugin, 2)

@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../../bdd_helpers.hpp"
 #include "parameters.hpp"
 #include "core/sph_particle.hpp"
@@ -48,7 +51,7 @@ SCENARIO(DISPHCalculation, TwoParticleInteraction) {
         param->tree.leaf_particle_num = 1;
         
         // Create two particles
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.id = 0;
         p1.mass = 1.0;
         p1.dens = 1.0;
@@ -72,12 +75,12 @@ SCENARIO(DISPHCalculation, TwoParticleInteraction) {
         p2.sound = 1.0;
         
         WHEN("Particles are setup") {
-            real r_ij[DIM];
+            real r_ij[Dim];
             r_ij[0] = p1.pos[0] - p2.pos[0];
-#if DIM >= 2
+#if Dim >= 2
             r_ij[1] = 0.0;
 #endif
-#if DIM == 3
+#if Dim == 3
             r_ij[2] = 0.0;
 #endif
             double r = std::sqrt(inner_product(r_ij, r_ij));
@@ -105,7 +108,7 @@ SCENARIO(DISPHEdgeCases, ZeroDensity) {
         param->physics.gamma = 5.0 / 3.0;
         param->physics.neighbor_number = 32;
         
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.dens = 1e-15;  // Very small density
         particle.mass = 1.0;
         particle.pres = 1e-15;
@@ -124,7 +127,7 @@ SCENARIO(DISPHEdgeCases, ZeroDensity) {
 
 SCENARIO(DISPHEdgeCases, ZeroPressure) {
     GIVEN("A particle with zero pressure") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.pres = 0.0;
         particle.ene = 0.0;
         particle.dens = 1.0;
@@ -143,7 +146,7 @@ SCENARIO(DISPHEdgeCases, ZeroPressure) {
 
 SCENARIO(DISPHEdgeCases, HighMachNumber) {
     GIVEN("Particles with supersonic relative velocity") {
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.vel[0] = 0.0;
         p1.sound = 1.0;
         p1.dens = 1.0;
@@ -155,7 +158,7 @@ SCENARIO(DISPHEdgeCases, HighMachNumber) {
         p2.pres = 1.0;
         
         WHEN("Computing velocity difference") {
-            real v_ij[DIM];
+            real v_ij[Dim];
             v_ij[0] = p1.vel[0] - p2.vel[0];
             double mach = std::abs(v_ij[0]) / p1.sound;
             
@@ -173,7 +176,7 @@ SCENARIO(DISPHEdgeCases, HighMachNumber) {
 
 SCENARIO(DISPHEdgeCases, IdenticalParticles) {
     GIVEN("Two identical particles at same location") {
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.mass = 1.0;
         p1.dens = 1.0;
         p1.pres = 1.0;
@@ -185,8 +188,8 @@ SCENARIO(DISPHEdgeCases, IdenticalParticles) {
         p2.id = 1;
         
         WHEN("Computing separation") {
-            real r_ij[DIM];
-            for (int i = 0; i < DIM; ++i) {
+            real r_ij[Dim];
+            for (int i = 0; i < Dim; ++i) {
                 r_ij[i] = p1.pos[i] - p2.pos[i];
             }
             double r = std::sqrt(inner_product(r_ij, r_ij));
@@ -209,7 +212,7 @@ FEATURE(DISPHArtificialViscosity) {
 
 SCENARIO(ArtificialViscosity, ConvergingFlow) {
     GIVEN("Two particles moving towards each other") {
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.vel[0] = 1.0;
         p1.sound = 1.0;
         p1.dens = 1.0;
@@ -224,9 +227,9 @@ SCENARIO(ArtificialViscosity, ConvergingFlow) {
         p2.pos[0] = 0.05;
         
         WHEN("Computing relative velocity") {
-            real r_ij[DIM];
+            real r_ij[Dim];
             r_ij[0] = p1.pos[0] - p2.pos[0];
-            real v_ij[DIM];
+            real v_ij[Dim];
             v_ij[0] = p1.vel[0] - p2.vel[0];
             
             double v_dot_r = inner_product(v_ij, r_ij);
@@ -244,16 +247,16 @@ SCENARIO(ArtificialViscosity, ConvergingFlow) {
 
 SCENARIO(ArtificialViscosity, DivergingFlow) {
     GIVEN("Two particles moving apart") {
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.vel[0] = -1.0;
         p2.vel[0] = 1.0;
         p1.pos[0] = 0.0;
         p2.pos[0] = 0.1;
         
         WHEN("Computing relative velocity") {
-            real r_ij[DIM];
+            real r_ij[Dim];
             r_ij[0] = p1.pos[0] - p2.pos[0];
-            real v_ij[DIM];
+            real v_ij[Dim];
             v_ij[0] = p1.vel[0] - p2.vel[0];
             
             double v_dot_r = inner_product(v_ij, r_ij);

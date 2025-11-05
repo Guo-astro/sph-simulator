@@ -387,30 +387,6 @@ src/core/physics_parameters.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/physics_parameters.cpp.s
 .PHONY : src/core/physics_parameters.cpp.s
 
-src/core/plugin_loader.o: src/core/plugin_loader.cpp.o
-.PHONY : src/core/plugin_loader.o
-
-# target to build an object file
-src/core/plugin_loader.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/plugin_loader.cpp.o
-.PHONY : src/core/plugin_loader.cpp.o
-
-src/core/plugin_loader.i: src/core/plugin_loader.cpp.i
-.PHONY : src/core/plugin_loader.i
-
-# target to preprocess a source file
-src/core/plugin_loader.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/plugin_loader.cpp.i
-.PHONY : src/core/plugin_loader.cpp.i
-
-src/core/plugin_loader.s: src/core/plugin_loader.cpp.s
-.PHONY : src/core/plugin_loader.s
-
-# target to generate assembly for a file
-src/core/plugin_loader.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/plugin_loader.cpp.s
-.PHONY : src/core/plugin_loader.cpp.s
-
 src/core/simulation_parameters.o: src/core/simulation_parameters.cpp.o
 .PHONY : src/core/simulation_parameters.o
 
@@ -531,35 +507,77 @@ src/logger.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/logger.cpp.s
 .PHONY : src/logger.cpp.s
 
-src/main.o: src/main.cpp.o
-.PHONY : src/main.o
+src/main_1d.o: src/main_1d.cpp.o
+.PHONY : src/main_1d.o
 
 # target to build an object file
-src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
+src/main_1d.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main_1d.cpp.o
+.PHONY : src/main_1d.cpp.o
 
-src/main.i: src/main.cpp.i
-.PHONY : src/main.i
+src/main_1d.i: src/main_1d.cpp.i
+.PHONY : src/main_1d.i
 
 # target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
+src/main_1d.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main_1d.cpp.i
+.PHONY : src/main_1d.cpp.i
 
-src/main.s: src/main.cpp.s
-.PHONY : src/main.s
+src/main_1d.s: src/main_1d.cpp.s
+.PHONY : src/main_1d.s
 
 # target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
+src/main_1d.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph.dir/build.make CMakeFiles/sph.dir/src/main_1d.cpp.s
+.PHONY : src/main_1d.cpp.s
+
+src/main_2d.o: src/main_2d.cpp.o
+.PHONY : src/main_2d.o
+
+# target to build an object file
+src/main_2d.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main_2d.cpp.o
+.PHONY : src/main_2d.cpp.o
+
+src/main_2d.i: src/main_2d.cpp.i
+.PHONY : src/main_2d.i
+
+# target to preprocess a source file
+src/main_2d.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main_2d.cpp.i
+.PHONY : src/main_2d.cpp.i
+
+src/main_2d.s: src/main_2d.cpp.s
+.PHONY : src/main_2d.s
+
+# target to generate assembly for a file
+src/main_2d.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph2d.dir/build.make CMakeFiles/sph2d.dir/src/main_2d.cpp.s
+.PHONY : src/main_2d.cpp.s
+
+src/main_3d.o: src/main_3d.cpp.o
+.PHONY : src/main_3d.o
+
+# target to build an object file
+src/main_3d.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main_3d.cpp.o
+.PHONY : src/main_3d.cpp.o
+
+src/main_3d.i: src/main_3d.cpp.i
+.PHONY : src/main_3d.i
+
+# target to preprocess a source file
+src/main_3d.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main_3d.cpp.i
+.PHONY : src/main_3d.cpp.i
+
+src/main_3d.s: src/main_3d.cpp.s
+.PHONY : src/main_3d.s
+
+# target to generate assembly for a file
+src/main_3d.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph3d.dir/build.make CMakeFiles/sph3d.dir/src/main_3d.cpp.s
+.PHONY : src/main_3d.cpp.s
 
 src/solver.o: src/solver.cpp.o
 .PHONY : src/solver.o
@@ -625,9 +643,6 @@ help:
 	@echo "... src/core/physics_parameters.o"
 	@echo "... src/core/physics_parameters.i"
 	@echo "... src/core/physics_parameters.s"
-	@echo "... src/core/plugin_loader.o"
-	@echo "... src/core/plugin_loader.i"
-	@echo "... src/core/plugin_loader.s"
 	@echo "... src/core/simulation_parameters.o"
 	@echo "... src/core/simulation_parameters.i"
 	@echo "... src/core/simulation_parameters.s"
@@ -643,9 +658,15 @@ help:
 	@echo "... src/logger.o"
 	@echo "... src/logger.i"
 	@echo "... src/logger.s"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
+	@echo "... src/main_1d.o"
+	@echo "... src/main_1d.i"
+	@echo "... src/main_1d.s"
+	@echo "... src/main_2d.o"
+	@echo "... src/main_2d.i"
+	@echo "... src/main_2d.s"
+	@echo "... src/main_3d.o"
+	@echo "... src/main_3d.i"
+	@echo "... src/main_3d.s"
 	@echo "... src/solver.o"
 	@echo "... src/solver.i"
 	@echo "... src/solver.s"

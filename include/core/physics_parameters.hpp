@@ -17,6 +17,7 @@
 
 #include "defines.hpp"
 #include <memory>
+#include <array>
 
 namespace sph
 {
@@ -25,6 +26,7 @@ namespace sph
  * @brief Physical parameters for SPH simulation
  * 
  * These parameters define the physical model being simulated.
+ * Uses std::array<real, 3> for spatial arrays - only first Dim elements used at runtime.
  */
 struct PhysicsParameters {
     
@@ -49,9 +51,9 @@ struct PhysicsParameters {
     
     // Boundary conditions
     struct Periodic {
-        bool is_valid;           ///< Whether periodic boundaries are active
-        real range_min[DIM];     ///< Minimum coordinates
-        real range_max[DIM];     ///< Maximum coordinates
+        bool is_valid;                    ///< Whether periodic boundaries are active
+        std::array<real, 3> range_min;    ///< Minimum coordinates (use first Dim elements)
+        std::array<real, 3> range_max;    ///< Maximum coordinates (use first Dim elements)
     } periodic;
     
     // External forces
@@ -87,8 +89,8 @@ public:
     
     // Optional: Boundary conditions
     PhysicsParametersBuilder& with_periodic_boundary(
-        const real range_min[DIM],
-        const real range_max[DIM]
+        const std::array<real, 3>& range_min,
+        const std::array<real, 3>& range_max
     );
     
     // Optional: External forces

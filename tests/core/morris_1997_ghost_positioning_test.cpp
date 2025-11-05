@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file morris_1997_ghost_positioning_test.cpp
  * @brief Test suite verifying correct implementation of Morris 1997 ghost particle formula

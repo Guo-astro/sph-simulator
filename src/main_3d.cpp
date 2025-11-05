@@ -1,5 +1,9 @@
-#include <iostream>
+/**
+ * @file main_3d.cpp
+ * @brief Main entry point for 3D SPH simulations
+ */
 
+#include <iostream>
 #include "solver.hpp"
 #include "exception.hpp"
 
@@ -7,7 +11,7 @@ int main(int argc, char *argv[])
 {
     std::ios_base::sync_with_stdio(false);
     sph::exception_handler([&]() {
-        sph::Solver solver(argc, argv);
+        sph::Solver<3> solver(argc, argv);
         solver.run();
     });
     return 0;

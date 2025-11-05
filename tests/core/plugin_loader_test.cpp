@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include <gtest/gtest.h>
 #include "../bdd_helpers.hpp"
 #include "core/plugin_loader.hpp"
@@ -87,7 +90,7 @@ FEATURE(PluginLoaderFeature) {
             ASSERT_NE(plugin, nullptr);
             
             auto params = std::make_shared<SPHParameters>();
-            auto sim = std::make_shared<Simulation<DIM>>(params);
+            auto sim = std::make_shared<Simulation<Dim>>(params);
             
             WHEN("We initialize the plugin") {
                 plugin->initialize(sim, params);
@@ -208,7 +211,7 @@ FEATURE(PluginLoaderIntegration) {
                 PluginLoader loader(plugin_path);
                 auto plugin = loader.create_plugin();
                 auto params = std::make_shared<SPHParameters>();
-                auto sim = std::make_shared<Simulation<DIM>>(params);
+                auto sim = std::make_shared<Simulation<Dim>>(params);
                 
                 plugin->initialize(sim, params);
                 

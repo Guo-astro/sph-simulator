@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../bdd_helpers.hpp"
 #include "defines.hpp"
 #include "core/vector.hpp"
@@ -10,12 +13,12 @@ using sph::abs;
 FEATURE(VectorOperations) {
 
 SCENARIO(InnerProduct, BasicCalculation) {
-    GIVEN("Two vectors in " + std::to_string(DIM) + "D space") {
-        real v1[DIM];
-        real v2[DIM];
+    GIVEN("Two vectors in " + std::to_string(Dim) + "D space") {
+        real v1[Dim];
+        real v2[Dim];
         
         WHEN("Vectors are parallel and pointing same direction") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 1.0;
                 v2[i] = 1.0;
             }
@@ -23,17 +26,17 @@ SCENARIO(InnerProduct, BasicCalculation) {
             real result = inner_product(v1, v2);
             
             THEN("Inner product should equal sum of squared components") {
-                EXPECT_DOUBLE_EQ(result, static_cast<double>(DIM));
+                EXPECT_DOUBLE_EQ(result, static_cast<double>(Dim));
             }
         }
         
         WHEN("Vectors are orthogonal") {
-#if DIM >= 2
+#if Dim >= 2
             v1[0] = 1.0;
             v1[1] = 0.0;
             v2[0] = 0.0;
             v2[1] = 1.0;
-#if DIM == 3
+#if Dim == 3
             v1[2] = 0.0;
             v2[2] = 0.0;
 #endif
@@ -47,7 +50,7 @@ SCENARIO(InnerProduct, BasicCalculation) {
         }
         
         WHEN("Vectors are antiparallel") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 1.0;
                 v2[i] = -1.0;
             }
@@ -55,7 +58,7 @@ SCENARIO(InnerProduct, BasicCalculation) {
             real result = inner_product(v1, v2);
             
             THEN("Inner product should be negative") {
-                EXPECT_DOUBLE_EQ(result, -static_cast<double>(DIM));
+                EXPECT_DOUBLE_EQ(result, -static_cast<double>(Dim));
             }
         }
     }
@@ -63,11 +66,11 @@ SCENARIO(InnerProduct, BasicCalculation) {
 
 SCENARIO(InnerProduct, EdgeCases) {
     GIVEN("Vectors with edge case values") {
-        real v1[DIM];
-        real v2[DIM];
+        real v1[Dim];
+        real v2[Dim];
         
         WHEN("Both vectors are zero") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 0.0;
                 v2[i] = 0.0;
             }
@@ -80,7 +83,7 @@ SCENARIO(InnerProduct, EdgeCases) {
         }
         
         WHEN("One vector is zero") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 1.0;
                 v2[i] = 0.0;
             }
@@ -93,7 +96,7 @@ SCENARIO(InnerProduct, EdgeCases) {
         }
         
         WHEN("Vectors have very small values") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 1e-10;
                 v2[i] = 1e-10;
             }
@@ -108,7 +111,7 @@ SCENARIO(InnerProduct, EdgeCases) {
         }
         
         WHEN("Vectors have very large values") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = 1e10;
                 v2[i] = 1e10;
             }
@@ -124,11 +127,11 @@ SCENARIO(InnerProduct, EdgeCases) {
         WHEN("Vectors have mixed large and small values") {
             v1[0] = 1e10;
             v2[0] = 1e-10;
-#if DIM >= 2
+#if Dim >= 2
             v1[1] = 1e-10;
             v2[1] = 1e10;
 #endif
-#if DIM == 3
+#if Dim == 3
             v1[2] = 1.0;
             v2[2] = 1.0;
 #endif
@@ -145,12 +148,12 @@ SCENARIO(InnerProduct, EdgeCases) {
 
 SCENARIO(InnerProduct, NumericalStability) {
     GIVEN("Vectors that could cause numerical issues") {
-        real v1[DIM];
-        real v2[DIM];
+        real v1[Dim];
+        real v2[Dim];
         
         WHEN("Computing with values near machine epsilon") {
             double eps = std::numeric_limits<double>::epsilon();
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = eps;
                 v2[i] = eps;
             }
@@ -163,7 +166,7 @@ SCENARIO(InnerProduct, NumericalStability) {
         }
         
         WHEN("Computing with alternating signs") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v1[i] = (i % 2 == 0) ? 1.0 : -1.0;
                 v2[i] = (i % 2 == 0) ? 1.0 : -1.0;
             }
@@ -171,7 +174,7 @@ SCENARIO(InnerProduct, NumericalStability) {
             real result = inner_product(v1, v2);
             
             THEN("Result should equal dimension") {
-                EXPECT_DOUBLE_EQ(result, static_cast<double>(DIM));
+                EXPECT_DOUBLE_EQ(result, static_cast<double>(Dim));
             }
         }
     }
@@ -342,14 +345,14 @@ FEATURE(VectorMagnitude) {
 
 SCENARIO(VectorNorm, Calculation) {
     GIVEN("Various vectors") {
-        real v[DIM];
+        real v[Dim];
         
         WHEN("Vector is unit vector in x-direction") {
             v[0] = 1.0;
-#if DIM >= 2
+#if Dim >= 2
             v[1] = 0.0;
 #endif
-#if DIM == 3
+#if Dim == 3
             v[2] = 0.0;
 #endif
             
@@ -362,20 +365,20 @@ SCENARIO(VectorNorm, Calculation) {
         }
         
         WHEN("Vector has all components equal") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v[i] = 1.0;
             }
             
             double mag_sq = inner_product(v, v);
             double mag = std::sqrt(mag_sq);
             
-            THEN("Magnitude should be sqrt(DIM)") {
-                EXPECT_NEAR(mag, std::sqrt(static_cast<double>(DIM)), 1e-14);
+            THEN("Magnitude should be sqrt(Dim)") {
+                EXPECT_NEAR(mag, std::sqrt(static_cast<double>(Dim)), 1e-14);
             }
         }
         
         WHEN("Vector is zero") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 v[i] = 0.0;
             }
             

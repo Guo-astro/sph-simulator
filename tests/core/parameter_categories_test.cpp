@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file parameter_categories_test.cpp
  * @brief BDD tests for categorized SPH parameter builders
@@ -81,8 +84,8 @@ FEATURE(PhysicsParameters) {
     SCENARIO(BuildingWithPeriodicBoundary) {
         GIVEN("A physics parameter builder") {
             WHEN("Setting periodic boundary conditions") {
-                real range_min[DIM] = {-1.0};
-                real range_max[DIM] = {1.0};
+                real range_min[Dim] = {-1.0};
+                real range_max[Dim] = {1.0};
                 
                 auto physics = PhysicsParametersBuilder()
                     .with_gamma(1.4)

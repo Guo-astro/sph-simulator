@@ -16,9 +16,9 @@ struct SPHParameters;
  * Simulation plugins allow cases to be developed as self-contained modules
  * that can be dynamically loaded or statically linked.
  * 
- * Note: The initialize method uses DIM macro which must be defined when
- * implementing or using plugins, but not when just loading them.
+ * @tparam Dim Spatial dimension (1, 2, or 3)
  */
+template<int Dim>
 class SimulationPlugin {
 public:
     virtual ~SimulationPlugin() = default;
@@ -28,11 +28,9 @@ public:
     virtual std::string get_description() const = 0;
     virtual std::string get_version() const = 0;
 
-    // Core functionality - DIM must be defined when implementing/calling this
-    #ifdef DIM
-    virtual void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    // Core functionality
+    virtual void initialize(std::shared_ptr<Simulation<Dim>> sim,
                           std::shared_ptr<SPHParameters> params) = 0;
-    #endif
 
     // Reproducibility - return list of source files for archiving
     virtual std::vector<std::string> get_source_files() const = 0;
@@ -46,12 +44,13 @@ public:
 #endif
 
 // Macro to define plugin export functions
-#define DEFINE_SIMULATION_PLUGIN(ClassName) \
+// Creates type-erased wrapper for dimension-specific plugins
+#define DEFINE_SIMULATION_PLUGIN(ClassName, Dimension) \
     extern "C" { \
-        EXPORT_PLUGIN_API sph::SimulationPlugin* create_plugin() { \
+        EXPORT_PLUGIN_API sph::SimulationPlugin<Dimension>* create_plugin() { \
             return new ClassName(); \
         } \
-        EXPORT_PLUGIN_API void destroy_plugin(sph::SimulationPlugin* plugin) { \
+        EXPORT_PLUGIN_API void destroy_plugin(sph::SimulationPlugin<Dimension>* plugin) { \
             delete plugin; \
         } \
     }

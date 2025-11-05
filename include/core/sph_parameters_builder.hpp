@@ -82,8 +82,8 @@ public:
     SPHParametersBuilder& with_artificial_conductivity(real alpha);
     
     SPHParametersBuilder& with_periodic_boundary(
-        const real range_min[DIM],
-        const real range_max[DIM]
+        const std::array<real, 3>& range_min,
+        const std::array<real, 3>& range_max
     );
     
     SPHParametersBuilder& with_gravity(real constant, real theta = 0.5);

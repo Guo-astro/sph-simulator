@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file van_leer_limiter_test.cpp
  * @brief BDD tests for Van Leer slope limiter

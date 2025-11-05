@@ -33,7 +33,8 @@
 namespace sph
 {
 
-Solver::Solver(int argc, char * argv[])
+template<int Dim>
+Solver<Dim>::Solver(int argc, char * argv[])
 {
     std::cout << "--------------SPH simulation-------------\n\n";
     
@@ -202,10 +203,11 @@ Solver::Solver(int argc, char * argv[])
     WRITE_LOG << "Description: " << m_plugin->get_description();
     WRITE_LOG << "Version: " << m_plugin->get_version();
 
-    m_output = std::make_shared<Output<DIM>>();
+    m_output = std::make_shared<Output<Dim>>();
 }
 
-void Solver::run()
+template<int Dim>
+void Solver<Dim>::run()
 {
     initialize();
     assert(m_sim->particles.size() == m_sim->particle_num);
@@ -257,26 +259,27 @@ void Solver::run()
     WRITE_LOG << "calculation time: " << calctime << " ms";
 }
 
-void Solver::initialize()
+template<int Dim>
+void Solver<Dim>::initialize()
 {
-    m_sim = std::make_shared<Simulation<DIM>>(m_param);
+    m_sim = std::make_shared<Simulation<Dim>>(m_param);
 
     make_initial_condition();
 
-    m_timestep = std::make_shared<TimeStep<DIM>>();
+    m_timestep = std::make_shared<TimeStep<Dim>>();
     
     if(m_param->type == SPHType::SSPH) {
-        m_pre = std::make_shared<PreInteraction<DIM>>();
-        m_fforce = std::make_shared<FluidForce<DIM>>();
+        m_pre = std::make_shared<PreInteraction<Dim>>();
+        m_fforce = std::make_shared<FluidForce<Dim>>();
     } else if(m_param->type == SPHType::DISPH) {
-        m_pre = std::make_shared<disph::PreInteraction<DIM>>();
-        m_fforce = std::make_shared<disph::FluidForce<DIM>>();
+        m_pre = std::make_shared<disph::PreInteraction<Dim>>();
+        m_fforce = std::make_shared<disph::FluidForce<Dim>>();
     } else if(m_param->type == SPHType::GSPH) {
-        m_pre = std::make_shared<gsph::PreInteraction<DIM>>();
-        m_fforce = std::make_shared<gsph::FluidForce<DIM>>();
+        m_pre = std::make_shared<gsph::PreInteraction<Dim>>();
+        m_fforce = std::make_shared<gsph::FluidForce<Dim>>();
     }
     
-    m_gforce = std::make_shared<GravityForce<DIM>>();
+    m_gforce = std::make_shared<GravityForce<Dim>>();
 
     // GSPH - only add gradient arrays if 2nd order is enabled
     if(m_param->type == SPHType::GSPH && m_param->gsph.is_2nd_order) {
@@ -286,10 +289,10 @@ void Solver::initialize()
         names.push_back("grad_velocity_0");
         
         // Add gradient components based on dimension
-        if(DIM >= 2) {
+        if constexpr (Dim >= 2) {
             names.push_back("grad_velocity_1");
         }
-        if(DIM >= 3) {
+        if constexpr (Dim >= 3) {
             names.push_back("grad_velocity_2");
         }
         
@@ -377,7 +380,8 @@ void Solver::initialize()
     m_gforce->calculation(m_sim);
 }
 
-void Solver::integrate()
+template<int Dim>
+void Solver<Dim>::integrate()
 {
     // Calculate timestep based on current state
     m_timestep->calculation(m_sim);
@@ -433,7 +437,8 @@ void Solver::integrate()
     correct();
 }
 
-void Solver::predict()
+template<int Dim>
+void Solver<Dim>::predict()
 {
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
@@ -467,7 +472,8 @@ void Solver::predict()
     }
 }
 
-void Solver::correct()
+template<int Dim>
+void Solver<Dim>::correct()
 {
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
@@ -486,7 +492,8 @@ void Solver::correct()
     }
 }
 
-void Solver::make_initial_condition()
+template<int Dim>
+void Solver<Dim>::make_initial_condition()
 {
     if (!m_plugin) {
         THROW_ERROR("No plugin loaded. Plugin is required for simulation.");
@@ -500,12 +507,13 @@ void Solver::make_initial_condition()
     WRITE_LOG << "Plugin initialization complete";
 }
 
-void Solver::load_plugin()
+template<int Dim>
+void Solver<Dim>::load_plugin()
 {
     WRITE_LOG << "Loading plugin: " << m_plugin_path;
     
     try {
-        m_plugin_loader = std::make_unique<PluginLoader>(m_plugin_path);
+        m_plugin_loader = std::make_unique<PluginLoader<Dim>>(m_plugin_path);
         
         if (!m_plugin_loader->is_loaded()) {
             THROW_ERROR("Failed to load plugin: " + m_plugin_loader->get_error());
@@ -526,5 +534,10 @@ void Solver::load_plugin()
         THROW_ERROR(std::string("Plugin error: ") + e.what());
     }
 }
+
+// Explicit template instantiations for all supported dimensions
+template class Solver<1>;
+template class Solver<2>;
+template class Solver<3>;
 
 }

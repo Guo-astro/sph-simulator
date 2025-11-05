@@ -24,10 +24,10 @@ namespace sph {
  * 
  * Reference: Springel (2010)
  */
-class KHIPlugin : public SimulationPlugin {
+class KHIPlugin : public SimulationPlugin<2> {
 public:
     std::string get_name() const override {
-        return "kelvin_helmholtz";
+        return "kelvin_helmholtz_instability";
     }
     
     std::string get_description() const override {
@@ -38,11 +38,10 @@ public:
         return "2.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<2>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         // This plugin is for 2D simulations
         static constexpr int Dim = 2;
-        static_assert(DIM == Dim, "Kelvin-Helmholtz instability requires DIM=2");
 
         std::cout << "Initializing Kelvin-Helmholtz instability...\n";
         
@@ -52,7 +51,7 @@ public:
         const real mass = 1.5 / num;
         const real gamma = param->physics.gamma;
         
-        std::vector<SPHParticle<DIM>> particles(num);
+        std::vector<SPHParticle<Dim>> particles(num);
         
         // Velocity perturbation function
         auto vy = [](const real x, const real y) {
@@ -132,4 +131,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::KHIPlugin)
+DEFINE_SIMULATION_PLUGIN(sph::KHIPlugin, 2)

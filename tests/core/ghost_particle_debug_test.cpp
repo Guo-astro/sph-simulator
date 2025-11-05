@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file ghost_particle_debug_test.cpp
  * @brief Debug tests to diagnose the actual ghost particle issues

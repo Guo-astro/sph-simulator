@@ -47,7 +47,6 @@ add_library(shock_tube_2d_plugin SHARED
 )
 
 target_compile_features(shock_tube_2d_plugin PUBLIC cxx_std_17)
-target_compile_definitions(shock_tube_2d_plugin PRIVATE DIM=2)
 target_compile_options(shock_tube_2d_plugin PRIVATE
     -Wall
     -Wno-sign-compare
@@ -73,12 +72,10 @@ set_target_properties(shock_tube_2d_plugin PROPERTIES
 
 # Build standalone SPH executable for this workflow
 add_executable(sph2d 
-    ${SPH_SRC_DIR}/main.cpp
+    ${SPH_SRC_DIR}/main_2d.cpp
     ${SPH_SRC_DIR}/solver.cpp
-    ${SPH_SRC_DIR}/core/plugin_loader.cpp
 )
 
-target_compile_definitions(sph2d PRIVATE DIM=2)
 target_compile_options(sph2d PRIVATE
     -Wall
     -Wno-sign-compare

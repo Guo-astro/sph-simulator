@@ -1,7 +1,6 @@
 target_sources(sph_lib
     PRIVATE
         logger.cpp
-        core/plugin_loader.cpp
         core/sph_algorithm_registry.cpp
         core/sph_parameters_builder.cpp
         core/physics_parameters.cpp

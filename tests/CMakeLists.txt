@@ -45,8 +45,8 @@ target_compile_options(sph_tests
         -Wno-maybe-uninitialized
 )
 
-# Define dimension for tests
-target_compile_definitions(sph_tests PRIVATE DIM=1)
+# Tests use Dim=1 for simplicity (defined via constexpr in each test file)
+# No DIM macro needed
 
 # Add subdirectories for organized tests
 add_subdirectory(core)

@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file ghost_particle_regression_test.cpp
  * @brief Regression tests to prevent the specific bugs reported on 2025-11-04

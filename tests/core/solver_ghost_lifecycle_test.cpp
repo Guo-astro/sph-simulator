@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file solver_ghost_lifecycle_test.cpp
  * @brief BDD-style tests for Solver ghost particle lifecycle management

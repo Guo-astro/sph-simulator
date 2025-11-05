@@ -60,7 +60,9 @@ struct BoundaryConfiguration {
     
     // Mirror boundary specific settings
     std::array<MirrorType, Dim> mirror_types;       ///< Mirror type per dimension (when type is MIRROR)
-    Vector<Dim> particle_spacing;                   ///< Particle spacing per dimension (dx, dy, dz) for wall offset calculation
+    Vector<Dim> particle_spacing;                   ///< Particle spacing per dimension (dx, dy, dz) for wall offset calculation (deprecated, use spacing_lower/spacing_upper)
+    Vector<Dim> spacing_lower;                      ///< Particle spacing at lower boundary per dimension for wall offset calculation
+    Vector<Dim> spacing_upper;                      ///< Particle spacing at upper boundary per dimension for wall offset calculation
     
     /**
      * @brief Default constructor - initializes with no boundaries
@@ -71,6 +73,9 @@ struct BoundaryConfiguration {
             enable_lower[i] = false;
             enable_upper[i] = false;
             mirror_types[i] = MirrorType::NO_SLIP;
+            particle_spacing[i] = 0.0;
+            spacing_lower[i] = 0.0;
+            spacing_upper[i] = 0.0;
         }
     }
     
@@ -109,10 +114,12 @@ struct BoundaryConfiguration {
      * @brief Get wall position for mirror boundaries (Morris 1997 formula)
      * 
      * Wall position is offset by ±0.5*dx from the particle domain boundary:
-     * - Lower wall: x_wall = range_min - 0.5*dx
-     * - Upper wall: x_wall = range_max + 0.5*dx
+     * - Lower wall: x_wall = range_min - 0.5*dx_lower
+     * - Upper wall: x_wall = range_max + 0.5*dx_upper
      * 
      * This ensures ghost particles maintain correct spacing from real particles.
+     * Uses per-boundary spacing (spacing_lower/spacing_upper) if set,
+     * otherwise falls back to uniform spacing (particle_spacing) for backward compatibility.
      * 
      * @param dim Dimension index
      * @param is_upper True for upper boundary, false for lower
@@ -120,9 +127,13 @@ struct BoundaryConfiguration {
      */
     real get_wall_position(int dim, bool is_upper) const {
         if (is_upper) {
-            return range_max[dim] + 0.5 * particle_spacing[dim];
+            // Use per-boundary spacing if set, otherwise fall back to uniform spacing
+            real spacing = (spacing_upper[dim] > 0.0) ? spacing_upper[dim] : particle_spacing[dim];
+            return range_max[dim] + 0.5 * spacing;
         } else {
-            return range_min[dim] - 0.5 * particle_spacing[dim];
+            // Use per-boundary spacing if set, otherwise fall back to uniform spacing
+            real spacing = (spacing_lower[dim] > 0.0) ? spacing_lower[dim] : particle_spacing[dim];
+            return range_min[dim] - 0.5 * spacing;
         }
     }
 };

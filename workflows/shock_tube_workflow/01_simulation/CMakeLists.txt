@@ -24,9 +24,12 @@ find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Collect SPH library sources (excluding main.cpp, solver.cpp, and sample files)
+# Collect SPH library sources (excluding main_*.cpp and sample files)
 file(GLOB SPH_SOURCES "${SPH_SRC_DIR}/*.cpp")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "main\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_1d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_2d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_3d\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "solver\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
 
@@ -51,7 +54,6 @@ add_library(shock_tube_plugin SHARED
 
 target_compile_features(shock_tube_plugin PUBLIC cxx_std_17)
 target_compile_definitions(shock_tube_plugin PRIVATE 
-    DIM=1
     # DEBUG_GHOST_PARTICLES  # Uncomment for ghost particle debug output
     # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
 )
@@ -79,13 +81,11 @@ set_target_properties(shock_tube_plugin PROPERTIES
 
 # Build standalone SPH executable for this workflow
 add_executable(sph 
-    ${SPH_SRC_DIR}/main.cpp
+    ${SPH_SRC_DIR}/main_1d.cpp
     ${SPH_SRC_DIR}/solver.cpp
-    ${SPH_SRC_DIR}/core/plugin_loader.cpp
 )
 
 target_compile_definitions(sph PRIVATE 
-    DIM=1
     # DEBUG_GHOST_PARTICLES  # Uncomment for ghost particle debug output
     # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
 )

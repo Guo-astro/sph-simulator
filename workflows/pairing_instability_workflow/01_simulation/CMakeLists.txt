@@ -20,9 +20,11 @@ find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Collect SPH library sources (excluding main.cpp, solver.cpp, and sample files)
 file(GLOB SPH_SOURCES "${SPH_SRC_DIR}/*.cpp")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "main\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_1d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_2d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_3d\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "solver\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
 
@@ -44,7 +46,6 @@ add_library(pairing_instability_plugin SHARED
 )
 
 target_compile_features(pairing_instability_plugin PUBLIC cxx_std_17)
-target_compile_definitions(pairing_instability_plugin PRIVATE DIM=2)
 target_compile_options(pairing_instability_plugin PRIVATE
     -Wall
     -Wno-sign-compare
@@ -69,12 +70,10 @@ set_target_properties(pairing_instability_plugin PROPERTIES
 
 # Build standalone SPH executable for this workflow
 add_executable(sph2d 
-    ${SPH_SRC_DIR}/main.cpp
+    ${SPH_SRC_DIR}/main_2d.cpp
     ${SPH_SRC_DIR}/solver.cpp
-    ${SPH_SRC_DIR}/core/plugin_loader.cpp
 )
 
-target_compile_definitions(sph2d PRIVATE DIM=2)
 target_compile_options(sph2d PRIVATE
     -Wall
     -Wno-sign-compare

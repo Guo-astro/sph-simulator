@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file dimension_system_test_simple.cpp
  * @brief Simplified BDD tests for dimension-agnostic vector system

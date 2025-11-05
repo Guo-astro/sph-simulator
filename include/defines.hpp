@@ -2,11 +2,13 @@
 
 #include <cmath>
 
-// DIM should be defined by CMakeLists.txt via add_compile_definitions()
-// Default to 1 if not defined
-#ifndef DIM
-#define DIM 1
-#endif
+/**
+ * @file defines.hpp
+ * @brief Global definitions and compile-time constants
+ * 
+ * DIM macro has been completely removed from the codebase.
+ * All dimension-dependent code now uses template parameter Dim or constexpr.
+ */
 
 typedef double real;
 

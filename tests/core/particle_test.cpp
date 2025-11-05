@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../bdd_helpers.hpp"
 #include <gtest/gtest.h>
 #include "core/sph_particle.hpp"
@@ -9,7 +12,7 @@ FEATURE(ParticleManagement) {
 
 SCENARIO(ParticleCreation, ParticleInitialization) {
     GIVEN("A new SPH particle") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         
         WHEN("The particle is created") {
             particle.id = 0;
@@ -19,7 +22,7 @@ SCENARIO(ParticleCreation, ParticleInitialization) {
             particle.ene = 1.0;
             particle.sml = 0.1;
             
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 particle.pos[i] = 0.0;
                 particle.vel[i] = 0.0;
                 particle.acc[i] = 0.0;
@@ -38,13 +41,13 @@ SCENARIO(ParticleCreation, ParticleInitialization) {
             }
             
             AND("Position should be at origin") {
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     EXPECT_DOUBLE_EQ(particle.pos[i], 0.0);
                 }
             }
             
             AND("Velocity should be zero") {
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     EXPECT_DOUBLE_EQ(particle.vel[i], 0.0);
                 }
             }
@@ -54,7 +57,7 @@ SCENARIO(ParticleCreation, ParticleInitialization) {
 
 SCENARIO(ParticleEdgeCases, InvalidMassHandling) {
     GIVEN("A particle with edge case values") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         
         WHEN("Mass is set to zero") {
             particle.mass = 0.0;
@@ -96,7 +99,7 @@ SCENARIO(ParticleEdgeCases, InvalidMassHandling) {
 
 SCENARIO(ParticleEdgeCases, NaNAndInfinityHandling) {
     GIVEN("A particle") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.mass = 1.0;
         particle.dens = 1.0;
         particle.sml = 0.1;
@@ -107,7 +110,7 @@ SCENARIO(ParticleEdgeCases, NaNAndInfinityHandling) {
             THEN("Detection should work") {
                 EXPECT_TRUE(std::isnan(particle.pos[0]));
                 bool is_finite = true;
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     if (!std::isfinite(particle.pos[i])) {
                         is_finite = false;
                         break;
@@ -123,7 +126,7 @@ SCENARIO(ParticleEdgeCases, NaNAndInfinityHandling) {
             THEN("Detection should work") {
                 EXPECT_TRUE(std::isinf(particle.vel[0]));
                 bool is_finite = true;
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     if (!std::isfinite(particle.vel[i])) {
                         is_finite = false;
                         break;
@@ -140,7 +143,7 @@ SCENARIO(ParticleEdgeCases, NaNAndInfinityHandling) {
             
             THEN("Validation should pass") {
                 bool pos_finite = true, vel_finite = true, acc_finite = true;
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     if (!std::isfinite(particle.pos[i])) pos_finite = false;
                     if (!std::isfinite(particle.vel[i])) vel_finite = false;
                     if (!std::isfinite(particle.acc[i])) acc_finite = false;
@@ -155,7 +158,7 @@ SCENARIO(ParticleEdgeCases, NaNAndInfinityHandling) {
 
 SCENARIO(ParticleEdgeCases, DensityAndPressure) {
     GIVEN("A particle with various thermodynamic states") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.mass = 1.0;
         particle.sml = 0.1;
         
@@ -201,7 +204,7 @@ SCENARIO(ParticleEdgeCases, DensityAndPressure) {
 
 SCENARIO(ParticleEdgeCases, SmoothingLength) {
     GIVEN("A particle") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.mass = 1.0;
         particle.dens = 1.0;
         
@@ -244,7 +247,7 @@ SCENARIO(ParticleEdgeCases, SmoothingLength) {
 
 SCENARIO(ParticleEdgeCases, VelocityBounds) {
     GIVEN("A particle with various velocities") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.mass = 1.0;
         particle.dens = 1.0;
         particle.sml = 0.1;
@@ -270,12 +273,12 @@ SCENARIO(ParticleEdgeCases, VelocityBounds) {
         }
         
         WHEN("Velocity is exactly zero") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 particle.vel[i] = 0.0;
             }
             
             THEN("All components should be zero") {
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     EXPECT_DOUBLE_EQ(particle.vel[i], 0.0);
                 }
             }
@@ -285,7 +288,7 @@ SCENARIO(ParticleEdgeCases, VelocityBounds) {
 
 SCENARIO(ParticleEdgeCases, AccelerationBounds) {
     GIVEN("A particle experiencing forces") {
-        sph::SPHParticle<DIM> particle;
+        sph::SPHParticle<Dim> particle;
         particle.mass = 1.0;
         particle.dens = 1.0;
         particle.sml = 0.1;
@@ -304,12 +307,12 @@ SCENARIO(ParticleEdgeCases, AccelerationBounds) {
         }
         
         WHEN("Acceleration is zero (free fall or equilibrium)") {
-            for (int i = 0; i < DIM; ++i) {
+            for (int i = 0; i < Dim; ++i) {
                 particle.acc[i] = 0.0;
             }
             
             THEN("All components should be exactly zero") {
-                for (int i = 0; i < DIM; ++i) {
+                for (int i = 0; i < Dim; ++i) {
                     EXPECT_DOUBLE_EQ(particle.acc[i], 0.0);
                 }
             }
@@ -325,7 +328,7 @@ FEATURE(ParticleArrayOperations) {
 SCENARIO(ParticleArray, MultipleParticles) {
     GIVEN("An array of particles") {
         const int n_particles = 100;
-        std::vector<sph::SPHParticle<DIM>> particles(n_particles);
+        std::vector<sph::SPHParticle<Dim>> particles(n_particles);
         
         WHEN("Particles are initialized") {
             for (int i = 0; i < n_particles; ++i) {
@@ -357,7 +360,7 @@ SCENARIO(ParticleArray, MultipleParticles) {
 SCENARIO(ParticleArray, EdgeCaseCount) {
     GIVEN("Edge case particle counts") {
         WHEN("Array has zero particles") {
-            std::vector<sph::SPHParticle<DIM>> particles(0);
+            std::vector<sph::SPHParticle<Dim>> particles(0);
             
             THEN("Array should be empty") {
                 EXPECT_EQ(particles.size(), 0);
@@ -366,7 +369,7 @@ SCENARIO(ParticleArray, EdgeCaseCount) {
         }
         
         WHEN("Array has one particle") {
-            std::vector<sph::SPHParticle<DIM>> particles(1);
+            std::vector<sph::SPHParticle<Dim>> particles(1);
             particles[0].id = 0;
             particles[0].mass = 1.0;
             
@@ -378,7 +381,7 @@ SCENARIO(ParticleArray, EdgeCaseCount) {
         
         WHEN("Array has very large number of particles") {
             const int huge_count = 1000000;
-            std::vector<sph::SPHParticle<DIM>> particles;
+            std::vector<sph::SPHParticle<Dim>> particles;
             particles.reserve(huge_count);
             
             THEN("Memory should be allocated") {

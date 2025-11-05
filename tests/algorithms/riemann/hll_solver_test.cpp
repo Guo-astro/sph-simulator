@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../../bdd_helpers.hpp"
 #include "algorithms/riemann/hll_solver.hpp"
 #include "utilities/constants.hpp"

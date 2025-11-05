@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file bhtree_ghost_integration_test.cpp
  * @brief BDD-style tests for BHTree ghost particle integration

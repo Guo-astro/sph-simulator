@@ -31,7 +31,7 @@ SPHParametersBuilder::SPHParametersBuilder()
     params->iterative_sml = true;
     
     params->periodic.is_valid = false;
-    for (std::size_t i = 0; i < DIM; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         params->periodic.range_min[i] = 0.0;
         params->periodic.range_max[i] = 1.0;
     }
@@ -108,14 +108,12 @@ SPHParametersBuilder& SPHParametersBuilder::with_artificial_conductivity(real al
 }
 
 SPHParametersBuilder& SPHParametersBuilder::with_periodic_boundary(
-    const real range_min[DIM],
-    const real range_max[DIM]
+    const std::array<real, 3>& range_min,
+    const std::array<real, 3>& range_max
 ) {
     params->periodic.is_valid = true;
-    for (std::size_t i = 0; i < DIM; ++i) {
-        params->periodic.range_min[i] = range_min[i];
-        params->periodic.range_max[i] = range_max[i];
-    }
+    params->periodic.range_min = range_min;
+    params->periodic.range_max = range_max;
     return *this;
 }
 
@@ -203,19 +201,19 @@ SPHParametersBuilder& SPHParametersBuilder::from_json_file(const char* filename)
     
     // Periodic boundary
     if (input.get<bool>("periodic", false)) {
-        real range_min[DIM];
-        real range_max[DIM];
+        std::array<real, 3> range_min = {0, 0, 0};
+        std::array<real, 3> range_max = {0, 0, 0};
         
         auto& range_min_node = input.get_child("rangeMin");
         auto& range_max_node = input.get_child("rangeMax");
         
         int i = 0;
         for (auto& v : range_min_node) {
-            range_min[i++] = std::stod(v.second.data());
+            if (i < 3) range_min[i++] = std::stod(v.second.data());
         }
         i = 0;
         for (auto& v : range_max_node) {
-            range_max[i++] = std::stod(v.second.data());
+            if (i < 3) range_max[i++] = std::stod(v.second.data());
         }
         
         with_periodic_boundary(range_min, range_max);
@@ -329,7 +327,7 @@ void SPHParametersBuilder::validate_build() const {
     }
     
     if (params->periodic.is_valid) {
-        for (int i = 0; i < DIM; ++i) {
+        for (int i = 0; i < 3; ++i) {
             if (params->periodic.range_max[i] <= params->periodic.range_min[i]) {
                 throw std::runtime_error("Periodic range_max must be > range_min");
             }

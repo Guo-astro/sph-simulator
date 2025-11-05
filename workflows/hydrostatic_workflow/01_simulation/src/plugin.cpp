@@ -24,7 +24,7 @@ namespace sph {
  * 
  * Reference: Saitoh & Makino (2013)
  */
-class HydrostaticPlugin : public SimulationPlugin {
+class HydrostaticPlugin : public SimulationPlugin<2> {
 public:
     std::string get_name() const override {
         return "hydrostatic";
@@ -38,11 +38,10 @@ public:
         return "2.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<2>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         // This plugin is for 2D simulations
         static constexpr int Dim = 2;
-        static_assert(DIM == Dim, "Hydrostatic equilibrium test requires DIM=2");
 
         std::cout << "Initializing hydrostatic equilibrium test...\n";
         
@@ -53,17 +52,17 @@ public:
         const real gamma = param->physics.gamma;
         int particle_id = 0;
         
-        std::vector<SPHParticle<DIM>> particles;
+        std::vector<SPHParticle<Dim>> particles;
         
         std::cout << "Creating high-density inner region...\n";
         // High-density region
         real x = -0.25 + dx1 * 0.5;
         real y = -0.25 + dx1 * 0.5;
         while(y < 0.25) {
-            SPHParticle<DIM> p_i;
+            SPHParticle<Dim> p_i;
             p_i.pos[0] = x;
             p_i.pos[1] = y;
-            p_i.vel = Vector<DIM>{};
+            p_i.vel = Vector<Dim>{};
             p_i.mass = mass;
             p_i.dens = 4.0;
             p_i.pres = 2.5;
@@ -86,10 +85,10 @@ public:
         x = -0.5 + dx2 * 0.5;
         y = -0.5 + dx2 * 0.5;
         while(y < 0.5) {
-            SPHParticle<DIM> p_i;
+            SPHParticle<Dim> p_i;
             p_i.pos[0] = x;
             p_i.pos[1] = y;
-            p_i.vel = Vector<DIM>{};
+            p_i.vel = Vector<Dim>{};
             p_i.mass = mass;
             p_i.dens = 1.0;
             p_i.pres = 2.5;
@@ -132,4 +131,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::HydrostaticPlugin)
+DEFINE_SIMULATION_PLUGIN(sph::HydrostaticPlugin, 2)

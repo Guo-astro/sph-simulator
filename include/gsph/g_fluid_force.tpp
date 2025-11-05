@@ -151,7 +151,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 // velocity
                 const real dv_ij = ve_i - ve_j;
                 Vector<Dim> dv_i, dv_j;
-                for(int k = 0; k < DIM; ++k) {
+                for(int k = 0; k < Dim; ++k) {
                     dv_i[k] = inner_product(grad_v[k][i], e_ij);
                     dv_j[k] = inner_product(grad_v[k][j], e_ij);
                 }

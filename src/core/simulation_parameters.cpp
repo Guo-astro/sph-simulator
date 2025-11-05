@@ -123,19 +123,19 @@ SimulationParametersBuilder& SimulationParametersBuilder::from_json_file(const c
         physics_builder.with_artificial_conductivity(input.get<real>("alphaAC", 1.0));
     }
     if (input.get<bool>("periodic", false)) {
-        real range_min[DIM];
-        real range_max[DIM];
+        std::array<real, 3> range_min = {0, 0, 0};
+        std::array<real, 3> range_max = {0, 0, 0};
         
         auto& range_min_node = input.get_child("rangeMin");
         auto& range_max_node = input.get_child("rangeMax");
         
         int i = 0;
         for (auto& v : range_min_node) {
-            range_min[i++] = std::stod(v.second.data());
+            if (i < 3) range_min[i++] = std::stod(v.second.data());
         }
         i = 0;
         for (auto& v : range_max_node) {
-            range_max[i++] = std::stod(v.second.data());
+            if (i < 3) range_max[i++] = std::stod(v.second.data());
         }
         
         physics_builder.with_periodic_boundary(range_min, range_max);

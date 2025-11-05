@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file ghost_particle_boundary_edge_cases_test.cpp
  * @brief BDD-style tests for ghost particle boundary edge cases

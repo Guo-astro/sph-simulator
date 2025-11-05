@@ -89,23 +89,20 @@ if(OpenMP_CXX_FOUND)
   target_compile_definitions(sph_lib PUBLIC SPH_USE_OPENMP)
 endif()
 
-# Create executable
+# Create executables for each dimension (no DIM macro needed)
 add_executable(sph)
-target_compile_definitions(sph PRIVATE DIM=1)
 target_link_libraries(sph PRIVATE sph_lib)
-target_sources(sph PRIVATE src/main.cpp)
+target_sources(sph PRIVATE src/main_1d.cpp)
 
 # Create 2D executable
 add_executable(sph2d)
-target_compile_definitions(sph2d PRIVATE DIM=2)
 target_link_libraries(sph2d PRIVATE sph_lib)
-target_sources(sph2d PRIVATE src/main.cpp)
+target_sources(sph2d PRIVATE src/main_2d.cpp)
 
 # Create 3D executable
 add_executable(sph3d)
-target_compile_definitions(sph3d PRIVATE DIM=3)
 target_link_libraries(sph3d PRIVATE sph_lib)
-target_sources(sph3d PRIVATE src/main.cpp)
+target_sources(sph3d PRIVATE src/main_3d.cpp)
 
 add_subdirectory(include)
 add_subdirectory(src)

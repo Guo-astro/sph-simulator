@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../bdd_helpers.hpp"
 #include "parameters.hpp"
 #include "core/sph_algorithm_registry.hpp"
@@ -132,8 +135,8 @@ FEATURE(TypeSafeSPHParametersBuilder) {
             }
             
             WHEN("Adding periodic boundary conditions") {
-                real range_max[DIM] = {1.5};
-                real range_min[DIM] = {-0.5};
+                real range_max[Dim] = {1.5};
+                real range_min[Dim] = {-0.5};
                 auto params = builder
                     .with_periodic_boundary(range_min, range_max)
                     .build();

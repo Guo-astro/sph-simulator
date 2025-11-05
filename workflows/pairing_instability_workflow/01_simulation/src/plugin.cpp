@@ -25,7 +25,7 @@ namespace sph {
  * 
  * Reference: Schuessler & Schmitt (1981), Monaghan (2002)
  */
-class PairingInstabilityPlugin : public SimulationPlugin {
+class PairingInstabilityPlugin : public SimulationPlugin<2> {
 public:
     std::string get_name() const override {
         return "pairing_instability";
@@ -39,11 +39,10 @@ public:
         return "2.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation<DIM>> sim,
+    void initialize(std::shared_ptr<Simulation<2>> sim,
                    std::shared_ptr<SPHParameters> param) override {
         // This plugin is for 2D simulations
         static constexpr int Dim = 2;
-        static_assert(DIM == Dim, "Pairing instability test requires DIM=2");
 
         std::cout << "Initializing pairing instability test...\n";
         
@@ -58,20 +57,20 @@ public:
         std::mt19937 engine(12345);
         std::uniform_real_distribution<real> dist(-0.05 * dx, 0.05 * dx);
         
-        std::vector<SPHParticle<DIM>> particles;
+        std::vector<SPHParticle<Dim>> particles;
         int particle_id = 0;
         
         std::cout << "Creating uniform grid with random perturbations...\n";
         for(int i = 0; i < N; i++) {
             for(int j = 0; j < N; j++) {
-                SPHParticle<DIM> p;
+                SPHParticle<Dim> p;
                 
                 // Grid position with perturbation
                 p.pos[0] = (i + 0.5) * dx + dist(engine);
                 p.pos[1] = (j + 0.5) * dx + dist(engine);
                 
                 // Zero velocity
-                p.vel = Vector<DIM>{};
+                p.vel = Vector<Dim>{};
                 
                 // Uniform thermodynamics
                 p.mass = mass;
@@ -106,4 +105,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::PairingInstabilityPlugin)
+DEFINE_SIMULATION_PLUGIN(sph::PairingInstabilityPlugin, 2)

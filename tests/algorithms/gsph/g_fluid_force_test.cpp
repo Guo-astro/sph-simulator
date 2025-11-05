@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../../bdd_helpers.hpp"
 #include "parameters.hpp"
 #include "core/sph_particle.hpp"
@@ -35,7 +38,7 @@ SCENARIO(GSPHCalculation, FirstOrderMethod) {
         param->physics.gamma = 5.0 / 3.0;
         param->gsph.is_2nd_order = false;  // First order
         
-        sph::SPHParticle<DIM> p1, p2;
+        sph::SPHParticle<Dim> p1, p2;
         p1.dens = 1.0;
         p1.pres = 1.0;
         p1.vel[0] = 0.0;

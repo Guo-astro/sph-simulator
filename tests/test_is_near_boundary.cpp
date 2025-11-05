@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file test_is_near_boundary.cpp
  * @brief Minimal test to debug is_near_boundary logic

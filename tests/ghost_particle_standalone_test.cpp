@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "core/ghost_particle_manager.hpp"
 #include "core/boundary_types.hpp"
 #include "core/sph_particle.hpp"

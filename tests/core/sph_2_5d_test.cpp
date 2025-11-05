@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>

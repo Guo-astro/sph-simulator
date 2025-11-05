@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file neighbor_search_test.cpp
  * @brief BDD-style tests for declarative neighbor search refactoring

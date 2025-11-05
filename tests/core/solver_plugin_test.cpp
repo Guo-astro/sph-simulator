@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 #include "../bdd_helpers.hpp"
 #include "solver.hpp"
 #include "core/plugin_loader.hpp"

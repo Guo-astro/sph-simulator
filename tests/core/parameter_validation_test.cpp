@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file parameter_validation_test.cpp
  * @brief BDD tests for parameter validation against particle configuration
@@ -22,7 +25,7 @@ SCENARIO(CFLValidation, SafeConfiguration) {
     GIVEN("A uniform particle distribution with known spacing") {
         const int n = 100;
         const real dx = 0.01;  // Particle spacing
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -52,7 +55,7 @@ SCENARIO(CFLValidation, UnsafeConfigurationSound) {
     GIVEN("High resolution particles with large CFL") {
         const int n = 100;
         const real dx = 0.001;  // Very fine spacing
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -82,7 +85,7 @@ SCENARIO(CFLValidation, UnsafeConfigurationSound) {
 SCENARIO(CFLValidation, UnsafeConfigurationForce) {
     GIVEN("Particles with high acceleration") {
         const int n = 100;
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -113,7 +116,7 @@ SCENARIO(NeighborNumberValidation, CorrectConfiguration) {
     GIVEN("Uniform 1D particle distribution") {
         const int n = 100;
         const real dx = 0.01;
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -141,7 +144,7 @@ SCENARIO(NeighborNumberValidation, TooFewNeighbors) {
     GIVEN("Dense particle distribution") {
         const int n = 1000;
         const real dx = 0.001;  // Very fine spacing
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -170,7 +173,7 @@ SCENARIO(NeighborNumberValidation, TooManyNeighbors) {
     GIVEN("Sparse particle distribution") {
         const int n = 10;
         const real dx = 0.1;  // Coarse spacing
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].id = i;
@@ -276,7 +279,7 @@ SCENARIO(ParameterSuggestion, FromParticles) {
     GIVEN("An actual particle distribution") {
         const int n = 100;
         const real dx = 0.01;
-        std::vector<SPHParticle<DIM>> particles(n);
+        std::vector<SPHParticle<Dim>> particles(n);
         
         for (int i = 0; i < n; ++i) {
             particles[i].pos[0] = i * dx;

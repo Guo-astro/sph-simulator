@@ -1,3 +1,6 @@
+// Use 1D for tests by default
+static constexpr int Dim = 1;
+
 /**
  * @file ghost_particle_integration_test.cpp
  * @brief BDD-style integration tests for ghost particle system
