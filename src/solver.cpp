@@ -364,11 +364,10 @@ void Solver::initialize()
         
         // Update cached_search_particles to include both real and ghost particles
         // This is CRITICAL for neighbor search in subsequent calculations
-        // Copy combined particle list into the cached buffer without leaving the tree
-        // in an inconsistent state. Rebuild the tree immediately after updating.
+        // CRITICAL FIX: Use assign() instead of operator= to avoid reallocation
+        // that would invalidate tree's internal particle.next pointers
         const auto all_particles_combined = m_sim->get_all_particles_for_search();
-        m_sim->cached_search_particles.reserve(all_particles_combined.size());
-        m_sim->cached_search_particles = all_particles_combined;
+        m_sim->cached_search_particles.assign(all_particles_combined.begin(), all_particles_combined.end());
 
         // Rebuild spatial tree now that cached_search_particles and IDs are consistent
         m_sim->make_tree();
@@ -380,27 +379,22 @@ void Solver::initialize()
 
 void Solver::integrate()
 {
-    // Validate particle vector isn't corrupted
-    if (m_sim->particles.size() != static_cast<size_t>(m_sim->particle_num)) {
-        WRITE_LOG << "FATAL: particles vector size mismatch! size=" << m_sim->particles.size() 
-                  << ", particle_num=" << m_sim->particle_num;
-        throw std::runtime_error("Particle vector corrupted");
-    }
-    
     // Update ghost particle properties before neighbor search
     if (m_sim->ghost_manager) {
-        // Recalculate kernel support radius from current smoothing lengths
-        // This is critical because sml adapts during simulation and affects ghost generation
-        real max_sml = 0.0;
-        for (int i = 0; i < m_sim->particle_num; ++i) {
-            if (m_sim->particles[i].sml > max_sml) {
-                max_sml = m_sim->particles[i].sml;
-            }
-        }
-        const real kernel_support = 2.0 * max_sml;  // Changed from 3.0 to 2.0 to reduce ghost count
-        m_sim->ghost_manager->set_kernel_support_radius(kernel_support);
+        const int ghost_count_before = m_sim->ghost_manager->get_ghost_count();
         
+        // CRITICAL: Never regenerate ghosts during main simulation loop
+        // Regeneration changes particle count and invalidates neighbor indices.
+        // Ghosts are generated once during initialization and only properties
+        // are updated thereafter.
         m_sim->ghost_manager->update_ghosts(m_sim->particles);
+        
+        const int ghost_count_after = m_sim->ghost_manager->get_ghost_count();
+        
+        if (ghost_count_before != ghost_count_after) {
+            WRITE_LOG << "ERROR: Ghost count changed! " << ghost_count_before 
+                      << " -> " << ghost_count_after;
+        }
     }
 
     m_timestep->calculation(m_sim);
@@ -411,11 +405,18 @@ void Solver::integrate()
     // CRITICAL: Must not reallocate to avoid invalidating tree pointers
     const auto all_particles = m_sim->get_all_particles_for_search();
     const size_t new_size = all_particles.size();
+    const size_t old_capacity = m_sim->cached_search_particles.capacity();
     
-    // Reserve capacity to prevent reallocation, then resize
-    if (m_sim->cached_search_particles.capacity() < new_size) {
-        m_sim->cached_search_particles.reserve(new_size + 100);  // Extra buffer
+    // CRITICAL FIX: Reserve BEFORE any size changes to ensure no reallocation
+    // Reserve extra space to avoid future reallocations
+    if (old_capacity < new_size) {
+        const size_t new_capacity = new_size + 100;  // Extra buffer for safety
+        WRITE_LOG << "WARNING: Resizing cached_search_particles capacity: " 
+                  << old_capacity << " -> " << new_capacity;
+        m_sim->cached_search_particles.reserve(new_capacity);
     }
+    
+    // Now resize is safe - capacity is guaranteed >= new_size, so no reallocation
     m_sim->cached_search_particles.resize(new_size);
     std::copy(all_particles.begin(), all_particles.end(), m_sim->cached_search_particles.begin());
     

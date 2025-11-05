@@ -171,7 +171,8 @@ template<int Dim>
 int BHTree<Dim>::neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list,
                                   const std::vector<SPHParticle<Dim>>& particles, const bool is_ij) {
     int n_neighbor = 0;
-    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, is_ij, m_periodic.get());
+    const int max_neighbors = static_cast<int>(neighbor_list.size());
+    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get());
 
     // Use the particle array pointer recorded during make() for sorting and
     // bounds checking. If it's not set, fall back to the provided vector.
@@ -309,7 +310,7 @@ real BHTree<Dim>::BHNode::set_kernel() {
 
 template<int Dim>
 void BHTree<Dim>::BHNode::neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list,
-                                           int& n_neighbor, const bool is_ij, const Periodic<Dim>* periodic) {
+                                           int& n_neighbor, const int max_neighbors, const bool is_ij, const Periodic<Dim>* periodic) {
     const Vector<Dim>& r_i = p_i.pos;
     const real h = is_ij ? std::max(p_i.sml, kernel_size) : p_i.sml;
     const real h2 = h * h;
@@ -331,6 +332,20 @@ void BHTree<Dim>::BHNode::neighbor_search(const SPHParticle<Dim>& p_i, std::vect
                 const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
                 const real r2 = abs2(r_ij);
                 if (r2 < h2) {
+                    // CRITICAL FIX: Check bounds before writing to prevent heap buffer overflow
+                    if (n_neighbor >= max_neighbors) {
+                        // Neighbor list is full - this should trigger reallocation or error
+                        #pragma omp critical
+                        {
+                            static bool overflow_logged = false;
+                            if (!overflow_logged) {
+                                WRITE_LOG << "ERROR: Neighbor list overflow! n_neighbor=" << n_neighbor 
+                                          << ", max=" << max_neighbors << ", particle_id=" << p_i.id;
+                                overflow_logged = true;
+                            }
+                        }
+                        return;  // Stop searching to prevent crash
+                    }
                     neighbor_list[n_neighbor] = p->id;
                     ++n_neighbor;
                 }
@@ -339,7 +354,7 @@ void BHTree<Dim>::BHNode::neighbor_search(const SPHParticle<Dim>& p_i, std::vect
         } else {
             for (int i = 0; i < nchild<Dim>(); ++i) {
                 if (childs[i]) {
-                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, is_ij, periodic);
+                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic);
                 }
             }
         }

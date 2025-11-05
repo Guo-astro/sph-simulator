@@ -81,8 +81,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         for (int n = 0; n < n_neighbor_tmp; ++n) {
             const int j = neighbor_list[n];
             if (j < 0 || j >= search_size) {
-                WRITE_LOG << "ERROR: Particle " << i << " has neighbor index " << j 
-                         << " which is out of bounds [0, " << search_size << ")";
+#pragma omp critical
+                {
+                    WRITE_LOG << "ERROR: Particle " << i << " has neighbor index " << j 
+                             << " which is out of bounds [0, " << search_size << ")";
+                }
             }
         }
         // smoothing length

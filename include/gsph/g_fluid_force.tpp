@@ -42,6 +42,9 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
     const real dt = sim->dt;
+    
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
 
     // for MUSCL - only access gradient arrays if 2nd order is enabled
     std::vector<Vector<Dim>> *grad_d_ptr = nullptr;
@@ -68,10 +71,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
         // Search over ALL particles (including ghosts appended at end)
-        const int search_count = static_cast<int>(particles.size());
-        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, search_count, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
+        const int search_count = static_cast<int>(search_particles.size());
+        int const n_neighbor = exhaustive_search(p_i, p_i.sml, search_particles, search_count, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
 #else
-        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
+        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, search_particles, true);
 #endif
 
         // fluid force
@@ -85,7 +88,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
-            auto & p_j = particles[j];
+            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles to include ghosts
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
 
@@ -102,7 +105,12 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             // Check if neighbor is a ghost particle
             // Ghost particles don't have gradient arrays, so use 1st order for them
             const bool is_ghost = (p_j.type == static_cast<int>(ParticleType::GHOST));
-            const bool use_2nd_order = this->m_is_2nd_order && !is_ghost;
+            
+            // CRITICAL FIX: j >= num means accessing ghost particles
+            // Gradient arrays (grad_d, grad_p, grad_v) are ONLY sized for [0, num)
+            // Accessing j >= num will cause out-of-bounds memory access
+            // Must check BOTH is_ghost flag AND j < num for safety
+            const bool use_2nd_order = this->m_is_2nd_order && !is_ghost && (j < num);
 
             if(use_2nd_order) {
                 // Murante et al. (2011) - 2nd order MUSCL reconstruction

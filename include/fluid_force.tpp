@@ -33,14 +33,49 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 template<int Dim>
 void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
+    // ULTRA MINIMAL - Just a volatile write to prevent optimization
+    volatile int entry_marker = 42;
+    (void)entry_marker;  // Prevent unused variable warning
+    
+    // CRITICAL: Use stderr instead of WRITE_LOG to avoid any macro issues
+    std::cerr << ">>> FluidForce::calculation ENTRY (stderr)" << std::endl;
+    
+    WRITE_LOG << "    FluidForce::calculation ENTRY (WRITE_LOG)";
+    
+    static int calc_call_count = 0;
+    std::cerr << ">>> After static var decl" << std::endl;
+    
+    WRITE_LOG << "    After static var increment";
+    ++calc_call_count;
+    
+    std::cerr << ">>> calc_call_count = " << calc_call_count << std::endl;
+    
+    WRITE_LOG << "    calc_call_count = " << calc_call_count;
+    
+    if (!sim) {
+        WRITE_LOG << "ERROR: FluidForce::calculation called with null sim!";
+        return;
+    }
+    
+    WRITE_LOG << "    sim pointer valid, getting particles...";
+    
     auto & particles = sim->particles;
+    WRITE_LOG << "    Got particles reference";
+    
     auto * periodic = sim->periodic.get();
+    WRITE_LOG << "    Got periodic pointer";
+    
     const int num = sim->particle_num;
+    WRITE_LOG << "    num = " << num;
+    
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
     // Use cached combined particle list (built when tree was created)
     auto & search_particles = sim->cached_search_particles;
+    const int search_size = static_cast<int>(search_particles.size());
+    
+    WRITE_LOG << "    search_size = " << search_size;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
@@ -67,6 +102,18 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
+            
+            // CRITICAL: Bounds check before accessing
+            if (j < 0 || j >= search_size) {
+#pragma omp critical
+                {
+                    WRITE_LOG << "ERROR in FluidForce: Particle " << i << " has neighbor index " << j 
+                             << " which is out of bounds [0, " << search_size << ")"
+                             << " at call #" << calc_call_count;
+                }
+                continue;  // Skip this neighbor
+            }
+            
             auto & p_j = search_particles[j];  // Access from combined list
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
@@ -97,6 +144,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.acc = acc;
         p_i.dene = dene;
     }
+    
+    WRITE_LOG << "    FluidForce::calculation complete for call #" << calc_call_count;
 }
 
 // Artificial conductivity (Wadsley et al. 2008, Price 2008)

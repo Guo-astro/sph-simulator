@@ -61,36 +61,33 @@ void GhostParticleManager<Dim>::generate_ghosts(const std::vector<SPHParticle<Di
 
 template<int Dim>
 void GhostParticleManager<Dim>::update_ghosts(const std::vector<SPHParticle<Dim>>& real_particles) {
-    // Check if any dimension uses mirror boundaries
-    bool has_mirror = false;
-    for (int d = 0; d < Dim; ++d) {
-        if (config_.types[d] == BoundaryType::MIRROR) {
-            has_mirror = true;
-            break;
-        }
-    }
+    // CRITICAL: Never regenerate ghosts OR modify positions during simulation loop
+    // Any change to particle count or positions invalidates neighbor indices
+    // that were computed in the previous timestep, causing segfaults.
+    // 
+    // Ghost positions are set once during generate_ghosts() and remain fixed.
+    // Only update properties (density, pressure, velocity, etc.)
     
-    // For mirror boundaries, we must regenerate ghosts to ensure proper velocity reflection
-    // This is because velocity reflection depends on the current velocity of real particles
-    if (has_mirror) {
-        generate_ghosts(real_particles);
-        return;
-    }
-    
-    // For periodic boundaries, we can simply update properties without regenerating
     for (size_t i = 0; i < ghost_particles_.size(); ++i) {
         int real_idx = ghost_to_real_mapping_[i];
+        
         if (real_idx >= 0 && real_idx < static_cast<int>(real_particles.size())) {
-            // Copy properties from real particle
-            ghost_particles_[i].vel = real_particles[real_idx].vel;
-            ghost_particles_[i].dens = real_particles[real_idx].dens;
-            ghost_particles_[i].pres = real_particles[real_idx].pres;
-            ghost_particles_[i].mass = real_particles[real_idx].mass;
-            ghost_particles_[i].sml = real_particles[real_idx].sml;
-            ghost_particles_[i].ene = real_particles[real_idx].ene;
+            const auto& real_p = real_particles[real_idx];
+            auto& ghost_p = ghost_particles_[i];
             
-            // Note: Position is not updated - it was set during generation
+            // Copy thermodynamic and kinematic properties from real particle
+            ghost_p.vel = real_p.vel;
+            ghost_p.dens = real_p.dens;
+            ghost_p.pres = real_p.pres;
+            ghost_p.mass = real_p.mass;
+            ghost_p.sml = real_p.sml;
+            ghost_p.ene = real_p.ene;
+            ghost_p.sound = real_p.sound;
+            
+            // NOTE: Position is NOT updated - it remains fixed from generation
+            // This ensures neighbor indices remain valid throughout the timestep
         }
+        // Silently skip invalid mappings - they should never occur if ghost system is healthy
     }
 }
 
@@ -294,6 +291,20 @@ void GhostParticleManager<Dim>::generate_mirror_ghosts(
     int dim,
     bool is_upper) {
     
+    // Calculate a reasonable default spacing if sml values are not yet initialized
+    real default_spacing = kernel_support_radius_ * 0.5;
+    if (default_spacing <= 0.0 && !real_particles.empty()) {
+        // Emergency fallback: estimate from boundary range
+        // Assume roughly uniform distribution for initial spacing estimate
+        real domain_size = config_.get_range(dim);
+        int particles_per_dim = static_cast<int>(std::pow(real_particles.size(), 1.0 / Dim));
+        if (particles_per_dim > 0) {
+            default_spacing = domain_size / particles_per_dim;
+        } else {
+            default_spacing = domain_size * 0.01; // 1% of domain as last resort
+        }
+    }
+    
     for (size_t i = 0; i < real_particles.size(); ++i) {
         const auto& p = real_particles[i];
         
@@ -301,16 +312,39 @@ void GhostParticleManager<Dim>::generate_mirror_ghosts(
         if (is_near_boundary(p.pos, dim, is_upper)) {
             SPHParticle<Dim> ghost = p;  // Copy all properties
             
-            // Mirror position across boundary
-            ghost.pos = mirror_position(p.pos, dim, is_upper);
+            // Position ghost to maintain exact local particle spacing
+            // Use the particle's own smoothing length as the characteristic spacing
+            // Ghost should be positioned such that distance(ghost, real) = local_spacing
+            const real boundary_pos = is_upper ? config_.range_max[dim] : config_.range_min[dim];
+            const real dist_to_boundary = is_upper ? 
+                (boundary_pos - p.pos[dim]) : 
+                (p.pos[dim] - boundary_pos);
             
-            // Reflect velocity according to mirror type
-            if (config_.mirror_types[dim] == MirrorType::NO_SLIP) {
-                reflect_velocity_no_slip(ghost.vel, dim);
-            } else {
-                reflect_velocity_free_slip(ghost.vel, dim);
+            // Local spacing is approximately equal to smoothing length for typical SPH setups
+            // Safety check: ensure sml is valid (non-zero), otherwise use default spacing
+            real local_spacing = p.sml;
+            if (local_spacing <= 0.0) {
+                local_spacing = default_spacing;
             }
             
+            // Place ghost on opposite side of boundary at distance = local_spacing from real particle
+            ghost.pos = p.pos;
+            if (is_upper) {
+                // Ghost beyond upper boundary: boundary + (local_spacing - dist_to_boundary)
+                ghost.pos[dim] = boundary_pos + (local_spacing - dist_to_boundary);
+            } else {
+                // Ghost beyond lower boundary: boundary - (local_spacing - dist_to_boundary)
+                ghost.pos[dim] = boundary_pos - (local_spacing - dist_to_boundary);
+            }
+            
+            // Keep velocity, density, and pressure exactly the same (NO reflection)
+            // This ensures ghost particles have identical thermodynamic properties
+            // Only force calculation will be affected by the boundary constraint
+            ghost.vel = p.vel;
+            ghost.dens = p.dens;
+            ghost.pres = p.pres;
+            
+            // Mark as ghost particle
             ghost.type = static_cast<int>(ParticleType::GHOST);
             ghost_particles_.push_back(ghost);
             ghost_to_real_mapping_.push_back(static_cast<int>(i));

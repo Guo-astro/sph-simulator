@@ -62,7 +62,7 @@ private:
         void assign(SPHParticle<Dim>* particle, BHNode*& nodes, int& remaind);
         real set_kernel();
         void neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list, 
-                           int& n_neighbor, const bool is_ij, const Periodic<Dim>* periodic);
+                           int& n_neighbor, const int max_neighbors, const bool is_ij, const Periodic<Dim>* periodic);
         void calc_force(SPHParticle<Dim>& p_i, const real theta2, const real g_constant, 
                        const Periodic<Dim>* periodic);
     };
