@@ -10,7 +10,7 @@ if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
   include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
-project(hydrostatic_workflow)
+project(shock_tube_3d_workflow)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,6 +24,7 @@ find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+# Collect SPH library sources (excluding main_*.cpp and sample files)
 file(GLOB SPH_SOURCES "${SPH_SRC_DIR}/*.cpp")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "main\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "main_1d\\.cpp$")
@@ -42,8 +43,8 @@ file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
 
 # Build plugin as shared library
-add_library(hydrostatic_plugin SHARED 
-    src/plugin.cpp
+add_library(shock_tube_3d_plugin SHARED 
+    src/plugin_3d.cpp
     ${SPH_SOURCES}
     ${SPH_DISPH_SOURCES}
     ${SPH_GSPH_SOURCES}
@@ -51,54 +52,54 @@ add_library(hydrostatic_plugin SHARED
     ${SPH_CORE_SOURCES}
 )
 
-target_compile_features(hydrostatic_plugin PUBLIC cxx_std_17)
-target_compile_options(hydrostatic_plugin PRIVATE
+target_compile_features(shock_tube_3d_plugin PUBLIC cxx_std_17)
+target_compile_options(shock_tube_3d_plugin PRIVATE
     -Wall
     -Wno-sign-compare
     -funroll-loops
     -ffast-math
 )
 
-target_include_directories(hydrostatic_plugin PUBLIC 
+target_include_directories(shock_tube_3d_plugin PUBLIC 
     ${SPH_INCLUDE_DIR}
 )
 
-target_link_libraries(hydrostatic_plugin PUBLIC
+target_link_libraries(shock_tube_3d_plugin PUBLIC
     OpenMP::OpenMP_CXX
     Boost::headers
     nlohmann_json::nlohmann_json
 )
 
-set_target_properties(hydrostatic_plugin PROPERTIES
+set_target_properties(shock_tube_3d_plugin PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )
 
 # Build standalone SPH executable for this workflow
-add_executable(sph2d 
-    ${SPH_SRC_DIR}/main_2d.cpp
+add_executable(sph3d 
+    ${SPH_SRC_DIR}/main_3d.cpp
     ${SPH_SRC_DIR}/solver.cpp
 )
 
-target_compile_options(sph2d PRIVATE
+target_compile_options(sph3d PRIVATE
     -Wall
     -Wno-sign-compare
     -funroll-loops
     -ffast-math
 )
 
-target_include_directories(sph2d PUBLIC 
+target_include_directories(sph3d PUBLIC 
     ${SPH_INCLUDE_DIR}
 )
 
-target_link_libraries(sph2d PUBLIC
-    hydrostatic_plugin
+target_link_libraries(sph3d PUBLIC
+    shock_tube_3d_plugin
 )
 
-set_target_properties(sph2d PROPERTIES
+set_target_properties(sph3d PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-message(STATUS "Building hydrostatic_plugin for 2D")
-message(STATUS "Building local sph2d executable")
+message(STATUS "Building shock_tube_3d_plugin for 3D")
+message(STATUS "Building local sph3d executable")
 message(STATUS "SPH root: ${SPH_ROOT}")

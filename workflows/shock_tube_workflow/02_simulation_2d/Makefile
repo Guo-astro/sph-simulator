@@ -15,16 +15,12 @@ BUILD_DIR := build
 SPH_BIN := $(BUILD_DIR)/sph2d
 LIB_DIR := lib
 PLUGIN := $(LIB_DIR)/libshock_tube_2d_plugin.dylib
-CONFIG_DIR := config
 RESULTS_DIR := results
 ANALYSIS_DIR := $(RESULTS_DIR)/analysis
 PLOTS_DIR := $(ANALYSIS_DIR)/plots
 ANIMATIONS_DIR := $(ANALYSIS_DIR)/animations
 SCRIPTS_DIR := scripts
-
-# Configs
-GSPH_CONFIG := $(CONFIG_DIR)/gsph.json
-DISPH_CONFIG := $(CONFIG_DIR)/disph.json
+OUTPUT_DIR := output
 
 # Results
 GSPH_RESULTS := $(RESULTS_DIR)/gsph
@@ -86,14 +82,20 @@ clean-all: clean clean-outputs
 run-gsph: build
 	@echo "=== Running 2D GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN) $(GSPH_CONFIG)
+	@echo "Using OpenMP with all available CPU cores"
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
+	@echo "Copying GSPH results..."
+	@cp -f $(OUTPUT_DIR)/shock_tube_2d/*.dat $(GSPH_RESULTS)/
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
 run-disph: build
 	@echo "=== Running 2D DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN) $(DISPH_CONFIG)
+	@echo "Using OpenMP with all available CPU cores"
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
+	@echo "Copying DISPH results..."
+	@cp -f $(OUTPUT_DIR)/shock_tube_2d/*.dat $(DISPH_RESULTS)/
 	@echo "✓ DISPH simulation complete"
 
 # Run both simulations

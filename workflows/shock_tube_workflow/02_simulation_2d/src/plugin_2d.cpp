@@ -10,7 +10,8 @@
  */
 
 #include "core/simulation_plugin.hpp"
-#include "core/sph_parameters_builder.hpp"
+#include "core/sph_parameters_builder_base.hpp"
+#include "core/gsph_parameters_builder.hpp"
 #include "core/parameter_estimator.hpp"
 #include "core/parameter_validator.hpp"
 #include "core/simulation.hpp"
@@ -68,8 +69,9 @@ public:
         // Y-direction: [0, 0.5] for visualization
         
         // Right side (lower density)
-        const int Nx_right = 50;
-        const int Ny = 25;  // Y-resolution
+        // REDUCED RESOLUTION for faster computation (was 50×25 → 11,250 particles)
+        const int Nx_right = 25;  // Reduced from 50
+        const int Ny = 10;        // Reduced from 25 → ~2,875 particles
         const real Lx_right = 1.0;  // [0.5, 1.5]
         const real Ly = 0.5;
         const real dx_right = Lx_right / Nx_right;
@@ -160,40 +162,31 @@ public:
         std::cout << "  Neighbor number: " << suggestions.neighbor_number << "\n";
         
         // ============================================================
-        // STEP 3: BUILD PARAMETERS USING BUILDER PATTERN
+        // STEP 3: BUILD PARAMETERS USING TYPE-SAFE BUILDER
         // ============================================================
         
-        std::cout << "\n--- Building Parameters ---\n";
+        std::cout << "\n--- Building Parameters (Type-Safe API) ---\n";
         
         try {
-            SPHParametersBuilder builder;
-            
-            auto built_params = builder
-                // Time settings
+            auto built_params = SPHParametersBuilderBase()
+                // Common parameters
                 .with_time(0.0, 0.2, 0.01)
-                
-                // SPH type
-                .with_sph_type("gsph")
-                
-                // Physics
                 .with_physics(suggestions.neighbor_number, gamma)
-                
-                // CFL conditions  
                 .with_cfl(suggestions.cfl_sound, suggestions.cfl_force)
-                
-                // Kernel
                 .with_kernel("cubic_spline")
-                
-                // Artificial viscosity
-                .with_artificial_viscosity(1.0, true, false)
-                
-                // Optional features
                 .with_iterative_smoothing_length(true)
-                .with_gsph_2nd_order(true)
+                
+                // Transition to GSPH (Godunov SPH for shock capturing)
+                .as_gsph()
+                .with_2nd_order_muscl(true)  // Enable 2nd order MUSCL-Hancock
                 
                 .build();
             
             *param = *built_params;
+            
+            std::cout << "✓ Parameters built with type-safe GSPH API\n";
+            std::cout << "  - GSPH uses HLL Riemann solver, NOT artificial viscosity\n";
+            std::cout << "  - 2nd order MUSCL enabled for better accuracy\n";
                 
         } catch (const std::exception& e) {
             THROW_ERROR("Parameter building failed: " + std::string(e.what()));
@@ -237,32 +230,65 @@ public:
         // Configure boundary conditions:
         // - X-direction: MIRROR with NO_SLIP (wall boundaries)
         // - Y-direction: MIRROR with NO_SLIP (wall boundaries)
+        //
+        // ┌─────────────────────────────────────────────────────────────┐
+        // │ BOUNDARY CONFIGURATION HIERARCHY                             │
+        // ├─────────────────────────────────────────────────────────────┤
+        // │                                                              │
+        // │  Level 1: BoundaryType (HOW ghosts are created)             │
+        // │  ├─ MIRROR: Reflect particles across boundary               │
+        // │  ├─ PERIODIC: Wrap particles from opposite side             │
+        // │  └─ NONE: No ghost particles                                │
+        // │                                                              │
+        // │  Level 2: MirrorType (ghost VELOCITY, only for MIRROR)      │
+        // │  ├─ NO_SLIP: v_ghost = -v_real (sticky wall, friction)      │
+        // │  └─ FREE_SLIP: v_ghost = v_real (frictionless, tangential)  │
+        // │                                                              │
+        // └─────────────────────────────────────────────────────────────┘
+        //
         BoundaryConfiguration<Dim> ghost_config;
         ghost_config.is_valid = true;
         
         // X-direction: mirror walls (no-slip)
+        // BoundaryType::MIRROR = ghosts created by reflection
+        // MirrorType::NO_SLIP = ghost has opposite velocity (wall friction)
         ghost_config.types[0] = BoundaryType::MIRROR;
         ghost_config.range_min[0] = -0.5;
         ghost_config.range_max[0] = 1.5;
         ghost_config.enable_lower[0] = true;
         ghost_config.enable_upper[0] = true;
-        ghost_config.mirror_types[0] = MirrorType::NO_SLIP;
+        ghost_config.mirror_types[0] = MirrorType::NO_SLIP;  // Ghost velocity = -real (sticky wall)
         
         // Y-direction: mirror walls (no-slip)
-        ghost_config.types[1] = BoundaryType::MIRROR;
+        // TWO-LEVEL BOUNDARY CONFIGURATION:
+        // 
+        // 1. BoundaryType::MIRROR - Determines HOW ghosts are created
+        //    - MIRROR: Ghost particles are created by reflecting real particles across boundary
+        //    - PERIODIC: Ghost particles wrap around from opposite boundary
+        //    - NONE: No ghost particles
+        //
+        // 2. MirrorType::NO_SLIP - Determines ghost particle VELOCITY (only for MIRROR boundaries)
+        //    - NO_SLIP: Ghost velocity = -real velocity (sticky wall, fluid sticks to wall)
+        //    - FREE_SLIP: Ghost velocity = real velocity (frictionless wall, tangential flow allowed)
+        //
+        // Example: For a solid wall with friction → BoundaryType::MIRROR + MirrorType::NO_SLIP
+        //          For a frictionless wall → BoundaryType::MIRROR + MirrorType::FREE_SLIP
+        //          For periodic domain → BoundaryType::PERIODIC (MirrorType ignored)
+        //
+        ghost_config.types[1] = BoundaryType::MIRROR;      // Creates ghost by reflection
         ghost_config.range_min[1] = 0.0;
         ghost_config.range_max[1] = 0.5;
         ghost_config.enable_lower[1] = true;
         ghost_config.enable_upper[1] = true;
-        ghost_config.mirror_types[1] = MirrorType::NO_SLIP;
+        ghost_config.mirror_types[1] = MirrorType::NO_SLIP;  // Ghost velocity = -real (sticky wall)
         
         // CRITICAL: Set per-boundary particle spacing for Morris 1997 wall offset calculation
         // X-direction: Left boundary has dense particles (dx_left), right has sparse (dx_right)
         ghost_config.spacing_lower[0] = dx_left;   // Left wall: use local spacing
         ghost_config.spacing_upper[0] = dx_right;  // Right wall: use local spacing
         // Y-direction: Uniform spacing throughout
-        ghost_config.spacing_lower[1] = dy;        // Bottom wall
-        ghost_config.spacing_upper[1] = dy;        // Top wall
+        ghost_config.spacing_lower[1] = dx_left;        // Bottom wall
+        ghost_config.spacing_upper[1] = dx_right;        // Top wall
         
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);

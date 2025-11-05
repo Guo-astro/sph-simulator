@@ -2,7 +2,10 @@ target_sources(sph_lib
     PRIVATE
         logger.cpp
         core/sph_algorithm_registry.cpp
-        core/sph_parameters_builder.cpp
+        core/sph_parameters_builder_base.cpp
+        core/ssph_parameters_builder.cpp
+        core/disph_parameters_builder.cpp
+        core/gsph_parameters_builder.cpp
         core/physics_parameters.cpp
         core/computational_parameters.cpp
         core/output_parameters.cpp

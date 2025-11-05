@@ -156,9 +156,10 @@ create_structure() {
     
     echo -e "${BLUE}Creating step: $STEP_NAME...${NC}"
     
-    mkdir -p "$STEP_DIR"/{config,src,scripts,data,docs,results/{animations,plots,analysis},output,build}
+    mkdir -p "$STEP_DIR"/{src,scripts,data,docs,results/{animations,plots,analysis},output,build,lib}
     touch "$STEP_DIR/output/.gitkeep"
     touch "$STEP_DIR/build/.gitkeep"
+    touch "$STEP_DIR/lib/.gitkeep"
     
     # Create .gitignore
     cat > "$STEP_DIR/.gitignore" << 'GITIGNORE'
@@ -470,113 +471,80 @@ create_cmakelists() {
     echo -e "${BLUE}Creating CMakeLists.txt${NC}"
     
     cat > "$CMAKE_FILE" << EOF
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.13)
 project(${PLUGIN_NAME}_plugin)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
-# Paths - adjust based on your workflow depth
-get_filename_component(SPH_ROOT "\${CMAKE_CURRENT_SOURCE_DIR}/../../../../" ABSOLUTE)
-set(SPH_BUILD_DIR "\${SPH_ROOT}/build")
-set(SPH_INCLUDE_DIR "\${SPH_ROOT}/include")
+# Use Conan toolchain
+set(SPH_ROOT "\${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+list(APPEND CMAKE_PREFIX_PATH "\${SPH_ROOT}")
+include(\${SPH_ROOT}/conan_toolchain.cmake)
 
-# Include directories
-include_directories(\${SPH_INCLUDE_DIR})
+# Find dependencies
+find_package(OpenMP REQUIRED)
+find_package(Boost REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
-# Define dimension
+# Dimension
 add_compile_definitions(DIM=$DIM)
 
-# Build plugin
-add_library(${PLUGIN_NAME}_plugin SHARED src/plugin.cpp)
-target_link_libraries(${PLUGIN_NAME}_plugin PRIVATE \${SPH_BUILD_DIR}/libsph_lib.a)
+# Include directories
+set(SPH_INCLUDE_DIR "\${SPH_ROOT}/include")
+set(SPH_SRC_DIR "\${SPH_ROOT}/src")
+include_directories(\${SPH_INCLUDE_DIR})
 
-# Set output directory
-set_target_properties(${PLUGIN_NAME}_plugin PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "\${CMAKE_CURRENT_SOURCE_DIR}/build"
+# Gather SPH source files
+file(GLOB SPH_CORE_SOURCES "\${SPH_SRC_DIR}/core/*.cpp")
+file(GLOB SPH_ALGORITHM_SOURCES "\${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
+set(SPH_LOGGER_SOURCE "\${SPH_SRC_DIR}/logger.cpp")
+
+# Build plugin
+message(STATUS "Building ${PLUGIN_NAME}_plugin for ${DIM}D")
+add_library(${PLUGIN_NAME}_plugin SHARED
+    src/plugin.cpp
+    \${SPH_CORE_SOURCES}
+    \${SPH_ALGORITHM_SOURCES}
+    \${SPH_LOGGER_SOURCE}
 )
 
-# Show build info
-message(STATUS "Building ${PLUGIN_NAME}_plugin for ${DIM}D")
+target_link_libraries(${PLUGIN_NAME}_plugin PRIVATE
+    OpenMP::OpenMP_CXX
+    Boost::boost
+    nlohmann_json::nlohmann_json
+)
+
+# Output directories
+set_target_properties(${PLUGIN_NAME}_plugin PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "\${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
+
+# Build executable for this dimension
+message(STATUS "Building local sph${DIM}d executable")
+set(SPH_MAIN_SOURCE "\${SPH_SRC_DIR}/main_${DIM}d.cpp")
+set(SPH_SOLVER_SOURCE "\${SPH_SRC_DIR}/solver.cpp")
+
+add_executable(sph${DIM}d
+    \${SPH_MAIN_SOURCE}
+    \${SPH_SOLVER_SOURCE}
+)
+
+target_link_libraries(sph${DIM}d PRIVATE
+    OpenMP::OpenMP_CXX
+    Boost::boost
+    nlohmann_json::nlohmann_json
+)
+
+set_target_properties(sph${DIM}d PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_CURRENT_SOURCE_DIR}/build"
+)
+
 message(STATUS "SPH root: \${SPH_ROOT}")
 EOF
     
     echo -e "${GREEN}  ✓ CMakeLists.txt created${NC}"
-}
-
-# Function to create configuration files
-create_configs() {
-    local STEP_DIR=$1
-    local STEP_NAME=$2
-    local WORKFLOW_NAME_UPPER=$(echo ${WORKFLOW_NAME:0:1} | tr '[:lower:]' '[:upper:]')${WORKFLOW_NAME:1}
-    
-    echo -e "${BLUE}Creating configuration files${NC}"
-    
-    # Production config
-    cat > "$STEP_DIR/config/production.json" << EOF
-{
-  "simulation": {
-    "name": "${PLUGIN_NAME}",
-    "description": "${WORKFLOW_NAME_UPPER} simulation - production run",
-    "dimension": $DIM,
-    "SPHType": "${SPH_TYPE}"
-  },
-  "physics": {
-    "gamma": 1.666667,
-    "gravityEnabled": false
-  },
-  "numerics": {
-    "kernelType": "CubicSpline",
-    "smoothingLengthEta": 1.2,
-    "alphaViscosity": 1.0,
-    "betaViscosity": 2.0
-  },
-  "time": {
-    "endTime": 1.0,
-    "dtMax": 0.01,
-    "cflFactor": 0.3
-  },
-  "output": {
-    "directory": "output/${PLUGIN_NAME}",
-    "format": "csv",
-    "snapshotInterval": 0.1
-  }
-}
-EOF
-    
-    # Test config
-    cat > "$STEP_DIR/config/test.json" << EOF
-{
-  "simulation": {
-    "name": "${PLUGIN_NAME}_test",
-    "description": "${WORKFLOW_NAME_UPPER} simulation - quick test",
-    "dimension": $DIM,
-    "SPHType": "${SPH_TYPE}"
-  },
-  "physics": {
-    "gamma": 1.666667,
-    "gravityEnabled": false
-  },
-  "numerics": {
-    "kernelType": "CubicSpline",
-    "smoothingLengthEta": 1.2,
-    "alphaViscosity": 1.0,
-    "betaViscosity": 2.0
-  },
-  "time": {
-    "endTime": 0.1,
-    "dtMax": 0.01,
-    "cflFactor": 0.3
-  },
-  "output": {
-    "directory": "output/${PLUGIN_NAME}_test",
-    "format": "csv",
-    "snapshotInterval": 0.05
-  }
-}
-EOF
-    
-    echo -e "${GREEN}  ✓ Configuration files created${NC}"
 }
 
 # Function to create README
@@ -598,25 +566,25 @@ ${WORKFLOW_TYPE_UPPER} simulation using ${SPH_TYPE_UPPER} in ${DIM}D.
 
 \`\`\`bash
 # Build the plugin
-cmake -B build -S .
-cmake --build build
+mkdir -p build
+cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make
 
-# Run test simulation
-/path/to/sph${DIM}d build/lib${PLUGIN_NAME}_plugin.dylib config/test.json
+# Run simulation
+./build/sph${DIM}d lib/lib${PLUGIN_NAME}_plugin.dylib
 
-# Run production simulation
-/path/to/sph${DIM}d build/lib${PLUGIN_NAME}_plugin.dylib config/production.json
+# Or use Makefile
+make build
+make run-gsph
 \`\`\`
 
 ## Directory Structure
 
 \`\`\`
 $STEP_NAME/
-├── config/              # Configuration files
-│   ├── production.json  # Full simulation
-│   └── test.json       # Quick test
-├── src/                # Source code
-│   └── plugin.cpp      # Main plugin
+├── src/                # Source code (C++ SSOT)
+│   └── plugin.cpp      # Main plugin with all parameters
+├── lib/                # Built plugin libraries
+├── build/              # Build artifacts and executables
 ├── scripts/            # Analysis scripts
 ├── data/               # Input data
 ├── docs/               # Documentation
@@ -624,14 +592,14 @@ $STEP_NAME/
 │   ├── animations/
 │   ├── plots/
 │   └── analysis/
-├── output/             # Raw simulation data (gitignored)
-└── build/              # Build artifacts (gitignored)
+└── output/             # Raw simulation data (gitignored)
 \`\`\`
 
 ## Configuration
 
-- **production.json**: Full simulation parameters
-- **test.json**: Quick test (reduced time/resolution)
+**All parameters are defined in the C++ plugin source (src/plugin.cpp).**
+
+No JSON configuration files - the plugin is the single source of truth (SSOT).
 
 ## Physics
 
@@ -646,6 +614,7 @@ TODO: Describe what you expect to see
 - Dimension: ${DIM}D
 - SPH Type: ${SPH_TYPE_UPPER}
 - Plugin: ${PLUGIN_NAME}
+- **Configuration**: All in C++ plugin (no JSON)
 
 EOF
     
@@ -665,20 +634,17 @@ if [ "$MULTI_STEP" = true ]; then
     create_structure "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_plugin_source "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_cmakelists "$WORKFLOW_DIR/01_simulation" "01_simulation"
-    create_configs "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_readme "$WORKFLOW_DIR/01_simulation" "01_simulation"
     
     create_structure "$WORKFLOW_DIR/02_simulation" "02_simulation"
     create_plugin_source "$WORKFLOW_DIR/02_simulation" "02_simulation"
     create_cmakelists "$WORKFLOW_DIR/02_simulation" "02_simulation"
-    create_configs "$WORKFLOW_DIR/02_simulation" "02_simulation"
     create_readme "$WORKFLOW_DIR/02_simulation" "02_simulation"
 else
     # Single-step workflow
     create_structure "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_plugin_source "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_cmakelists "$WORKFLOW_DIR/01_simulation" "01_simulation"
-    create_configs "$WORKFLOW_DIR/01_simulation" "01_simulation"
     create_readme "$WORKFLOW_DIR/01_simulation" "01_simulation"
 fi
 
@@ -750,35 +716,28 @@ echo -e "${GREEN}  ✓ Workflow README.md created${NC}"
 # Create Makefile (optional)
 echo -e "${BLUE}Creating Makefile${NC}"
 cat > "$WORKFLOW_DIR/Makefile" << 'EOF'
-.PHONY: build clean run-test run-prod help
-
-SPH_ROOT = ../../..
-SPH_BUILD = $(SPH_ROOT)/build
+.PHONY: build clean run help
 
 build:
 	@echo "Building workflow..."
-	cd 01_simulation && cmake -B build -S . && cmake --build build
+	cd 01_simulation && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make
 
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf 01_simulation/build/*
+	rm -rf 01_simulation/lib/*.dylib
 	rm -rf 01_simulation/output/*
 
-run-test:
-	@echo "Running test simulation..."
-	$(SPH_BUILD)/sph3d 01_simulation/build/lib*_plugin.dylib 01_simulation/config/test.json
-
-run-prod:
-	@echo "Running production simulation..."
-	$(SPH_BUILD)/sph3d 01_simulation/build/lib*_plugin.dylib 01_simulation/config/production.json
+run:
+	@echo "Running simulation..."
+	cd 01_simulation && ./build/sph*d lib/lib*_plugin.dylib
 
 help:
 	@echo "Available targets:"
-	@echo "  build     - Build the workflow plugin"
-	@echo "  clean     - Clean build and output"
-	@echo "  run-test  - Run quick test"
-	@echo "  run-prod  - Run production simulation"
-	@echo "  help      - Show this help"
+	@echo "  build  - Build the workflow plugin"
+	@echo "  clean  - Clean build and output"
+	@echo "  run    - Run simulation (C++ plugin only, no JSON)"
+	@echo "  help   - Show this help"
 EOF
 
 echo -e "${GREEN}  ✓ Makefile created${NC}"
@@ -792,18 +751,17 @@ echo ""
 echo -e "${YELLOW}Location:${NC} $WORKFLOW_DIR"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "  1. Edit the plugin source:"
+echo "  1. Edit the plugin source (C++ SSOT - all parameters here):"
 echo "     ${BLUE}$WORKFLOW_DIR/01_simulation/src/plugin.cpp${NC}"
 echo ""
 echo "  2. Build the plugin:"
 echo "     ${BLUE}cd $WORKFLOW_DIR${NC}"
 echo "     ${BLUE}make build${NC}"
 echo ""
-echo "  3. Run a test:"
-echo "     ${BLUE}make run-test${NC}"
+echo "  3. Run simulation:"
+echo "     ${BLUE}make run${NC}"
 echo ""
-echo "  4. Customize configurations:"
-echo "     ${BLUE}$WORKFLOW_DIR/01_simulation/config/${NC}"
+echo -e "${YELLOW}Note:${NC} No JSON configs - C++ plugin is single source of truth!"
 echo ""
 echo -e "${GREEN}Happy simulating! 🚀${NC}"
 echo ""

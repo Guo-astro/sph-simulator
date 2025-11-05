@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
-if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
-  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+
+# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
+list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+
+if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+  include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
 project(gresho_chan_vortex_workflow)
@@ -31,6 +35,7 @@ list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
 # Add algorithm-specific sources
 file(GLOB SPH_DISPH_SOURCES "${SPH_SRC_DIR}/disph/*.cpp")
 file(GLOB SPH_GSPH_SOURCES "${SPH_SRC_DIR}/gsph/*.cpp")
+file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 
 # Add core parameter validation/estimation sources
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
@@ -42,6 +47,7 @@ add_library(gresho_chan_vortex_plugin SHARED
     ${SPH_SOURCES}
     ${SPH_DISPH_SOURCES}
     ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
     ${SPH_CORE_SOURCES}
 )
 

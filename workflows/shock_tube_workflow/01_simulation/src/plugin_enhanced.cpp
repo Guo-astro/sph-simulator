@@ -1,5 +1,6 @@
 #include "core/simulation_plugin.hpp"
-#include "core/sph_parameters_builder.hpp"
+#include "core/sph_parameters_builder_base.hpp"
+#include "core/gsph_parameters_builder.hpp"
 #include "core/parameter_estimator.hpp"
 #include "core/parameter_validator.hpp"
 #include "core/simulation.hpp"
@@ -164,19 +165,16 @@ public:
         // ============================================================
         
         if (params->time.end == 0) {
-            std::cout << "\n--- Building Parameter Set ---\n";
+            std::cout << "\n--- Building Parameter Set (Type-Safe API) ---\n";
             
-            auto builder_params = SPHParametersBuilder()
-                // Time configuration
+            auto builder_params = SPHParametersBuilderBase()
+                // Common parameters (time, CFL, physics, kernel)
                 .with_time(
                     0.0,    // start time
-                    0.15,    // end time  
+                    0.15,   // end time  
                     0.01,   // output interval
                     0.01    // energy output interval
                 )
-                
-                // SPH algorithm
-                .with_sph_type("gsph")  // Godunov SPH for shock tube
                 
                 // Physics-based CFL (from stability analysis!)
                 .with_cfl(
@@ -193,28 +191,29 @@ public:
                 // Kernel type
                 .with_kernel("cubic_spline")
                 
-                // Artificial viscosity for shock capturing
-                .with_artificial_viscosity(
-                    1.0,    // alpha
-                    true,   // Balsara switch (reduces viscosity in shear)
-                    false   // no time-dependent AV
-                )
-                
                 // Tree parameters
                 .with_tree_params(20, 1)
                 
                 // Iterative smoothing length
                 .with_iterative_smoothing_length(true)
                 
-                // Disable 2nd order GSPH when using ghost particles
+                // *** TRANSITION TO GSPH (Godunov SPH) ***
+                // This enforces type safety - GSPH does NOT use artificial viscosity!
+                // Instead, GSPH uses HLL Riemann solver for shock capturing
+                .as_gsph()
+                
+                // GSPH-specific: Control 2nd order MUSCL-Hancock scheme
+                // Disable 2nd order when using ghost particles
                 // (gradient arrays only exist for real particles, not ghosts)
-                .with_gsph_2nd_order(false)
+                .with_2nd_order_muscl(false)
                 
                 .build();
             
             *params = *builder_params;
             
-            std::cout << "✓ Parameters built with physics-based values\n";
+            std::cout << "✓ Parameters built with type-safe GSPH API\n";
+            std::cout << "  - GSPH uses Riemann solver (HLL), NOT artificial viscosity\n";
+            std::cout << "  - 2nd order MUSCL disabled (1st order safer with ghosts)\n";
         } else {
             std::cout << "\n--- Using Pre-Configured Parameters ---\n";
             std::cout << "(Loaded from JSON configuration)\n";

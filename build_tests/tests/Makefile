@@ -285,6 +285,54 @@ algorithms/riemann/hll_solver_test.cpp.s:
 	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/algorithms/riemann/hll_solver_test.cpp.s
 .PHONY : algorithms/riemann/hll_solver_test.cpp.s
 
+core/algorithm_parameters_builder_test.o: core/algorithm_parameters_builder_test.cpp.o
+.PHONY : core/algorithm_parameters_builder_test.o
+
+# target to build an object file
+core/algorithm_parameters_builder_test.cpp.o:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/algorithm_parameters_builder_test.cpp.o
+.PHONY : core/algorithm_parameters_builder_test.cpp.o
+
+core/algorithm_parameters_builder_test.i: core/algorithm_parameters_builder_test.cpp.i
+.PHONY : core/algorithm_parameters_builder_test.i
+
+# target to preprocess a source file
+core/algorithm_parameters_builder_test.cpp.i:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/algorithm_parameters_builder_test.cpp.i
+.PHONY : core/algorithm_parameters_builder_test.cpp.i
+
+core/algorithm_parameters_builder_test.s: core/algorithm_parameters_builder_test.cpp.s
+.PHONY : core/algorithm_parameters_builder_test.s
+
+# target to generate assembly for a file
+core/algorithm_parameters_builder_test.cpp.s:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/algorithm_parameters_builder_test.cpp.s
+.PHONY : core/algorithm_parameters_builder_test.cpp.s
+
+core/boundary_spacing_validation_test.o: core/boundary_spacing_validation_test.cpp.o
+.PHONY : core/boundary_spacing_validation_test.o
+
+# target to build an object file
+core/boundary_spacing_validation_test.cpp.o:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/boundary_spacing_validation_test.cpp.o
+.PHONY : core/boundary_spacing_validation_test.cpp.o
+
+core/boundary_spacing_validation_test.i: core/boundary_spacing_validation_test.cpp.i
+.PHONY : core/boundary_spacing_validation_test.i
+
+# target to preprocess a source file
+core/boundary_spacing_validation_test.cpp.i:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/boundary_spacing_validation_test.cpp.i
+.PHONY : core/boundary_spacing_validation_test.cpp.i
+
+core/boundary_spacing_validation_test.s: core/boundary_spacing_validation_test.cpp.s
+.PHONY : core/boundary_spacing_validation_test.s
+
+# target to generate assembly for a file
+core/boundary_spacing_validation_test.cpp.s:
+	cd /Users/guo/sph-simulation/build_tests && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/sph_tests.dir/build.make tests/CMakeFiles/sph_tests.dir/core/boundary_spacing_validation_test.cpp.s
+.PHONY : core/boundary_spacing_validation_test.cpp.s
+
 core/dimension_system_test_simple.o: core/dimension_system_test_simple.cpp.o
 .PHONY : core/dimension_system_test_simple.o
 
@@ -719,6 +767,12 @@ help:
 	@echo "... algorithms/riemann/hll_solver_test.o"
 	@echo "... algorithms/riemann/hll_solver_test.i"
 	@echo "... algorithms/riemann/hll_solver_test.s"
+	@echo "... core/algorithm_parameters_builder_test.o"
+	@echo "... core/algorithm_parameters_builder_test.i"
+	@echo "... core/algorithm_parameters_builder_test.s"
+	@echo "... core/boundary_spacing_validation_test.o"
+	@echo "... core/boundary_spacing_validation_test.i"
+	@echo "... core/boundary_spacing_validation_test.s"
 	@echo "... core/dimension_system_test_simple.o"
 	@echo "... core/dimension_system_test_simple.i"
 	@echo "... core/dimension_system_test_simple.s"

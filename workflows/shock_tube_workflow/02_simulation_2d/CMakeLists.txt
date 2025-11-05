@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
-if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
-  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+
+# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
+list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+
+if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+  include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
 project(shock_tube_2d_workflow)
@@ -20,18 +24,19 @@ find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Get Boost include directories
-get_target_property(BOOST_INCLUDE_DIRS Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
-
-# Collect SPH library sources (excluding main.cpp, solver.cpp, and sample files)
+# Collect SPH library sources (excluding main_*.cpp and sample files)
 file(GLOB SPH_SOURCES "${SPH_SRC_DIR}/*.cpp")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "main\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_1d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_2d\\.cpp$")
+list(FILTER SPH_SOURCES EXCLUDE REGEX "main_3d\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "solver\\.cpp$")
 list(FILTER SPH_SOURCES EXCLUDE REGEX "sample/")
 
 # Add algorithm-specific sources
 file(GLOB SPH_DISPH_SOURCES "${SPH_SRC_DIR}/disph/*.cpp")
 file(GLOB SPH_GSPH_SOURCES "${SPH_SRC_DIR}/gsph/*.cpp")
+file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 
 # Add core parameter validation/estimation sources (exclude plugin_loader which needs C++17)
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
@@ -43,6 +48,7 @@ add_library(shock_tube_2d_plugin SHARED
     ${SPH_SOURCES}
     ${SPH_DISPH_SOURCES}
     ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
     ${SPH_CORE_SOURCES}
 )
 
@@ -56,7 +62,6 @@ target_compile_options(shock_tube_2d_plugin PRIVATE
 
 target_include_directories(shock_tube_2d_plugin PUBLIC 
     ${SPH_INCLUDE_DIR}
-    ${BOOST_INCLUDE_DIRS}
 )
 
 target_link_libraries(shock_tube_2d_plugin PUBLIC
@@ -85,7 +90,6 @@ target_compile_options(sph2d PRIVATE
 
 target_include_directories(sph2d PUBLIC 
     ${SPH_INCLUDE_DIR}
-    ${BOOST_INCLUDE_DIRS}
 )
 
 target_link_libraries(sph2d PUBLIC

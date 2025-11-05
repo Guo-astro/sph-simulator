@@ -88,7 +88,8 @@ clean-all: clean clean-outputs
 run-gsph: build
 	@echo "=== Running GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN)
+	@echo "Using OpenMP with all available CPU cores"
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
 	@echo "Copying GSPH results..."
 	@cp -f output/shock_tube_enhanced/*.dat $(GSPH_RESULTS)/
 	@echo "✓ GSPH simulation complete"
@@ -97,7 +98,8 @@ run-gsph: build
 run-disph: build
 	@echo "=== Running DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN)
+	@echo "Using OpenMP with all available CPU cores"
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
 	@echo "Copying DISPH results..."
 	@cp -f output/shock_tube_enhanced/*.dat $(DISPH_RESULTS)/
 	@echo "✓ DISPH simulation complete"

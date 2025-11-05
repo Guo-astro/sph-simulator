@@ -339,6 +339,54 @@ src/core/computational_parameters.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/computational_parameters.cpp.s
 .PHONY : src/core/computational_parameters.cpp.s
 
+src/core/disph_parameters_builder.o: src/core/disph_parameters_builder.cpp.o
+.PHONY : src/core/disph_parameters_builder.o
+
+# target to build an object file
+src/core/disph_parameters_builder.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/disph_parameters_builder.cpp.o
+.PHONY : src/core/disph_parameters_builder.cpp.o
+
+src/core/disph_parameters_builder.i: src/core/disph_parameters_builder.cpp.i
+.PHONY : src/core/disph_parameters_builder.i
+
+# target to preprocess a source file
+src/core/disph_parameters_builder.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/disph_parameters_builder.cpp.i
+.PHONY : src/core/disph_parameters_builder.cpp.i
+
+src/core/disph_parameters_builder.s: src/core/disph_parameters_builder.cpp.s
+.PHONY : src/core/disph_parameters_builder.s
+
+# target to generate assembly for a file
+src/core/disph_parameters_builder.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/disph_parameters_builder.cpp.s
+.PHONY : src/core/disph_parameters_builder.cpp.s
+
+src/core/gsph_parameters_builder.o: src/core/gsph_parameters_builder.cpp.o
+.PHONY : src/core/gsph_parameters_builder.o
+
+# target to build an object file
+src/core/gsph_parameters_builder.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/gsph_parameters_builder.cpp.o
+.PHONY : src/core/gsph_parameters_builder.cpp.o
+
+src/core/gsph_parameters_builder.i: src/core/gsph_parameters_builder.cpp.i
+.PHONY : src/core/gsph_parameters_builder.i
+
+# target to preprocess a source file
+src/core/gsph_parameters_builder.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/gsph_parameters_builder.cpp.i
+.PHONY : src/core/gsph_parameters_builder.cpp.i
+
+src/core/gsph_parameters_builder.s: src/core/gsph_parameters_builder.cpp.s
+.PHONY : src/core/gsph_parameters_builder.s
+
+# target to generate assembly for a file
+src/core/gsph_parameters_builder.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/gsph_parameters_builder.cpp.s
+.PHONY : src/core/gsph_parameters_builder.cpp.s
+
 src/core/output_parameters.o: src/core/output_parameters.cpp.o
 .PHONY : src/core/output_parameters.o
 
@@ -482,6 +530,54 @@ src/core/sph_parameters_builder.s: src/core/sph_parameters_builder.cpp.s
 src/core/sph_parameters_builder.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.s
 .PHONY : src/core/sph_parameters_builder.cpp.s
+
+src/core/sph_parameters_builder_base.o: src/core/sph_parameters_builder_base.cpp.o
+.PHONY : src/core/sph_parameters_builder_base.o
+
+# target to build an object file
+src/core/sph_parameters_builder_base.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder_base.cpp.o
+.PHONY : src/core/sph_parameters_builder_base.cpp.o
+
+src/core/sph_parameters_builder_base.i: src/core/sph_parameters_builder_base.cpp.i
+.PHONY : src/core/sph_parameters_builder_base.i
+
+# target to preprocess a source file
+src/core/sph_parameters_builder_base.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder_base.cpp.i
+.PHONY : src/core/sph_parameters_builder_base.cpp.i
+
+src/core/sph_parameters_builder_base.s: src/core/sph_parameters_builder_base.cpp.s
+.PHONY : src/core/sph_parameters_builder_base.s
+
+# target to generate assembly for a file
+src/core/sph_parameters_builder_base.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder_base.cpp.s
+.PHONY : src/core/sph_parameters_builder_base.cpp.s
+
+src/core/ssph_parameters_builder.o: src/core/ssph_parameters_builder.cpp.o
+.PHONY : src/core/ssph_parameters_builder.o
+
+# target to build an object file
+src/core/ssph_parameters_builder.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/ssph_parameters_builder.cpp.o
+.PHONY : src/core/ssph_parameters_builder.cpp.o
+
+src/core/ssph_parameters_builder.i: src/core/ssph_parameters_builder.cpp.i
+.PHONY : src/core/ssph_parameters_builder.i
+
+# target to preprocess a source file
+src/core/ssph_parameters_builder.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/ssph_parameters_builder.cpp.i
+.PHONY : src/core/ssph_parameters_builder.cpp.i
+
+src/core/ssph_parameters_builder.s: src/core/ssph_parameters_builder.cpp.s
+.PHONY : src/core/ssph_parameters_builder.s
+
+# target to generate assembly for a file
+src/core/ssph_parameters_builder.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/ssph_parameters_builder.cpp.s
+.PHONY : src/core/ssph_parameters_builder.cpp.s
 
 src/logger.o: src/logger.cpp.o
 .PHONY : src/logger.o
@@ -637,6 +733,12 @@ help:
 	@echo "... src/core/computational_parameters.o"
 	@echo "... src/core/computational_parameters.i"
 	@echo "... src/core/computational_parameters.s"
+	@echo "... src/core/disph_parameters_builder.o"
+	@echo "... src/core/disph_parameters_builder.i"
+	@echo "... src/core/disph_parameters_builder.s"
+	@echo "... src/core/gsph_parameters_builder.o"
+	@echo "... src/core/gsph_parameters_builder.i"
+	@echo "... src/core/gsph_parameters_builder.s"
 	@echo "... src/core/output_parameters.o"
 	@echo "... src/core/output_parameters.i"
 	@echo "... src/core/output_parameters.s"
@@ -655,6 +757,12 @@ help:
 	@echo "... src/core/sph_parameters_builder.o"
 	@echo "... src/core/sph_parameters_builder.i"
 	@echo "... src/core/sph_parameters_builder.s"
+	@echo "... src/core/sph_parameters_builder_base.o"
+	@echo "... src/core/sph_parameters_builder_base.i"
+	@echo "... src/core/sph_parameters_builder_base.s"
+	@echo "... src/core/ssph_parameters_builder.o"
+	@echo "... src/core/ssph_parameters_builder.i"
+	@echo "... src/core/ssph_parameters_builder.s"
 	@echo "... src/logger.o"
 	@echo "... src/logger.i"
 	@echo "... src/logger.s"

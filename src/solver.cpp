@@ -14,7 +14,6 @@
 #include "core/plugin_loader.hpp"
 #include "core/simulation_plugin.hpp"
 #include "core/sph_algorithm_registry.hpp"
-#include "core/sph_parameters_builder.hpp"
 
 // SPH modules
 #include "timestep.hpp"
