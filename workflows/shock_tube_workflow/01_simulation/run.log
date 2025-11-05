@@ -1,6 +1,6 @@
 --------------SPH simulation-------------
 
-Loading plugin: ./lib/libshock_tube_plugin.dylib
+Loading plugin: lib/libshock_tube_plugin.dylib
 Plugin loaded successfully
 * Name:        shock_tube_enhanced
 * Description: 1D Sod shock tube with type-safe parameter builder
@@ -42,6 +42,7 @@ Left state:  ρ=1.0,    P=1.0,   dx=0.0025
 Right state: ρ=0.125,  P=0.1,   dx=0.02 (Sod 1978)
 Discontinuity at x=0.5
 Uniform mass: m=0.0025
+Initial sml estimates: left=0.003, right=0.024
 
 --- Physics-Based Parameter Estimation ---
 
@@ -91,7 +92,7 @@ Expected timestep:
 
 --- Ghost Particle System ---
 ✓ Ghost particle system configured
-  Boundary type: MIRROR (NO_SLIP)
+  Boundary type: MIRROR (FREE_SLIP)
   Domain range: [-0.5, 1.5]
   (Ghost particles will be generated after sml calculation)
 
@@ -105,12 +106,24 @@ Kernel: Cubic Spline
 === Initialization Complete ===
 
 Plugin initialization complete
-Ghost particle system initialized:
-* Max smoothing length = 0.0932946
-* Kernel support radius = 0.186589
-* Generated 84 ghost particles
 write output/shock_tube_enhanced/00000.dat
 write output/shock_tube_enhanced/00001.dat
 write output/shock_tube_enhanced/00002.dat
 write output/shock_tube_enhanced/00003.dat
 write output/shock_tube_enhanced/00004.dat
+write output/shock_tube_enhanced/00005.dat
+write output/shock_tube_enhanced/00006.dat
+write output/shock_tube_enhanced/00007.dat
+write output/shock_tube_enhanced/00008.dat
+loop: 355, time: 0.0802374, dt: 0.000204564, num: 450
+write output/shock_tube_enhanced/00009.dat
+write output/shock_tube_enhanced/00010.dat
+write output/shock_tube_enhanced/00011.dat
+write output/shock_tube_enhanced/00012.dat
+write output/shock_tube_enhanced/00013.dat
+write output/shock_tube_enhanced/00014.dat
+loop: 694, time: 0.1479, dt: 0.000195619, num: 450
+write output/shock_tube_enhanced/00015.dat
+
+calculation is finished
+calculation time: 2039 ms

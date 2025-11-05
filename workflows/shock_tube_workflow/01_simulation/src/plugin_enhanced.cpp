@@ -89,6 +89,15 @@ public:
         
         int idx = 0;
         
+        // Initial smoothing length estimate
+        // For cubic spline kernel in 1D: h ≈ kappa * dx
+        // kappa ≈ 1.2 ensures kernel support covers ~2-3 neighbors on each side
+        constexpr real kappa = 1.2;
+        const real sml_left = kappa * dx_left;
+        const real sml_right = kappa * dx_right;
+        
+        std::cout << "Initial sml estimates: left=" << sml_left << ", right=" << sml_right << "\n";
+        
         // Initialize left side particles
         real x_left = -0.5 + dx_left * 0.5;
         for(int i = 0; i < N_left; ++i) {
@@ -100,6 +109,7 @@ public:
             p_i.mass = mass;
             p_i.ene = p_i.pres / ((gamma - 1.0) * p_i.dens);
             p_i.sound = std::sqrt(gamma * p_i.pres / p_i.dens);
+            p_i.sml = sml_left;
             p_i.id = idx;
             p_i.acc[0] = 0.0;
             
@@ -118,6 +128,7 @@ public:
             p_i.mass = mass;
             p_i.ene = p_i.pres / ((gamma - 1.0) * p_i.dens);
             p_i.sound = std::sqrt(gamma * p_i.pres / p_i.dens);
+            p_i.sml = sml_right;
             p_i.id = idx;
             p_i.acc[0] = 0.0;
             
@@ -248,6 +259,7 @@ public:
         // ============================================================
         
         const int num_particles = static_cast<int>(particles.size());
+        
         sim->particle_num = num_particles;
         sim->particles = std::move(particles);
         
@@ -274,46 +286,34 @@ public:
         ghost_config.range_max[0] = 1.5;
         ghost_config.enable_lower[0] = true;
         ghost_config.enable_upper[0] = true;
-        ghost_config.mirror_types[0] = MirrorType::NO_SLIP;
+        ghost_config.mirror_types[0] = MirrorType::FREE_SLIP;  // FREE_SLIP for shock tube (allows sliding along wall)
         
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
         
         std::cout << "✓ Ghost particle system configured\n";
-        std::cout << "  Boundary type: MIRROR (NO_SLIP)\n";
+        std::cout << "  Boundary type: MIRROR (FREE_SLIP)\n";
         std::cout << "  Domain range: [" << ghost_config.range_min[0] 
                   << ", " << ghost_config.range_max[0] << "]\n";
         std::cout << "  (Ghost particles will be generated after sml calculation)\n";
         
         std::cout << "\n--- Configuration Summary ---\n";
-        std::cout << "DEBUG: params pointer = " << params.get() << "\n";
-        std::cout << "DEBUG: About to access params->type\n";
         std::cout << "SPH Algorithm: ";
         switch(params->type) {
             case SPHType::SSPH:  std::cout << "Standard SPH\n"; break;
             case SPHType::DISPH: std::cout << "Density Independent SPH\n"; break;
             case SPHType::GSPH:  std::cout << "Godunov SPH\n"; break;
         }
-        std::cout << "DEBUG: Accessed params->type successfully\n";
-        std::cout << "DEBUG: About to access params->cfl.sound\n";
         std::cout << "CFL coefficients: sound=" << params->cfl.sound 
                   << ", force=" << params->cfl.force << "\n";
-        std::cout << "DEBUG: About to access params->physics.neighbor_number\n";
         std::cout << "Neighbor number: " << params->physics.neighbor_number << "\n";
-        std::cout << "DEBUG: About to access params->physics.gamma\n";
         std::cout << "Gamma (adiabatic): " << params->physics.gamma << "\n";
-        std::cout << "DEBUG: About to print 'Kernel: '\n";
-        std::flush(std::cout);
         std::cout << "Kernel: ";
-        std::flush(std::cout);
-        std::cout << "DEBUG: Printed 'Kernel: ', about to access params->kernel\n";
-        std::flush(std::cout);
         switch(params->kernel) {
             case KernelType::CUBIC_SPLINE: std::cout << "Cubic Spline\n"; break;
             case KernelType::WENDLAND: std::cout << "Wendland\n"; break;
             case KernelType::UNKNOWN: std::cout << "Unknown\n"; break;
         }
-        std::cout << "DEBUG: Finished kernel switch\n";
         
         std::cout << "\n=== Initialization Complete ===\n\n";
     }

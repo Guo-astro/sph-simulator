@@ -30,7 +30,7 @@ DISPH_CONFIG := $(CONFIG_DIR)/disph.json
 GSPH_RESULTS := $(RESULTS_DIR)/gsph
 DISPH_RESULTS := $(RESULTS_DIR)/disph
 
-.PHONY: all clean clean-all clean-outputs clean-build build run-gsph run-disph run-all plot animate viz help
+.PHONY: all clean clean-all clean-outputs clean-build build run-gsph run-disph run-all plot animate viz help full full-clean
 
 # Default target
 all: build
@@ -49,7 +49,8 @@ help:
 	@echo "  make plot          - Generate comparison plots (currently unavailable)"
 	@echo "  make animate       - Generate comparison animation"
 	@echo "  make viz           - Generate all visualizations (animate only)"
-	@echo "  make full          - Build + Run all + Visualize"
+	@echo "  make full          - Build + Run all + Visualize (incremental build)"
+	@echo "  make full-clean    - Full workflow with clean rebuild from scratch"
 
 # Build plugin
 build:
@@ -88,6 +89,8 @@ run-gsph: build
 	@echo "=== Running GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
 	$(SPH_BIN) $(PLUGIN)
+	@echo "Copying GSPH results..."
+	@cp -f output/shock_tube_enhanced/*.dat $(GSPH_RESULTS)/
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
@@ -95,6 +98,8 @@ run-disph: build
 	@echo "=== Running DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
 	$(SPH_BIN) $(PLUGIN)
+	@echo "Copying DISPH results..."
+	@cp -f output/shock_tube_enhanced/*.dat $(DISPH_RESULTS)/
 	@echo "✓ DISPH simulation complete"
 
 # Run both simulations
@@ -123,11 +128,25 @@ animate:
 viz: animate
 	@echo "✓ All visualizations complete"
 
-# Full workflow
-full: clean build run-all viz
+# Full workflow (incremental build - no clean)
+full: build run-all viz
 	@echo ""
 	@echo "========================================="
 	@echo "✓ FULL WORKFLOW COMPLETE"
+	@echo "========================================="
+	@echo "Results:"
+	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"
+	@echo "  DISPH:     $(RESULTS_DIR)/disph/"
+	@echo "  Analysis:  $(ANALYSIS_DIR)/"
+	@echo "  Animation: $(ANIMATIONS_DIR)/"
+	@echo "Note: Plot generation not available (no plotting script)"
+	@echo "========================================="
+
+# Full workflow from scratch (clean rebuild)
+full-clean: clean build run-all viz
+	@echo ""
+	@echo "========================================="
+	@echo "✓ FULL WORKFLOW COMPLETE (CLEAN BUILD)"
 	@echo "========================================="
 	@echo "Results:"
 	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"

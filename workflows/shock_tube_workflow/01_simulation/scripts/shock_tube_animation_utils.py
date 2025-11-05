@@ -202,6 +202,8 @@ def load_sph_data(dat_file):
     with open(dat_file, 'r') as f:
         time = float(f.readline().replace('#', '').strip())
 
+    # Include all particles (both real and ghost) for visualization
+    # Column indices: 0=x, 1=v, 4=rho, 5=p, 6=e, -1=type
     x = data[:, 0]
     rho = data[:, 4]
     v = data[:, 1]

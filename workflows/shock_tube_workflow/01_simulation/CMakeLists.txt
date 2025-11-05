@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
-if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
-  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+
+# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
+list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+
+if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+  include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
 project(shock_tube_workflow)
@@ -48,6 +52,7 @@ add_library(shock_tube_plugin SHARED
 target_compile_features(shock_tube_plugin PUBLIC cxx_std_17)
 target_compile_definitions(shock_tube_plugin PRIVATE 
     DIM=1
+    # DEBUG_GHOST_PARTICLES  # Uncomment for ghost particle debug output
     # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
 )
 target_compile_options(shock_tube_plugin PRIVATE
@@ -81,6 +86,7 @@ add_executable(sph
 
 target_compile_definitions(sph PRIVATE 
     DIM=1
+    # DEBUG_GHOST_PARTICLES  # Uncomment for ghost particle debug output
     # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
 )
 target_compile_options(sph PRIVATE
