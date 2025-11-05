@@ -15,6 +15,23 @@
     "list": "cpp",
     "string": "cpp",
     "valarray": "cpp",
-    "vector": "cpp"
+    "vector": "cpp",
+    "__bit_reference": "cpp",
+    "algorithm": "cpp",
+    "fstream": "cpp",
+    "future": "cpp",
+    "locale": "cpp",
+    "map": "cpp",
+    "optional": "cpp",
+    "set": "cpp",
+    "sstream": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "chrono": "cpp",
+    "complex": "cpp",
+    "format": "cpp",
+    "ranges": "cpp",
+    "__locale": "cpp",
+    "functional": "cpp"
   }
 }

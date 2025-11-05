@@ -13,6 +13,7 @@
 #include "solver.hpp"
 #include "core/simulation.hpp"
 #include "core/sph_particle.hpp"
+#include "core/neighbor_search_config.hpp"
 #include "utilities/vec_n.hpp"
 #include <memory>
 #include <vector>
@@ -128,15 +129,20 @@ TEST_F(SolverGhostLifecycleTest, GivenSolverInitialized_WhenGhostsGenerated_Then
     ASSERT_NE(tree, nullptr) << "Tree should exist after initialization";
 
     // Perform search to verify tree consistency
-    std::vector<int> neighbors(50);
-    Vec3d search_pos(1.0, 1.0, 1.0);
-    int n_found = tree->neighbor_search(search_pos, 50, neighbors.data());
+    // Create a dummy particle at search position for the new API
+    SPHParticle<3> search_particle;
+    search_particle.pos = Vec3d(1.0, 1.0, 1.0);
+    search_particle.sml = 1.0;  // Reasonable smoothing length for search
+    
+    const auto search_config = NeighborSearchConfig::create(50, false);
+    auto result = tree->find_neighbors(search_particle, search_config);
 
     // All returned indices should be valid for cached_search_particles
-    ASSERT_GE(n_found, 0);
-    for (int i = 0; i < n_found; ++i) {
-        EXPECT_GE(neighbors[i], 0);
-        EXPECT_LT(neighbors[i], static_cast<int>(sim->cached_search_particles.size()))
+    ASSERT_GE(result.neighbor_indices.size(), 0);
+    for (size_t i = 0; i < result.neighbor_indices.size(); ++i) {
+        int idx = result.neighbor_indices[i];
+        EXPECT_GE(idx, 0);
+        EXPECT_LT(idx, static_cast<int>(sim->cached_search_particles.size()))
             << "Tree search returned index beyond cached_search_particles range";
     }
 }
@@ -160,14 +166,19 @@ TEST_F(SolverGhostLifecycleTest, GivenTimeStep_WhenGhostsUpdated_ThenTreeRebuilt
     auto* tree = sim->tree.get();
     ASSERT_NE(tree, nullptr);
 
-    std::vector<int> neighbors(50);
-    Vec3d search_pos(1.0, 1.0, 1.0);
-    int n_found = tree->neighbor_search(search_pos, 50, neighbors.data());
+    // Create a dummy particle at search position for the new API
+    SPHParticle<3> search_particle;
+    search_particle.pos = Vec3d(1.0, 1.0, 1.0);
+    search_particle.sml = 1.0;
+    
+    const auto search_config = NeighborSearchConfig::create(50, false);
+    auto result = tree->find_neighbors(search_particle, search_config);
 
-    ASSERT_GE(n_found, 0);
-    for (int i = 0; i < n_found; ++i) {
-        EXPECT_GE(neighbors[i], 0);
-        EXPECT_LT(neighbors[i], static_cast<int>(sim->cached_search_particles.size()))
+    ASSERT_GE(result.neighbor_indices.size(), 0);
+    for (size_t i = 0; i < result.neighbor_indices.size(); ++i) {
+        int idx = result.neighbor_indices[i];
+        EXPECT_GE(idx, 0);
+        EXPECT_LT(idx, static_cast<int>(sim->cached_search_particles.size()))
             << "After integration, tree should respect new particle count";
     }
 }
@@ -207,15 +218,19 @@ TEST_F(SolverGhostLifecycleTest, GivenMultipleTimeSteps_WhenTreeQueriedEachStep_
         solver.integrate();
 
         // Query tree at each step
-        std::vector<int> neighbors(50);
-        Vec3d search_pos(step * 0.5, 0.0, 0.0);
-        int n_found = tree->neighbor_search(search_pos, 50, neighbors.data());
+        SPHParticle<3> search_particle;
+        search_particle.pos = Vec3d(step * 0.5, 0.0, 0.0);
+        search_particle.sml = 1.0;
+        
+        const auto search_config = NeighborSearchConfig::create(50, false);
+        auto result = tree->find_neighbors(search_particle, search_config);
 
         // THEN: All indices valid for current particle count
-        ASSERT_GE(n_found, 0) << "Step " << step;
-        for (int i = 0; i < n_found; ++i) {
-            EXPECT_GE(neighbors[i], 0) << "Step " << step;
-            EXPECT_LT(neighbors[i], static_cast<int>(sim->cached_search_particles.size()))
+        ASSERT_GE(result.neighbor_indices.size(), 0) << "Step " << step;
+        for (size_t i = 0; i < result.neighbor_indices.size(); ++i) {
+            int idx = result.neighbor_indices[i];
+            EXPECT_GE(idx, 0) << "Step " << step;
+            EXPECT_LT(idx, static_cast<int>(sim->cached_search_particles.size()))
                 << "Step " << step << ": Index out of bounds";
         }
 
@@ -317,13 +332,17 @@ TEST_F(SolverGhostLifecycleTest, GivenBoundaryParticlesMove_WhenGhostCountChange
 
         // THEN: Tree remains consistent regardless of count changes
         auto* tree = sim->tree.get();
-        std::vector<int> neighbors(50);
-        Vec3d search_pos(2.0, 2.0, 2.0);
-        int n_found = tree->neighbor_search(search_pos, 50, neighbors.data());
+        SPHParticle<3> search_particle;
+        search_particle.pos = Vec3d(2.0, 2.0, 2.0);
+        search_particle.sml = 1.0;
+        
+        const auto search_config = NeighborSearchConfig::create(50, false);
+        auto result = tree->find_neighbors(search_particle, search_config);
 
-        ASSERT_GE(n_found, 0) << "Step " << step;
-        for (int i = 0; i < n_found; ++i) {
-            EXPECT_LT(neighbors[i], static_cast<int>(sim->cached_search_particles.size()))
+        ASSERT_GE(result.neighbor_indices.size(), 0) << "Step " << step;
+        for (size_t i = 0; i < result.neighbor_indices.size(); ++i) {
+            int idx = result.neighbor_indices[i];
+            EXPECT_LT(idx, static_cast<int>(sim->cached_search_particles.size()))
                 << "Step " << step << ": Tree should adapt to changing ghost count";
         }
 

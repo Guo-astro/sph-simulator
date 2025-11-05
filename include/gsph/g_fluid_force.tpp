@@ -66,18 +66,43 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
-        std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
         
-        // neighbor search
+        // Create search config once (declarative)
+        const auto search_config = NeighborSearchConfig::create(this->m_neighbor_number, /*is_ij=*/true);
+        
+        // Perform neighbor search using declarative API
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
-        // Search over ALL particles (including ghosts appended at end)
+        // Exhaustive search fallback for debugging
+        std::vector<int> neighbor_list(search_config.max_neighbors);
         const int search_count = static_cast<int>(search_particles.size());
-        int const n_neighbor = exhaustive_search(p_i, p_i.sml, search_particles, search_count, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
+        int const n_neighbor = exhaustive_search(p_i, p_i.sml, search_particles, search_count, 
+                                                 neighbor_list, search_config.max_neighbors, periodic, true);
+        auto result = NeighborSearchResult{
+            .neighbor_indices = std::vector<int>(neighbor_list.begin(), neighbor_list.begin() + n_neighbor),
+            .is_truncated = false,
+            .total_candidates_found = n_neighbor
+        };
 #else
-        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, search_particles, true);
+        // REFACTORED: Declarative neighbor search (impossible to overflow)
+        auto result = tree->find_neighbors(p_i, search_config);
+        
+        // Diagnostic: Log if truncation occurred
+        if (result.is_truncated) {
+            #pragma omp critical
+            {
+                static bool truncation_logged = false;
+                if (!truncation_logged) {
+                    WRITE_LOG << "WARNING: Particle " << i 
+                              << " has more neighbors than capacity ("
+                              << result.total_candidates_found << " > "
+                              << search_config.max_neighbors << ")";
+                    truncation_logged = true;
+                }
+            }
+        }
 #endif
 
-        // fluid force
+        // fluid force calculation
         const Vector<Dim> & r_i = p_i.pos;
         const Vector<Dim> & v_i = p_i.vel;
         const real h_i = p_i.sml;
@@ -86,8 +111,9 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = utilities::constants::ZERO;
 
-        for(int n = 0; n < n_neighbor; ++n) {
-            int const j = neighbor_list[n];
+        // REFACTORED: Use result.neighbor_indices (clean, declarative)
+        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
+            int const j = result.neighbor_indices[n];
             auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles to include ghosts
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);

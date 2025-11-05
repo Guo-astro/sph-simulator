@@ -80,14 +80,16 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
         auto & p_i = particles[i];
-        std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
         
         // neighbor search (searches in real + ghost particles)
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
         const int search_num = static_cast<int>(search_particles.size());
         int const n_neighbor = exhaustive_search<Dim>(p_i, p_i.sml, search_particles, search_num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, true);
+        auto result = NeighborSearchResult{neighbor_list, false, n_neighbor};
 #else
-        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, search_particles, true);
+        const auto search_config = NeighborSearchConfig::create(m_neighbor_number, true);
+        auto result = tree->find_neighbors(p_i, search_config);
 #endif
 
         // fluid force
@@ -100,8 +102,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = 0.0;
 
-        for(int n = 0; n < n_neighbor; ++n) {
-            int const j = neighbor_list[n];
+        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
+            int const j = result.neighbor_indices[n];
             
             // CRITICAL: Bounds check before accessing
             if (j < 0 || j >= search_size) {

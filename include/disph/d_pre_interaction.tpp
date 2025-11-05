@@ -46,19 +46,31 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                                       4.0 * M_PI / 3.0;
         p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * this->m_kernel_ratio;
         
-        // neighbor search
+        // Create search config (declarative)
+        const auto search_config = NeighborSearchConfig::create(this->m_neighbor_number, /*is_ij=*/false);
+        
+        // neighbor search using declarative API
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
-    const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, false);
+        std::vector<int> neighbor_list(search_config.max_neighbors);
+        const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, 
+                                                     neighbor_list, search_config.max_neighbors, periodic, false);
+        auto result = NeighborSearchResult{
+            .neighbor_indices = std::vector<int>(neighbor_list.begin(), neighbor_list.begin() + n_neighbor_tmp),
+            .is_truncated = false,
+            .total_candidates_found = n_neighbor_tmp
+        };
 #else
-    // Use the combined cached search_particles (real + ghost) for neighbor search
-    auto & search_particles = sim->cached_search_particles;
-    const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, search_particles, false);
+        // REFACTORED: Declarative neighbor search
+        auto result = tree->find_neighbors(p_i, search_config);
 #endif
+        
         // smoothing length
         if(this->m_iteration) {
             // Use combined search_particles for Newton-Raphson so neighbor indices are valid
             auto & search_particles = sim->cached_search_particles;
-            p_i.sml = newton_raphson(p_i, search_particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
+            // REFACTORED: Pass result.neighbor_indices vector directly
+            p_i.sml = newton_raphson(p_i, search_particles, result.neighbor_indices, 
+                                    static_cast<int>(result.neighbor_indices.size()), periodic, kernel);
         }
 
         // density etc.
@@ -70,8 +82,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         real v_sig_max = p_i.sound * 2.0;
         const Vector<Dim> & pos_i = p_i.pos;
         int n_neighbor = 0;
-        for(int n = 0; n < n_neighbor_tmp; ++n) {
-            int const j = neighbor_list[n];
+        
+        // REFACTORED: Use result.neighbor_indices.size()
+        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
+            int const j = result.neighbor_indices[n];
             auto & p_j = particles[j];
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);

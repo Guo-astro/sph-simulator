@@ -22,6 +22,7 @@
 #include "core/simulation.hpp"
 #include "core/sph_particle.hpp"
 #include "core/ghost_particle_manager.hpp"
+#include "core/neighbor_search_config.hpp"
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -242,15 +243,12 @@ SCENARIO_WITH_FIXTURE(SpatialTreeCoordinatorTest,
                 ASSERT_FALSE(search_particles.empty()) << "Search particles should not be empty";
                 ASSERT_TRUE(sim->tree) << "Tree should not be null";
                 
-                // Try neighbor search
-                int n_neighbors = sim->tree->neighbor_search(
-                    search_particles[0], 
-                    neighbor_list, 
-                    search_particles, 
-                    false
-                );
+                // Try neighbor search using declarative API
+                const auto search_config = NeighborSearchConfig::create(50, false);
+                auto result = sim->tree->find_neighbors(search_particles[0], search_config);
                 
-                EXPECT_GE(n_neighbors, 0) << "Neighbor search should return valid count";
+                EXPECT_GE(result.neighbor_indices.size(), 0) << "Neighbor search should return valid count";
+                EXPECT_TRUE(result.is_valid()) << "Result should contain valid neighbor indices";
             }
         }
     }

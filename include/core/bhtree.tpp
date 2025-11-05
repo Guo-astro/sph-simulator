@@ -167,38 +167,71 @@ void BHTree<Dim>::set_kernel() {
     m_root.set_kernel();
 }
 
+/**
+ * @brief Find neighbors using declarative API (REFACTORED - old neighbor_search removed)
+ * 
+ * This is the new implementation that replaces the imperative neighbor_search.
+ * Key improvements:
+ * - No manual bounds checking needed (NeighborCollector handles it)
+ * - Returns immutable result value
+ * - Impossible to overflow by design
+ * - Self-validating indices
+ * - Automatic distance-based sorting
+ */
 template<int Dim>
-int BHTree<Dim>::neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list,
-                                  const std::vector<SPHParticle<Dim>>& particles, const bool is_ij) {
-    int n_neighbor = 0;
-    const int max_neighbors = static_cast<int>(neighbor_list.size());
-    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get());
-
-    // Use the particle array pointer recorded during make() for sorting and
-    // bounds checking. If it's not set, fall back to the provided vector.
-    const std::vector<SPHParticle<Dim>>* particles_ptr = m_particles_ptr ? m_particles_ptr : &particles;
-
-    // Validate neighbor indices are within bounds before sorting
-    const int max_valid_index = static_cast<int>(particles_ptr->size()) - 1;
-    int valid_neighbors = 0;
-    for (int i = 0; i < n_neighbor; ++i) {
-        const int idx = neighbor_list[i];
+NeighborSearchResult BHTree<Dim>::find_neighbors(const SPHParticle<Dim>& p_i,
+                                                  const NeighborSearchConfig& config) {
+    // Create RAII collector with capacity enforcement
+    NeighborCollector collector(config.max_neighbors);
+    
+    // Recursive tree traversal - collector prevents overflow automatically
+    m_root.find_neighbors_recursive(p_i, collector, config, m_periodic.get());
+    
+    // Extract result with move semantics
+    auto result = std::move(collector).finalize();
+    
+    // Use the particle array pointer recorded during make() for validation & sorting
+    if (!m_particles_ptr) {
+        WRITE_LOG << "ERROR: find_neighbors called before make() - no particle array available";
+        return result;  // Return unsorted, caller should check
+    }
+    
+    // Validate all neighbor indices are within bounds
+    const int max_valid_index = static_cast<int>(m_particles_ptr->size()) - 1;
+    std::vector<int> valid_indices;
+    valid_indices.reserve(result.neighbor_indices.size());
+    
+    for (int idx : result.neighbor_indices) {
         if (idx >= 0 && idx <= max_valid_index) {
-            neighbor_list[valid_neighbors++] = idx;
+            valid_indices.push_back(idx);
         } else {
-            WRITE_LOG << "WARNING: neighbor_search found invalid index " << idx 
-                      << " (max=" << max_valid_index << "), skipping";
+            #pragma omp critical
+            {
+                static bool warning_logged = false;
+                if (!warning_logged) {
+                    WRITE_LOG << "WARNING: find_neighbors found invalid index " << idx 
+                              << " (max=" << max_valid_index << "), filtering out";
+                    warning_logged = true;
+                }
+            }
         }
     }
-    n_neighbor = valid_neighbors;
-
+    
+    // Sort neighbors by distance (closest first)
     const auto& pos_i = p_i.pos;
-    std::sort(neighbor_list.begin(), neighbor_list.begin() + n_neighbor, [&](const int a, const int b) {
-        const Vector<Dim> r_ia = m_periodic->calc_r_ij(pos_i, (*particles_ptr)[a].pos);
-        const Vector<Dim> r_ib = m_periodic->calc_r_ij(pos_i, (*particles_ptr)[b].pos);
-        return abs2(r_ia) < abs2(r_ib);
-    });
-    return n_neighbor;
+    std::sort(valid_indices.begin(), valid_indices.end(), 
+              [&](const int a, const int b) {
+                  const Vector<Dim> r_ia = m_periodic->calc_r_ij(pos_i, (*m_particles_ptr)[a].pos);
+                  const Vector<Dim> r_ib = m_periodic->calc_r_ij(pos_i, (*m_particles_ptr)[b].pos);
+                  return abs2(r_ia) < abs2(r_ib);
+              });
+    
+    // Return final result with sorted, validated indices
+    return NeighborSearchResult{
+        .neighbor_indices = std::move(valid_indices),
+        .is_truncated = result.is_truncated,
+        .total_candidates_found = result.total_candidates_found
+    };
 }
 
 template<int Dim>
@@ -308,14 +341,33 @@ real BHTree<Dim>::BHNode::set_kernel() {
     return kernel_size;
 }
 
+/**
+ * @brief Recursive neighbor search using declarative collector (REFACTORED)
+ * 
+ * This method replaces the old imperative neighbor_search that used manual bounds checking.
+ * Key improvements:
+ * - Uses NeighborCollector::try_add() which enforces bounds automatically
+ * - Early exit when collector is full (performance optimization)
+ * - No possibility of buffer overflow
+ * - Cleaner logic without manual n_neighbor tracking
+ */
 template<int Dim>
-void BHTree<Dim>::BHNode::neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list,
-                                           int& n_neighbor, const int max_neighbors, const bool is_ij, const Periodic<Dim>* periodic) {
+void BHTree<Dim>::BHNode::find_neighbors_recursive(const SPHParticle<Dim>& p_i,
+                                                    NeighborCollector& collector,
+                                                    const NeighborSearchConfig& config,
+                                                    const Periodic<Dim>* periodic) {
+    // Early exit if collector is full (optimization)
+    if (collector.is_full()) {
+        return;
+    }
+    
+    // Check if this node is within search radius
     const Vector<Dim>& r_i = p_i.pos;
-    const real h = is_ij ? std::max(p_i.sml, kernel_size) : p_i.sml;
+    const real h = config.use_max_kernel ? std::max(p_i.sml, kernel_size) : p_i.sml;
     const real h2 = h * h;
     const real l2 = sqr(edge * 0.5 + h);
     const Vector<Dim> d = periodic->calc_r_ij(r_i, center);
+    
     real dx2_max = sqr(d[0]);
     for (int i = 1; i < Dim; ++i) {
         const real dx2 = sqr(d[i]);
@@ -323,38 +375,40 @@ void BHTree<Dim>::BHNode::neighbor_search(const SPHParticle<Dim>& p_i, std::vect
             dx2_max = dx2;
         }
     }
-
-    if (dx2_max <= l2) {
-        if (is_leaf) {
-            auto* p = first;
-            while (p) {
-                const Vector<Dim>& r_j = p->pos;
-                const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
-                const real r2 = abs2(r_ij);
-                if (r2 < h2) {
-                    // CRITICAL FIX: Check bounds before writing to prevent heap buffer overflow
-                    if (n_neighbor >= max_neighbors) {
-                        // Neighbor list is full - this should trigger reallocation or error
-                        #pragma omp critical
-                        {
-                            static bool overflow_logged = false;
-                            if (!overflow_logged) {
-                                WRITE_LOG << "ERROR: Neighbor list overflow! n_neighbor=" << n_neighbor 
-                                          << ", max=" << max_neighbors << ", particle_id=" << p_i.id;
-                                overflow_logged = true;
-                            }
-                        }
-                        return;  // Stop searching to prevent crash
-                    }
-                    neighbor_list[n_neighbor] = p->id;
-                    ++n_neighbor;
+    
+    // Node is too far, skip
+    if (dx2_max > l2) {
+        return;
+    }
+    
+    // Node is within range, process it
+    if (is_leaf) {
+        // Leaf node: check each particle
+        auto* p = first;
+        while (p) {
+            const Vector<Dim>& r_j = p->pos;
+            const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
+            const real r2 = abs2(r_ij);
+            
+            if (r2 < h2) {
+                // Particle is within kernel radius - try to add
+                // Collector handles bounds checking automatically
+                if (!collector.try_add(p->id)) {
+                    // Capacity reached - stop searching this branch
+                    return;
                 }
-                p = p->next;
             }
-        } else {
-            for (int i = 0; i < nchild<Dim>(); ++i) {
-                if (childs[i]) {
-                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic);
+            p = p->next;
+        }
+    } else {
+        // Internal node: recurse into children
+        for (int i = 0; i < nchild<Dim>(); ++i) {
+            if (childs[i]) {
+                childs[i]->find_neighbors_recursive(p_i, collector, config, periodic);
+                
+                // Early exit if collector filled during recursion
+                if (collector.is_full()) {
+                    return;
                 }
             }
         }

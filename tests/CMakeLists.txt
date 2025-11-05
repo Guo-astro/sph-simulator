@@ -37,7 +37,7 @@ target_link_libraries(sph_tests
         nlohmann_json::nlohmann_json
 )
 
-target_compile_features(sph_tests PUBLIC cxx_std_14)
+target_compile_features(sph_tests PUBLIC cxx_std_17)
 target_compile_options(sph_tests
     PRIVATE
         -Wall

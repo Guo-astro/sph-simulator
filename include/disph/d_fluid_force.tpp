@@ -36,13 +36,23 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
-        std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
         
-        // neighbor search
+        // Create search config (declarative)
+        const auto search_config = NeighborSearchConfig::create(this->m_neighbor_number, /*is_ij=*/true);
+        
+        // neighbor search using declarative API
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
-        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
+        std::vector<int> neighbor_list(search_config.max_neighbors);
+        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, 
+                                                 neighbor_list, search_config.max_neighbors, periodic, true);
+        auto result = NeighborSearchResult{
+            .neighbor_indices = std::vector<int>(neighbor_list.begin(), neighbor_list.begin() + n_neighbor),
+            .is_truncated = false,
+            .total_candidates_found = n_neighbor
+        };
 #else
-        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
+        // REFACTORED: Declarative neighbor search
+        auto result = tree->find_neighbors(p_i, search_config);
 #endif
 
         // fluid force
@@ -57,13 +67,12 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = 0.0;
 
-        for(int n = 0; n < n_neighbor; ++n) {
-            int const j = neighbor_list[n];
+        // REFACTORED: Use result.neighbor_indices
+        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
+            int const j = result.neighbor_indices[n];
             auto & p_j = particles[j];
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
-            const real r = abs(r_ij);
-
-            if(r >= std::max(h_i, p_j.sml) || r == 0.0) {
+            const real r = abs(r_ij);            if(r >= std::max(h_i, p_j.sml) || r == 0.0) {
                 continue;
             }
 

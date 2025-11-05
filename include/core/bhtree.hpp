@@ -6,6 +6,9 @@
 #include "vector.hpp"
 #include "sph_particle.hpp"
 #include "core/periodic.hpp"
+#include "core/neighbor_search_result.hpp"
+#include "core/neighbor_search_config.hpp"
+#include "core/neighbor_collector.hpp"
 #include "../defines.hpp"
 
 namespace sph {
@@ -61,8 +64,22 @@ private:
         void create_tree(BHNode*& nodes, int& remaind, const int max_level, const int leaf_particle_num);
         void assign(SPHParticle<Dim>* particle, BHNode*& nodes, int& remaind);
         real set_kernel();
-        void neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list, 
-                           int& n_neighbor, const int max_neighbors, const bool is_ij, const Periodic<Dim>* periodic);
+        
+        /**
+         * @brief Find neighbors using declarative collector pattern (NEW API)
+         * @param p_i Target particle to find neighbors for
+         * @param collector RAII collector that enforces capacity bounds
+         * @param config Search configuration (kernel size selection)
+         * @param periodic Periodic boundary handler
+         * 
+         * Replaces imperative neighbor_search with mutable output parameters.
+         * Uses NeighborCollector for automatic bounds enforcement.
+         */
+        void find_neighbors_recursive(const SPHParticle<Dim>& p_i, 
+                                     NeighborCollector& collector,
+                                     const NeighborSearchConfig& config,
+                                     const Periodic<Dim>* periodic);
+        
         void calc_force(SPHParticle<Dim>& p_i, const real theta2, const real g_constant, 
                        const Periodic<Dim>* periodic);
     };
@@ -91,8 +108,32 @@ public:
     void resize(const int particle_num, const int tree_size = 5);
     void make(std::vector<SPHParticle<Dim>>& particles, const int particle_num);
     void set_kernel();
-    int neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& neighbor_list, 
-                       const std::vector<SPHParticle<Dim>>& particles, const bool is_ij = false);
+    
+    /**
+     * @brief Find neighbors using declarative API (NEW - replaces old neighbor_search)
+     * @param p_i Target particle to find neighbors for
+     * @param config Validated search configuration
+     * @return NeighborSearchResult with indices, truncation status, diagnostics
+     * 
+     * Design improvements over old API:
+     * - Returns value instead of mutating output parameters
+     * - Impossible to overflow by design (NeighborCollector enforces bounds)
+     * - Self-documenting through types (NeighborSearchConfig, NeighborSearchResult)
+     * - Sorts neighbors by distance automatically
+     * - Validates all indices before returning
+     * 
+     * Example:
+     * @code
+     * auto config = NeighborSearchConfig::create(neighbor_number, is_ij);
+     * auto result = tree->find_neighbors(particle, config);
+     * for (int idx : result.neighbor_indices) {
+     *     // Process neighbor...
+     * }
+     * @endcode
+     */
+    [[nodiscard]] NeighborSearchResult find_neighbors(const SPHParticle<Dim>& p_i,
+                                                       const NeighborSearchConfig& config);
+    
     void tree_force(SPHParticle<Dim>& p_i);
 };
 
