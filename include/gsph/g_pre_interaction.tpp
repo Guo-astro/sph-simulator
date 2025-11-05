@@ -10,7 +10,7 @@
 #include "core/bhtree.hpp"
 #include "utilities/constants.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -40,22 +40,30 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
+
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
-    // for MUSCL
-    auto & grad_d = sim->get_vector_array("grad_density");
-    auto & grad_p = sim->get_vector_array("grad_pressure");
-    Vector<Dim> * grad_v[Dim];
-    grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
-    if constexpr (Dim >= 2) {
-        grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
-    }
-    if constexpr (Dim == 3) {
-        grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+    // for MUSCL - only access gradient arrays if 2nd order is enabled
+    std::vector<Vector<Dim>> *grad_d_ptr = nullptr;
+    std::vector<Vector<Dim>> *grad_p_ptr = nullptr;
+    Vector<Dim> * grad_v[Dim] = {nullptr};
+    
+    if (this->m_is_2nd_order) {
+        grad_d_ptr = &sim->get_vector_array("grad_density");
+        grad_p_ptr = &sim->get_vector_array("grad_pressure");
+        grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
+        if constexpr (Dim >= 2) {
+            grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
+        }
+        if constexpr (Dim == 3) {
+            grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+        }
     }
 
 #pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
+    for(int i = 0; i < num; ++i) {  // Only iterate over real particles
         auto & p_i = particles[i];
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
 
@@ -64,16 +72,19 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                            Dim == 2 ? utilities::constants::UNIT_SPHERE_VOLUME_2D :
                                       utilities::constants::UNIT_SPHERE_VOLUME_3D;
         p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), utilities::constants::ONE / Dim) * this->m_kernel_ratio;
-        
+
         // neighbor search
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, false);
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        const int search_count = static_cast<int>(search_particles.size());
+        const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, search_particles, search_count, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, false);
 #else
-        const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
+        const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, search_particles, false);
 #endif
         // smoothing length
         if(this->m_iteration) {
-            p_i.sml = this->newton_raphson(p_i, particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
+            // Use combined search_particles (real + ghost) when performing
+            // Newton-Raphson for smoothing length so neighbor indices match.
+            p_i.sml = this->newton_raphson(p_i, search_particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
         }
 
         // density etc.
@@ -83,7 +94,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         int n_neighbor = 0;
         for(int n = 0; n < n_neighbor_tmp; ++n) {
             int const j = neighbor_list[n];
-            auto & p_j = particles[j];
+            auto & p_j = search_particles[j];
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);
 
@@ -117,30 +128,30 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         }
 
         Vector<Dim> dd, du; // dP = (gamma - 1) * (rho * du + drho * u)
-        Vector<Dim> dv[DIM];
+        Vector<Dim> dv[Dim];
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
-            auto & p_j = particles[j];
+            auto & p_j = search_particles[j];
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);
             const Vector<Dim> dw_ij = kernel->dw(r_ij, r, p_i.sml);
             dd += dw_ij * p_j.mass;
             du += dw_ij * (p_j.mass * (p_j.ene - p_i.ene));
-            for(int k = 0; k < DIM; ++k) {
+            for(int k = 0; k < Dim; ++k) {
                 dv[k] += dw_ij * (p_j.mass * (p_j.vel[k] - p_i.vel[k]));
             }
         }
-        grad_d[i] = dd;
-        grad_p[i] = (dd * p_i.ene + du) * (this->m_adiabatic_index - utilities::constants::ONE);
+        (*grad_d_ptr)[i] = dd;
+        (*grad_p_ptr)[i] = (dd * p_i.ene + du) * (this->m_adiabatic_index - utilities::constants::ONE);
         const real rho_inv = utilities::constants::ONE / p_i.dens;
-        for(int k = 0; k < DIM; ++k) {
+        for(int k = 0; k < Dim; ++k) {
             grad_v[k][i] = dv[k] * rho_inv;
         }
     }
 
     sim->h_per_v_sig = h_per_v_sig.min();
 
-#ifndef EXHAUSTIVE_SEARCH
+#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG_ONLY_FOR_DEBUG
     tree->set_kernel();
 #endif
 }

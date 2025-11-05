@@ -32,4 +32,4 @@ inline constexpr real powh(real h) {
 constexpr int neighbor_list_size = 20;
 
 // for debug
-//#define EXHAUSTIVE_SEARCH
+//#define EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG

@@ -196,6 +196,10 @@ public:
                 // Iterative smoothing length
                 .with_iterative_smoothing_length(true)
                 
+                // Disable 2nd order GSPH when using ghost particles
+                // (gradient arrays only exist for real particles, not ghosts)
+                .with_gsph_2nd_order(false)
+                
                 .build();
             
             *params = *builder_params;
@@ -255,6 +259,10 @@ public:
         // 
         // For shock tube: Use MIRROR boundaries (reflective walls)
         // NOT periodic - we want walls, not wrapping!
+        // 
+        // Ghost particles will be generated in solver initialization
+        // after smoothing lengths are calculated. They will copy all
+        // properties from the real boundary particles as-is.
         // ============================================================
         std::cout << "\n--- Ghost Particle System ---\n";
         
@@ -271,43 +279,41 @@ public:
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
         
-        // Set kernel support radius
-        // At this point particles don't have sml calculated yet, so estimate from spacing
-        // For 1D, typical sml = 2 * dx for cubic spline kernel
-        // Use the larger spacing (right side) as conservative estimate
-        const real estimated_sml = 2.0 * dx_right;
-        const real kernel_support_radius = 2.0 * estimated_sml;  // 2h for cubic spline
-        sim->ghost_manager->set_kernel_support_radius(kernel_support_radius);
-        
-        // Generate initial ghost particles
-        sim->ghost_manager->generate_ghosts(sim->particles);
-        
-        std::cout << "✓ Ghost particle system initialized\n";
+        std::cout << "✓ Ghost particle system configured\n";
         std::cout << "  Boundary type: MIRROR (NO_SLIP)\n";
         std::cout << "  Domain range: [" << ghost_config.range_min[0] 
                   << ", " << ghost_config.range_max[0] << "]\n";
-        std::cout << "  Estimated smoothing length: " << estimated_sml << "\n";
-        std::cout << "  Kernel support radius: " << kernel_support_radius << "\n";
-        std::cout << "  Generated " << sim->ghost_manager->get_ghost_count() 
-                  << " ghost particles\n";
+        std::cout << "  (Ghost particles will be generated after sml calculation)\n";
         
         std::cout << "\n--- Configuration Summary ---\n";
+        std::cout << "DEBUG: params pointer = " << params.get() << "\n";
+        std::cout << "DEBUG: About to access params->type\n";
         std::cout << "SPH Algorithm: ";
         switch(params->type) {
             case SPHType::SSPH:  std::cout << "Standard SPH\n"; break;
             case SPHType::DISPH: std::cout << "Density Independent SPH\n"; break;
             case SPHType::GSPH:  std::cout << "Godunov SPH\n"; break;
         }
+        std::cout << "DEBUG: Accessed params->type successfully\n";
+        std::cout << "DEBUG: About to access params->cfl.sound\n";
         std::cout << "CFL coefficients: sound=" << params->cfl.sound 
                   << ", force=" << params->cfl.force << "\n";
+        std::cout << "DEBUG: About to access params->physics.neighbor_number\n";
         std::cout << "Neighbor number: " << params->physics.neighbor_number << "\n";
+        std::cout << "DEBUG: About to access params->physics.gamma\n";
         std::cout << "Gamma (adiabatic): " << params->physics.gamma << "\n";
+        std::cout << "DEBUG: About to print 'Kernel: '\n";
+        std::flush(std::cout);
         std::cout << "Kernel: ";
+        std::flush(std::cout);
+        std::cout << "DEBUG: Printed 'Kernel: ', about to access params->kernel\n";
+        std::flush(std::cout);
         switch(params->kernel) {
             case KernelType::CUBIC_SPLINE: std::cout << "Cubic Spline\n"; break;
             case KernelType::WENDLAND: std::cout << "Wendland\n"; break;
             case KernelType::UNKNOWN: std::cout << "Unknown\n"; break;
         }
+        std::cout << "DEBUG: Finished kernel switch\n";
         
         std::cout << "\n=== Initialization Complete ===\n\n";
     }

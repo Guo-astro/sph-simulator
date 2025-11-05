@@ -9,7 +9,7 @@
 #include "algorithms/limiters/van_leer_limiter.hpp"
 #include "utilities/constants.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -43,16 +43,21 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * tree = sim->tree.get();
     const real dt = sim->dt;
 
-    // for MUSCL
-    auto & grad_d = sim->get_vector_array("grad_density");
-    auto & grad_p = sim->get_vector_array("grad_pressure");
-    Vector<Dim> * grad_v[Dim];
-    grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
-    if constexpr (Dim >= 2) {
-        grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
-    }
-    if constexpr (Dim == 3) {
-        grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+    // for MUSCL - only access gradient arrays if 2nd order is enabled
+    std::vector<Vector<Dim>> *grad_d_ptr = nullptr;
+    std::vector<Vector<Dim>> *grad_p_ptr = nullptr;
+    Vector<Dim> * grad_v[Dim] = {nullptr};
+    
+    if (this->m_is_2nd_order) {
+        grad_d_ptr = &sim->get_vector_array("grad_density");
+        grad_p_ptr = &sim->get_vector_array("grad_pressure");
+        grad_v[0] = sim->get_vector_array("grad_velocity_0").data();
+        if constexpr (Dim >= 2) {
+            grad_v[1] = sim->get_vector_array("grad_velocity_1").data();
+        }
+        if constexpr (Dim == 3) {
+            grad_v[2] = sim->get_vector_array("grad_velocity_2").data();
+        }
     }
 
 #pragma omp parallel for
@@ -61,8 +66,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
         
         // neighbor search
-#ifdef EXHAUSTIVE_SEARCH
-        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        // Search over ALL particles (including ghosts appended at end)
+        const int search_count = static_cast<int>(particles.size());
+        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, search_count, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
 #else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
 #endif
@@ -92,8 +99,16 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             const real ve_j = inner_product(p_j.vel, e_ij);
             real vstar, pstar;
 
-            if(this->m_is_2nd_order) {
-                // Murante et al. (2011)
+            // Check if neighbor is a ghost particle
+            // Ghost particles don't have gradient arrays, so use 1st order for them
+            const bool is_ghost = (p_j.type == static_cast<int>(ParticleType::GHOST));
+            const bool use_2nd_order = this->m_is_2nd_order && !is_ghost;
+
+            if(use_2nd_order) {
+                // Murante et al. (2011) - 2nd order MUSCL reconstruction
+                // Access gradient arrays via pointers (only valid when 2nd order is enabled)
+                auto & grad_d = *grad_d_ptr;
+                auto & grad_p = *grad_p_ptr;
 
                 real right[4], left[4];
                 const real delta_i = utilities::constants::MUSCL_EXTRAPOLATION_COEFF * (utilities::constants::ONE - p_i.sound * dt * r_inv);

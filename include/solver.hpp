@@ -51,7 +51,6 @@ class Solver {
     std::string                                      m_plugin_path;
     
     // Private methods
-    void read_parameterfile(const char * filename);
     void load_plugin();
     void make_initial_condition();
     void initialize();

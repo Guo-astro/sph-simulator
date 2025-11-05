@@ -10,6 +10,11 @@
     "limits": "cpp",
     "ratio": "cpp",
     "tuple": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "deque": "cpp",
+    "list": "cpp",
+    "string": "cpp",
+    "valarray": "cpp",
+    "vector": "cpp"
   }
 }

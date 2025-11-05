@@ -9,7 +9,7 @@
 #include "exception.hpp"
 #include "core/bhtree.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -52,8 +52,9 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     const real dt = sim->dt;
     auto * tree = sim->tree.get();
 
-    // Get combined particle list for neighbor search (includes ghosts if available)
-    auto search_particles = sim->get_all_particles_for_search();
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
+    const int search_size = static_cast<int>(search_particles.size());
 
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
@@ -69,11 +70,21 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * m_kernel_ratio;
         
         // neighbor search (searches in real + ghost particles)
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        const int search_num = static_cast<int>(search_particles.size());
         const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, search_particles, search_num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
 #else
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, search_particles, false);
 #endif
+        
+        // CRITICAL: Check if any neighbor index is out of bounds
+        for (int n = 0; n < n_neighbor_tmp; ++n) {
+            const int j = neighbor_list[n];
+            if (j < 0 || j >= search_size) {
+                WRITE_LOG << "ERROR: Particle " << i << " has neighbor index " << j 
+                         << " which is out of bounds [0, " << search_size << ")";
+            }
+        }
         // smoothing length
         if(m_iteration) {
             p_i.sml = newton_raphson(p_i, search_particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
@@ -166,7 +177,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
     sim->h_per_v_sig = h_per_v_sig.min();
 
-#ifndef EXHAUSTIVE_SEARCH
+#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG_ONLY_FOR_DEBUG
     tree->set_kernel();
 #endif
 }
@@ -180,8 +191,8 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
-    // Get combined particle list for neighbor search (includes ghosts if available)
-    auto search_particles = sim->get_all_particles_for_search();
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles
@@ -196,7 +207,8 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim);
         
         // neighbor search (searches in real + ghost particles)
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        const int search_num = static_cast<int>(search_particles.size());
         int const n_neighbor = exhaustive_search(p_i, p_i.sml, search_particles, search_num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
 #else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, search_particles, false);
@@ -261,6 +273,18 @@ real PreInteraction<Dim>::newton_raphson(
         real ddens = 0.0;
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
+            
+            // Safety check for array bounds
+            if (j < 0 || j >= static_cast<int>(particles.size())) {
+#pragma omp critical
+                {
+                    WRITE_LOG << "ERROR: newton_raphson accessing invalid index j=" << j 
+                              << ", particles.size()=" << particles.size() 
+                              << ", n=" << n << ", n_neighbor=" << n_neighbor;
+                }
+                continue;  // Skip this neighbor
+            }
+            
             auto & p_j = particles[j];
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
@@ -286,6 +310,8 @@ real PreInteraction<Dim>::newton_raphson(
 #pragma omp critical
     {
         WRITE_LOG << "Particle id " << p_i.id << " is not convergence";
+        WRITE_LOG << "  Position: " << p_i.pos[0] << ", sml: " << p_i.sml 
+                  << ", dens: " << p_i.dens << ", mass: " << p_i.mass;
     }
 
     return p_i.sml / m_kernel_ratio;

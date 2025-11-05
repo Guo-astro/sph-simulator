@@ -45,7 +45,10 @@ void Simulation<Dim>::update_time() {
 
 template<int Dim>
 void Simulation<Dim>::make_tree() {
-    tree->make(particles, particle_num);
+    // Build tree with cached search particles (already populated by solver)
+    // CRITICAL: Cached vector must remain valid throughout neighbor search
+    const int total_count = static_cast<int>(cached_search_particles.size());
+    tree->make(cached_search_particles, total_count);
 }
 
 template<int Dim>
@@ -90,7 +93,19 @@ std::vector<SPHParticle<Dim>> Simulation<Dim>::get_all_particles_for_search() co
         // Combine real and ghost particles
         std::vector<SPHParticle<Dim>> all_particles = particles;
         const auto& ghosts = ghost_manager->get_ghost_particles();
-        all_particles.insert(all_particles.end(), ghosts.begin(), ghosts.end());
+        
+        // CRITICAL: Reserve space to avoid reallocation during insertion
+        all_particles.reserve(particles.size() + ghosts.size());
+        
+        // Insert ghost particles and renumber their IDs to match their position
+        const int ghost_id_offset = static_cast<int>(particles.size());
+        for (size_t i = 0; i < ghosts.size(); ++i) {
+            SPHParticle<Dim> ghost = ghosts[i];
+            // CRITICAL FIX: Ghost particle ID must match its index in the combined vector
+            ghost.id = ghost_id_offset + static_cast<int>(i);
+            all_particles.push_back(ghost);
+        }
+        
         return all_particles;
     } else {
         // No ghosts, return real particles only

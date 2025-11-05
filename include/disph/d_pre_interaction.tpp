@@ -9,7 +9,7 @@
 #include "exception.hpp"
 #include "core/bhtree.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -47,14 +47,18 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.sml = std::pow(this->m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * this->m_kernel_ratio;
         
         // neighbor search
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, false);
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+    const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, false);
 #else
-        const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
+    // Use the combined cached search_particles (real + ghost) for neighbor search
+    auto & search_particles = sim->cached_search_particles;
+    const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, search_particles, false);
 #endif
         // smoothing length
         if(this->m_iteration) {
-            p_i.sml = newton_raphson(p_i, particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
+            // Use combined search_particles for Newton-Raphson so neighbor indices are valid
+            auto & search_particles = sim->cached_search_particles;
+            p_i.sml = newton_raphson(p_i, search_particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
         }
 
         // density etc.
@@ -155,7 +159,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
     sim->h_per_v_sig = h_per_v_sig.min();
 
-#ifndef EXHAUSTIVE_SEARCH
+#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG_ONLY_FOR_DEBUG
     tree->set_kernel();
 #endif
 }

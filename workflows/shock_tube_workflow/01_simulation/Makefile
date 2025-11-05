@@ -87,14 +87,14 @@ clean-all: clean clean-outputs
 run-gsph: build
 	@echo "=== Running GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN) $(GSPH_CONFIG)
+	$(SPH_BIN) $(PLUGIN)
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
 run-disph: build
 	@echo "=== Running DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
-	$(SPH_BIN) $(PLUGIN) $(DISPH_CONFIG)
+	$(SPH_BIN) $(PLUGIN)
 	@echo "✓ DISPH simulation complete"
 
 # Run both simulations

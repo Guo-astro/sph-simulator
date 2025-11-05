@@ -52,6 +52,7 @@ private:
             first = nullptr;
             mass = 0.0;
             num = 0;
+            std::fill(childs, childs + nchild<Dim>(), nullptr);
             m_center = Vector<Dim>();
             kernel_size = 0.0;
             is_leaf = false;
@@ -79,6 +80,11 @@ private:
     real m_g_constant;
     real m_theta;
     real m_theta2;
+    // Pointer to the particle array used to build the tree. This ensures
+    // neighbor_search sorts and bounds-check against the same container
+    // that was passed to make(). It is set in make() and cleared when
+    // the tree is rebuilt.
+    const std::vector<SPHParticle<Dim>>* m_particles_ptr = nullptr;
 
 public:
     void initialize(std::shared_ptr<SPHParameters> param);

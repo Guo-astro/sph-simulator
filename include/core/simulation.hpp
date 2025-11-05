@@ -36,6 +36,10 @@ public:
     std::shared_ptr<BHTree<Dim>> tree;
     std::shared_ptr<GhostParticleManager<Dim>> ghost_manager;  // New ghost particle system
 
+    // Cached combined particles for tree building (real + ghost)
+    // Must be persistent so tree can store valid pointers
+    std::vector<SPHParticle<Dim>> cached_search_particles;
+
     std::unordered_map<std::string, std::vector<real>> additional_scalar_array;
     std::unordered_map<std::string, std::vector<Vector<Dim>>> additional_vector_array;
 

@@ -5,7 +5,7 @@
 #include "core/simulation.hpp"
 #include "core/bhtree.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -61,10 +61,13 @@ void GravityForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
     auto & particles = sim->particles;
     const int num = sim->particle_num;
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
     auto * periodic = sim->periodic.get();
-    // Get combined particle list for neighbor search (includes ghosts if available)
-    auto search_particles = sim->get_all_particles_for_search();
+    
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
+
+#pragma omp parallel for
     const int search_num = sim->get_total_particle_count();
 #else
     auto * tree = sim->tree.get();
@@ -74,14 +77,15 @@ void GravityForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
         auto & p_i = particles[i];
         
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        const int search_num = static_cast<int>(search_particles.size());
         real phi = 0.0;
-        vec_t force(0.0);
-        const vec_t & r_i = p_i.pos;
+        Vector<Dim> force(0.0);
+        const Vector<Dim> & r_i = p_i.pos;
 
         for(int j = 0; j < search_num; ++j) {  // Search includes ghost particles
             const auto & p_j = search_particles[j];  // Access from combined list
-            const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
+            const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
             phi -= m_constant * p_j.mass * (f(r, p_i.sml) + f(r, p_j.sml)) * 0.5;
             force -= r_ij * (m_constant * p_j.mass * (g(r, p_i.sml) + g(r, p_j.sml)) * 0.5);

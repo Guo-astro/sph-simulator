@@ -93,6 +93,16 @@ void BHTree<Dim>::resize(const int particle_num, const int tree_size) {
 template<int Dim>
 void BHTree<Dim>::make(std::vector<SPHParticle<Dim>>& particles, const int particle_num) {
     m_root.root_clear();
+    // Clear stored particle pointer until the tree is fully rebuilt
+    m_particles_ptr = nullptr;
+    
+    // Clear all nodes from previous tree build to prevent stale pointers
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (int i = 0; i < m_node_size; ++i) {
+        m_nodes.get()[i].clear();
+    }
 
     if (!m_is_periodic) {
         omp_real r_min[Dim];
@@ -146,6 +156,10 @@ void BHTree<Dim>::make(std::vector<SPHParticle<Dim>>& particles, const int parti
     int remaind = m_node_size;
     auto* p = m_nodes.get();
     m_root.create_tree(p, remaind, m_max_level, m_leaf_particle_num);
+    // Record the pointer to the particle vector used to build the tree so
+    // neighbor_search uses the exact same container for sorting and bounds
+    // checking. This avoids races where callers pass a different vector.
+    m_particles_ptr = &particles;
 }
 
 template<int Dim>
@@ -159,10 +173,28 @@ int BHTree<Dim>::neighbor_search(const SPHParticle<Dim>& p_i, std::vector<int>& 
     int n_neighbor = 0;
     m_root.neighbor_search(p_i, neighbor_list, n_neighbor, is_ij, m_periodic.get());
 
+    // Use the particle array pointer recorded during make() for sorting and
+    // bounds checking. If it's not set, fall back to the provided vector.
+    const std::vector<SPHParticle<Dim>>* particles_ptr = m_particles_ptr ? m_particles_ptr : &particles;
+
+    // Validate neighbor indices are within bounds before sorting
+    const int max_valid_index = static_cast<int>(particles_ptr->size()) - 1;
+    int valid_neighbors = 0;
+    for (int i = 0; i < n_neighbor; ++i) {
+        const int idx = neighbor_list[i];
+        if (idx >= 0 && idx <= max_valid_index) {
+            neighbor_list[valid_neighbors++] = idx;
+        } else {
+            WRITE_LOG << "WARNING: neighbor_search found invalid index " << idx 
+                      << " (max=" << max_valid_index << "), skipping";
+        }
+    }
+    n_neighbor = valid_neighbors;
+
     const auto& pos_i = p_i.pos;
     std::sort(neighbor_list.begin(), neighbor_list.begin() + n_neighbor, [&](const int a, const int b) {
-        const Vector<Dim> r_ia = m_periodic->calc_r_ij(pos_i, particles[a].pos);
-        const Vector<Dim> r_ib = m_periodic->calc_r_ij(pos_i, particles[b].pos);
+        const Vector<Dim> r_ia = m_periodic->calc_r_ij(pos_i, (*particles_ptr)[a].pos);
+        const Vector<Dim> r_ib = m_periodic->calc_r_ij(pos_i, (*particles_ptr)[b].pos);
         return abs2(r_ia) < abs2(r_ib);
     });
     return n_neighbor;

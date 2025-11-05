@@ -46,7 +46,10 @@ add_library(shock_tube_plugin SHARED
 )
 
 target_compile_features(shock_tube_plugin PUBLIC cxx_std_17)
-target_compile_definitions(shock_tube_plugin PRIVATE DIM=1)
+target_compile_definitions(shock_tube_plugin PRIVATE 
+    DIM=1
+    # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
+)
 target_compile_options(shock_tube_plugin PRIVATE
     -Wall
     -Wno-sign-compare
@@ -76,7 +79,10 @@ add_executable(sph
     ${SPH_SRC_DIR}/core/plugin_loader.cpp
 )
 
-target_compile_definitions(sph PRIVATE DIM=1)
+target_compile_definitions(sph PRIVATE 
+    DIM=1
+    # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
+)
 target_compile_options(sph PRIVATE
     -Wall
     -Wno-sign-compare

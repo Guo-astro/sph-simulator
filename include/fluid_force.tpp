@@ -7,7 +7,7 @@
 #include "core/kernel_function.hpp"
 #include "algorithms/viscosity/monaghan_viscosity.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -39,8 +39,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
-    // Get combined particle list for neighbor search (includes ghosts if available)
-    auto search_particles = sim->get_all_particles_for_search();
+    // Use cached combined particle list (built when tree was created)
+    auto & search_particles = sim->cached_search_particles;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
@@ -48,7 +48,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
         
         // neighbor search (searches in real + ghost particles)
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+        const int search_num = static_cast<int>(search_particles.size());
         int const n_neighbor = exhaustive_search<Dim>(p_i, p_i.sml, search_particles, search_num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, true);
 #else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, search_particles, true);

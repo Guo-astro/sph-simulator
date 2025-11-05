@@ -6,7 +6,7 @@
 #include "core/bhtree.hpp"
 #include "core/kernel_function.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
 #endif
 
@@ -39,7 +39,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
         
         // neighbor search
-#ifdef EXHAUSTIVE_SEARCH
+#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
         int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, this->m_neighbor_number * neighbor_list_size, periodic, true);
 #else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);

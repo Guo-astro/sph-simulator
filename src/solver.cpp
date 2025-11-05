@@ -39,10 +39,15 @@ Solver::Solver(int argc, char * argv[])
     
     // Validate arguments
     if(argc == 1) {
-        std::cerr << "Usage: sph <plugin.dylib|.so|.dll> [config.json]\n" << std::endl;
-        std::cerr << "Examples:" << std::endl;
-        std::cerr << "  sph shock_tube.dylib                 # Plugin with defaults" << std::endl;
-        std::cerr << "  sph shock_tube.dylib gsph.json       # Plugin with GSPH config" << std::endl;
+        std::cerr << "Usage: sph <plugin.dylib|.so|.dll> [num_threads]\n" << std::endl;
+        std::cerr << "Arguments:" << std::endl;
+        std::cerr << "  plugin     - Path to simulation plugin (.dylib/.so/.dll)" << std::endl;
+        std::cerr << "  num_threads - (optional) Number of OpenMP threads to use" << std::endl;
+        std::cerr << "\nExamples:" << std::endl;
+        std::cerr << "  sph shock_tube.dylib           # Use default thread count" << std::endl;
+        std::cerr << "  sph shock_tube.dylib 4         # Use 4 threads" << std::endl;
+        std::cerr << "\nNote: All configuration is now in the plugin C++ file." << std::endl;
+        std::cerr << "JSON configuration files are no longer supported." << std::endl;
         std::exit(EXIT_FAILURE);
     }
     
@@ -54,8 +59,8 @@ Solver::Solver(int argc, char * argv[])
     
     if (!is_plugin) {
         std::cerr << "Error: First argument must be a plugin file (.dylib/.so/.dll)" << std::endl;
-        std::cerr << "Legacy JSON-only mode is no longer supported." << std::endl;
-        std::cerr << "Please convert your simulation to a plugin." << std::endl;
+        std::cerr << "All configuration is now in the plugin source file." << std::endl;
+        std::cerr << "JSON configuration files are no longer supported." << std::endl;
         std::exit(EXIT_FAILURE);
     }
     
@@ -63,33 +68,49 @@ Solver::Solver(int argc, char * argv[])
     m_plugin_path = first_arg;
     load_plugin();
     
-    // Initialize parameters (will be configured by plugin or JSON)
+    // Initialize parameters (will be configured by plugin)
     m_param = std::make_shared<SPHParameters>();
     
-    // Read configuration file if provided
-    if (argc >= 3) {
-        std::string second_arg = argv[2];
-        if (second_arg.find(".json") != std::string::npos) {
-            read_parameterfile(argv[2]);
-        }
-    }
-    
-    // Set output directory (from JSON or default)
-    if (m_output_dir.empty()) {
-        m_output_dir = "output/" + m_plugin->get_name();
-    }
+    // Set output directory
+    m_output_dir = "output/" + m_plugin->get_name();
     
     Logger::open(m_output_dir);
 
 #ifdef _OPENMP
     WRITE_LOG << "Open MP is valid.";
     int num_threads;
-    if(argc == 4) {  // plugin config threads
-        num_threads = std::atoi(argv[3]);
+    if(argc >= 3) {  // plugin threads
+        // Validate that argv[2] is a valid number
+        char* end_ptr = nullptr;
+        long parsed_threads = std::strtol(argv[2], &end_ptr, 10);
+        
+        // Check if parsing was successful and the value is valid
+        if (end_ptr == argv[2] || *end_ptr != '\0') {
+            std::cerr << "Error: Second argument must be a number (thread count), got: " 
+                      << argv[2] << std::endl;
+            std::cerr << "Usage: sph <plugin> [num_threads]" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+        
+        if (parsed_threads <= 0) {
+            std::cerr << "Error: Thread count must be positive, got: " 
+                      << parsed_threads << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+        
+        num_threads = static_cast<int>(parsed_threads);
         omp_set_num_threads(num_threads);
     } else {
         num_threads = omp_get_max_threads();
     }
+    
+    // Additional safety check
+    if (num_threads <= 0) {
+        std::cerr << "Error: Invalid OpenMP thread count: " << num_threads << std::endl;
+        std::cerr << "OpenMP environment may not be properly configured." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    
     WRITE_LOG << "the number of threads = " << num_threads << "\n";
 #else
     WRITE_LOG << "OpenMP is invalid.\n";
@@ -184,121 +205,6 @@ Solver::Solver(int argc, char * argv[])
     m_output = std::make_shared<Output<DIM>>();
 }
 
-void Solver::read_parameterfile(const char * filename)
-{
-    namespace pt = boost::property_tree;
-
-    if (!m_param) {
-        m_param = std::make_shared<SPHParameters>();
-    }
-
-    pt::ptree input;
-    pt::read_json(filename, input);
-
-    m_output_dir = input.get<std::string>("outputDirectory", "");
-
-    // time
-    m_param->time.start = input.get<real>("startTime", real(0));
-    m_param->time.end   = input.get<real>("endTime", real(0));
-    if(m_param->time.end < m_param->time.start && m_param->time.end != 0) {
-        THROW_ERROR("endTime < startTime");
-    }
-    m_param->time.output = input.get<real>("outputTime", (m_param->time.end - m_param->time.start) / 100);
-    m_param->time.energy = input.get<real>("energyTime", m_param->time.output);
-
-    // SPH type - use registry instead of hardcoded if-else
-    std::string sph_type = input.get<std::string>("SPHType", "ssph");
-    try {
-        m_param->type = SPHAlgorithmRegistry::get_type(sph_type);
-    } catch (const std::exception& e) {
-        THROW_ERROR(std::string("Failed to set SPH type: ") + e.what());
-    }
-
-    // CFL
-    m_param->cfl.sound = input.get<real>("cflSound", 0.3);
-    m_param->cfl.force = input.get<real>("cflForce", 0.125);
-
-    // Artificial Viscosity
-    m_param->av.alpha = input.get<real>("avAlpha", 1.0);
-    m_param->av.use_balsara_switch = input.get<bool>("useBalsaraSwitch", true);
-    m_param->av.use_time_dependent_av = input.get<bool>("useTimeDependentAV", false);
-    if(m_param->av.use_time_dependent_av) {
-        m_param->av.alpha_max = input.get<real>("alphaMax", 2.0);
-        m_param->av.alpha_min = input.get<real>("alphaMin", 0.1);
-        if(m_param->av.alpha_max < m_param->av.alpha_min) {
-            THROW_ERROR("alphaMax < alphaMin");
-        }
-        m_param->av.epsilon = input.get<real>("epsilonAV", 0.2);
-    }
-
-    // Artificial Conductivity
-    m_param->ac.is_valid = input.get<bool>("useArtificialConductivity", false);
-    if(m_param->ac.is_valid) {
-        m_param->ac.alpha = input.get<real>("alphaAC", 1.0);
-    }
-
-    // Tree
-    m_param->tree.max_level = input.get<int>("maxTreeLevel", 20);
-    m_param->tree.leaf_particle_num = input.get<int>("leafParticleNumber", 1);
-
-    // Physics
-    m_param->physics.neighbor_number = input.get<int>("neighborNumber", 32);
-    m_param->physics.gamma = input.get<real>("gamma", 1.4);
-
-    // Kernel
-    std::string kernel_name = input.get<std::string>("kernel", "cubic_spline");
-    if(kernel_name == "cubic_spline") {
-        m_param->kernel = KernelType::CUBIC_SPLINE;
-    } else if(kernel_name == "wendland") {
-        m_param->kernel = KernelType::WENDLAND;
-    } else {
-        THROW_ERROR("kernel is unknown.");
-    }
-
-    // smoothing length
-    m_param->iterative_sml = input.get<bool>("iterativeSmoothingLength", true);
-
-    // periodic
-    m_param->periodic.is_valid = input.get<bool>("periodic", false);
-    if(m_param->periodic.is_valid) {
-        {
-            auto & range_max = input.get_child("rangeMax");
-            if(range_max.size() != DIM) {
-                THROW_ERROR("rangeMax != DIM");
-            }
-            int i = 0;
-            for(auto & v : range_max) {
-                m_param->periodic.range_max[i] = std::stod(v.second.data());
-                ++i;
-            }
-        }
-
-        {
-            auto & range_min = input.get_child("rangeMin");
-            if(range_min.size() != DIM) {
-                THROW_ERROR("rangeMax != DIM");
-            }
-            int i = 0;
-            for(auto & v : range_min) {
-                m_param->periodic.range_min[i] = std::stod(v.second.data());
-                ++i;
-            }
-        }
-    }
-
-    // gravity
-    m_param->gravity.is_valid = input.get<bool>("useGravity", false);
-    if(m_param->gravity.is_valid) {
-        m_param->gravity.constant = input.get<real>("G", 1.0);
-        m_param->gravity.theta = input.get<real>("theta", 0.5);
-    }
-
-    // GSPH
-    if(m_param->type == SPHType::GSPH) {
-        m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
-    }
-}
-
 void Solver::run()
 {
     initialize();
@@ -358,6 +264,7 @@ void Solver::initialize()
     make_initial_condition();
 
     m_timestep = std::make_shared<TimeStep<DIM>>();
+    
     if(m_param->type == SPHType::SSPH) {
         m_pre = std::make_shared<PreInteraction<DIM>>();
         m_fforce = std::make_shared<FluidForce<DIM>>();
@@ -368,10 +275,11 @@ void Solver::initialize()
         m_pre = std::make_shared<gsph::PreInteraction<DIM>>();
         m_fforce = std::make_shared<gsph::FluidForce<DIM>>();
     }
+    
     m_gforce = std::make_shared<GravityForce<DIM>>();
 
-    // GSPH
-    if(m_param->type == SPHType::GSPH) {
+    // GSPH - only add gradient arrays if 2nd order is enabled
+    if(m_param->type == SPHType::GSPH && m_param->gsph.is_2nd_order) {
         std::vector<std::string> names;
         names.push_back("grad_density");
         names.push_back("grad_pressure");
@@ -399,6 +307,7 @@ void Solver::initialize()
 
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
+    
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
@@ -411,33 +320,120 @@ void Solver::initialize()
         p[i].sound = std::sqrt(c_sound * p[i].ene);
     }
 
-#ifndef EXHAUSTIVE_SEARCH
+#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
     auto tree = m_sim->tree;
     tree->resize(num);
+    
+    // Populate cached_search_particles for neighbor search
+    // Initially contains only real particles (ghost particles not yet generated)
+    m_sim->cached_search_particles.clear();
+    m_sim->cached_search_particles.resize(num);
+    for (int i = 0; i < num; ++i) {
+        m_sim->cached_search_particles[i] = p[i];
+    }
+    
     tree->make(p, num);
 #endif
 
     m_pre->calculation(m_sim);
+    
+    // Generate ghost particles AFTER smoothing lengths are calculated
+    // This ensures we use actual sml values for proper kernel support radius
+    if (m_sim->ghost_manager && m_sim->ghost_manager->get_config().is_valid) {
+        // Find maximum smoothing length among real particles
+        real max_sml = 0.0;
+        for (int i = 0; i < num; ++i) {
+            if (p[i].sml > max_sml) {
+                max_sml = p[i].sml;
+            }
+        }
+        
+        // Set kernel support radius based on actual maximum smoothing length
+        // For cubic spline kernel, support is 2h
+        const real kernel_support = 2.0 * max_sml;
+        m_sim->ghost_manager->set_kernel_support_radius(kernel_support);
+        
+        // Generate ghost particles
+        m_sim->ghost_manager->generate_ghosts(p);
+        
+        WRITE_LOG << "Ghost particle system initialized:";
+        WRITE_LOG << "* Max smoothing length = " << max_sml;
+        WRITE_LOG << "* Kernel support radius = " << kernel_support;
+        WRITE_LOG << "* Generated " << m_sim->ghost_manager->get_ghost_count() 
+                  << " ghost particles";
+        
+        // Update cached_search_particles to include both real and ghost particles
+        // This is CRITICAL for neighbor search in subsequent calculations
+        // Copy combined particle list into the cached buffer without leaving the tree
+        // in an inconsistent state. Rebuild the tree immediately after updating.
+        const auto all_particles_combined = m_sim->get_all_particles_for_search();
+        m_sim->cached_search_particles.reserve(all_particles_combined.size());
+        m_sim->cached_search_particles = all_particles_combined;
+
+        // Rebuild spatial tree now that cached_search_particles and IDs are consistent
+        m_sim->make_tree();
+    }
+    
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
 }
 
 void Solver::integrate()
 {
+    // Validate particle vector isn't corrupted
+    if (m_sim->particles.size() != static_cast<size_t>(m_sim->particle_num)) {
+        WRITE_LOG << "FATAL: particles vector size mismatch! size=" << m_sim->particles.size() 
+                  << ", particle_num=" << m_sim->particle_num;
+        throw std::runtime_error("Particle vector corrupted");
+    }
+    
     // Update ghost particle properties before neighbor search
     if (m_sim->ghost_manager) {
+        // Recalculate kernel support radius from current smoothing lengths
+        // This is critical because sml adapts during simulation and affects ghost generation
+        real max_sml = 0.0;
+        for (int i = 0; i < m_sim->particle_num; ++i) {
+            if (m_sim->particles[i].sml > max_sml) {
+                max_sml = m_sim->particles[i].sml;
+            }
+        }
+        const real kernel_support = 2.0 * max_sml;  // Changed from 3.0 to 2.0 to reduce ghost count
+        m_sim->ghost_manager->set_kernel_support_radius(kernel_support);
+        
         m_sim->ghost_manager->update_ghosts(m_sim->particles);
     }
 
     m_timestep->calculation(m_sim);
 
     predict();
-#ifndef EXHAUSTIVE_SEARCH
+    
+    // Populate cached search particles for neighbor search (real + ghost)
+    // CRITICAL: Must not reallocate to avoid invalidating tree pointers
+    const auto all_particles = m_sim->get_all_particles_for_search();
+    const size_t new_size = all_particles.size();
+    
+    // Reserve capacity to prevent reallocation, then resize
+    if (m_sim->cached_search_particles.capacity() < new_size) {
+        m_sim->cached_search_particles.reserve(new_size + 100);  // Extra buffer
+    }
+    m_sim->cached_search_particles.resize(new_size);
+    std::copy(all_particles.begin(), all_particles.end(), m_sim->cached_search_particles.begin());
+    
+    // CRITICAL: Clear particle.next pointers after copy to avoid stale linked-list pointers
+    // The tree builder (BHNode::assign) modifies particle.next to build linked lists,
+    // and these must not contain addresses from previous vector iterations
+    for (auto& p : m_sim->cached_search_particles) {
+        p.next = nullptr;
+    }
+    
+#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
     m_sim->make_tree();
 #endif
+    
     m_pre->calculation(m_sim);
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
+    
     correct();
 }
 
@@ -450,7 +446,8 @@ void Solver::predict()
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
-    assert(p.size() == num);
+    // Note: p.size() may be > num if ghosts are appended
+    assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -482,7 +479,8 @@ void Solver::correct()
     const real gamma = m_param->physics.gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
-    assert(p.size() == num);
+    // Note: p.size() may be > num if ghosts are appended
+    assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
