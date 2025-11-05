@@ -256,9 +256,13 @@ public:
         ghost_config.enable_upper[1] = true;
         ghost_config.mirror_types[1] = MirrorType::NO_SLIP;
         
-        // CRITICAL: Set particle spacing for Morris 1997 wall offset calculation
-        ghost_config.particle_spacing[0] = dx_right;  // X-direction spacing
-        ghost_config.particle_spacing[1] = dy;        // Y-direction spacing
+        // CRITICAL: Set per-boundary particle spacing for Morris 1997 wall offset calculation
+        // X-direction: Left boundary has dense particles (dx_left), right has sparse (dx_right)
+        ghost_config.spacing_lower[0] = dx_left;   // Left wall: use local spacing
+        ghost_config.spacing_upper[0] = dx_right;  // Right wall: use local spacing
+        // Y-direction: Uniform spacing throughout
+        ghost_config.spacing_lower[1] = dy;        // Bottom wall
+        ghost_config.spacing_upper[1] = dy;        // Top wall
         
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
@@ -276,12 +280,18 @@ public:
         std::cout << "✓ Ghost particle system initialized\n";
         std::cout << "  X-boundary: MIRROR (NO_SLIP) [" << ghost_config.range_min[0] 
                   << ", " << ghost_config.range_max[0] << "]\n";
-        std::cout << "    Particle spacing (dx): " << dx_right << "\n";
-        std::cout << "    Wall offset: ±" << (0.5 * dx_right) << "\n";
+        std::cout << "    Left particle spacing (dx_left):  " << dx_left << "\n";
+        std::cout << "    Right particle spacing (dx_right): " << dx_right << "\n";
+        std::cout << "    Left wall offset:  -" << (0.5 * dx_left) << "\n";
+        std::cout << "    Right wall offset: +" << (0.5 * dx_right) << "\n";
+        std::cout << "    Left wall position:  " << ghost_config.get_wall_position(0, false) << "\n";
+        std::cout << "    Right wall position: " << ghost_config.get_wall_position(0, true) << "\n";
         std::cout << "  Y-boundary: MIRROR (NO_SLIP) [" << ghost_config.range_min[1]
                   << ", " << ghost_config.range_max[1] << "]\n";
         std::cout << "    Particle spacing (dy): " << dy << "\n";
         std::cout << "    Wall offset: ±" << (0.5 * dy) << "\n";
+        std::cout << "    Bottom wall position: " << ghost_config.get_wall_position(1, false) << "\n";
+        std::cout << "    Top wall position:    " << ghost_config.get_wall_position(1, true) << "\n";
         std::cout << "  Kernel support radius: " << (max_sml * 2.0) << "\n";
         std::cout << "  Generated " << sim->ghost_manager->get_ghost_count() 
                   << " ghost particles\n";
