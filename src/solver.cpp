@@ -379,27 +379,22 @@ void Solver::initialize()
 
 void Solver::integrate()
 {
-    // Update ghost particle properties before neighbor search
-    if (m_sim->ghost_manager) {
-        const int ghost_count_before = m_sim->ghost_manager->get_ghost_count();
-        
-        // CRITICAL: Never regenerate ghosts during main simulation loop
-        // Regeneration changes particle count and invalidates neighbor indices.
-        // Ghosts are generated once during initialization and only properties
-        // are updated thereafter.
-        m_sim->ghost_manager->update_ghosts(m_sim->particles);
-        
-        const int ghost_count_after = m_sim->ghost_manager->get_ghost_count();
-        
-        if (ghost_count_before != ghost_count_after) {
-            WRITE_LOG << "ERROR: Ghost count changed! " << ghost_count_before 
-                      << " -> " << ghost_count_after;
-        }
-    }
-
+    // Calculate timestep based on current state
     m_timestep->calculation(m_sim);
 
+    // Move particles to new positions (predict step)
     predict();
+    
+    // Regenerate ghost particles based on NEW particle positions
+    // This ensures Morris 1997 formula is applied to current positions:
+    //   x_ghost = 2*x_wall - x_real
+    // where x_real is the UPDATED position after predict()
+    if (m_sim->ghost_manager) {
+        m_sim->ghost_manager->regenerate_ghosts(m_sim->particles);
+        
+        WRITE_LOG << "Ghost particles regenerated: " 
+                  << m_sim->ghost_manager->get_ghost_count() << " ghosts";
+    }
     
     // Populate cached search particles for neighbor search (real + ghost)
     // CRITICAL: Must not reallocate to avoid invalidating tree pointers

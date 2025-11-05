@@ -69,12 +69,27 @@ public:
     /**
      * @brief Update ghost particle properties from real particles
      * 
-     * Updates velocities, densities, pressures of existing ghosts.
-     * More efficient than regenerating when topology doesn't change.
+     * DEPRECATED: This method only updates properties but NOT positions.
+     * Use regenerate_ghosts() instead to ensure ghost positions reflect
+     * current particle positions (critical for density calculation).
      * 
      * @param real_particles Vector of real SPH particles
      */
     void update_ghosts(const std::vector<SPHParticle<Dim>>& real_particles);
+    
+    /**
+     * @brief Regenerate ghost particles from current real particle positions
+     * 
+     * This is a declarative wrapper that clears existing ghosts and generates
+     * new ones based on current particle positions. Should be called after
+     * particles move (e.g., after predict() step in solver).
+     * 
+     * Ensures ghost particles always reflect the Morris 1997 formula:
+     *   x_ghost = 2*x_wall - x_real
+     * 
+     * @param real_particles Vector of real SPH particles
+     */
+    void regenerate_ghosts(const std::vector<SPHParticle<Dim>>& real_particles);
     
     /**
      * @brief Get all ghost particles

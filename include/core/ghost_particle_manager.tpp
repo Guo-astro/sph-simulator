@@ -92,6 +92,16 @@ void GhostParticleManager<Dim>::update_ghosts(const std::vector<SPHParticle<Dim>
 }
 
 template<int Dim>
+void GhostParticleManager<Dim>::regenerate_ghosts(const std::vector<SPHParticle<Dim>>& real_particles) {
+    // Pure functional approach: clear old state and generate fresh ghosts
+    // This ensures ghost positions always match current real particle positions
+    // according to Morris 1997 formula: x_ghost = 2*x_wall - x_real
+    
+    clear();
+    generate_ghosts(real_particles);
+}
+
+template<int Dim>
 const std::vector<SPHParticle<Dim>>& GhostParticleManager<Dim>::get_ghost_particles() const {
     return ghost_particles_;
 }
@@ -291,20 +301,6 @@ void GhostParticleManager<Dim>::generate_mirror_ghosts(
     int dim,
     bool is_upper) {
     
-    // Calculate a reasonable default spacing if sml values are not yet initialized
-    real default_spacing = kernel_support_radius_ * 0.5;
-    if (default_spacing <= 0.0 && !real_particles.empty()) {
-        // Emergency fallback: estimate from boundary range
-        // Assume roughly uniform distribution for initial spacing estimate
-        real domain_size = config_.get_range(dim);
-        int particles_per_dim = static_cast<int>(std::pow(real_particles.size(), 1.0 / Dim));
-        if (particles_per_dim > 0) {
-            default_spacing = domain_size / particles_per_dim;
-        } else {
-            default_spacing = domain_size * 0.01; // 1% of domain as last resort
-        }
-    }
-    
     for (size_t i = 0; i < real_particles.size(); ++i) {
         const auto& p = real_particles[i];
         
@@ -312,37 +308,29 @@ void GhostParticleManager<Dim>::generate_mirror_ghosts(
         if (is_near_boundary(p.pos, dim, is_upper)) {
             SPHParticle<Dim> ghost = p;  // Copy all properties
             
-            // Position ghost to maintain exact local particle spacing
-            // Use the particle's own smoothing length as the characteristic spacing
-            // Ghost should be positioned such that distance(ghost, real) = local_spacing
-            const real boundary_pos = is_upper ? config_.range_max[dim] : config_.range_min[dim];
-            const real dist_to_boundary = is_upper ? 
-                (boundary_pos - p.pos[dim]) : 
-                (p.pos[dim] - boundary_pos);
+            // Calculate wall position with half-spacing offset (Morris 1997)
+            // Wall is positioned at: x_wall = x_boundary ± 0.5*dx
+            const real wall_pos = config_.get_wall_position(dim, is_upper);
             
-            // Local spacing is approximately equal to smoothing length for typical SPH setups
-            // Safety check: ensure sml is valid (non-zero), otherwise use default spacing
-            real local_spacing = p.sml;
-            if (local_spacing <= 0.0) {
-                local_spacing = default_spacing;
-            }
+            // Apply Morris 1997 formula: x_ghost = 2*x_wall - x_real
+            // This ensures: distance(ghost, wall) = distance(real, wall)
+            ghost.pos[dim] = 2.0 * wall_pos - p.pos[dim];
             
-            // Place ghost on opposite side of boundary at distance = local_spacing from real particle
-            ghost.pos = p.pos;
-            if (is_upper) {
-                // Ghost beyond upper boundary: boundary + (local_spacing - dist_to_boundary)
-                ghost.pos[dim] = boundary_pos + (local_spacing - dist_to_boundary);
+            // Reflect velocity based on mirror type (Morris 1997, Monaghan 2005)
+            const MirrorType mirror_type = config_.mirror_types[dim];
+            if (mirror_type == MirrorType::NO_SLIP) {
+                // No-slip: reflect ALL velocity components → v_ghost = -v_real
+                reflect_velocity_no_slip(ghost.vel, dim);
             } else {
-                // Ghost beyond lower boundary: boundary - (local_spacing - dist_to_boundary)
-                ghost.pos[dim] = boundary_pos - (local_spacing - dist_to_boundary);
+                // Free-slip: reflect only normal component → v_n_ghost = -v_n_real
+                reflect_velocity_free_slip(ghost.vel, dim);
             }
             
-            // Keep velocity, density, and pressure exactly the same (NO reflection)
-            // This ensures ghost particles have identical thermodynamic properties
-            // Only force calculation will be affected by the boundary constraint
-            ghost.vel = p.vel;
+            // Thermodynamic properties remain identical (Morris 1997)
+            // ρ_ghost = ρ_real, p_ghost = p_real, e_ghost = e_real
             ghost.dens = p.dens;
             ghost.pres = p.pres;
+            ghost.ene = p.ene;
             
             // Mark as ghost particle
             ghost.type = static_cast<int>(ParticleType::GHOST);

@@ -288,6 +288,10 @@ public:
         ghost_config.enable_upper[0] = true;
         ghost_config.mirror_types[0] = MirrorType::FREE_SLIP;  // FREE_SLIP for shock tube (allows sliding along wall)
         
+        // CRITICAL: Set particle spacing for Morris 1997 wall offset calculation
+        // Use right-side spacing (larger) as representative spacing for both boundaries
+        ghost_config.particle_spacing[0] = dx_right;
+        
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
         
@@ -295,6 +299,10 @@ public:
         std::cout << "  Boundary type: MIRROR (FREE_SLIP)\n";
         std::cout << "  Domain range: [" << ghost_config.range_min[0] 
                   << ", " << ghost_config.range_max[0] << "]\n";
+        std::cout << "  Particle spacing (dx): " << dx_right << "\n";
+        std::cout << "  Wall offset: ±" << (0.5 * dx_right) << "\n";
+        std::cout << "  Left wall position:  " << ghost_config.get_wall_position(0, false) << "\n";
+        std::cout << "  Right wall position: " << ghost_config.get_wall_position(0, true) << "\n";
         std::cout << "  (Ghost particles will be generated after sml calculation)\n";
         
         std::cout << "\n--- Configuration Summary ---\n";

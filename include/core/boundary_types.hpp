@@ -55,11 +55,12 @@ struct BoundaryConfiguration {
     std::array<BoundaryType, Dim> types;            ///< Boundary type for each dimension
     std::array<bool, Dim> enable_lower;             ///< Enable lower boundary per dimension
     std::array<bool, Dim> enable_upper;             ///< Enable upper boundary per dimension
-    Vector<Dim> range_min;                          ///< Minimum coordinates of the domain
-    Vector<Dim> range_max;                          ///< Maximum coordinates of the domain
+    Vector<Dim> range_min;                          ///< Minimum coordinates of the particle domain
+    Vector<Dim> range_max;                          ///< Maximum coordinates of the particle domain
     
     // Mirror boundary specific settings
     std::array<MirrorType, Dim> mirror_types;       ///< Mirror type per dimension (when type is MIRROR)
+    Vector<Dim> particle_spacing;                   ///< Particle spacing per dimension (dx, dy, dz) for wall offset calculation
     
     /**
      * @brief Default constructor - initializes with no boundaries
@@ -102,6 +103,27 @@ struct BoundaryConfiguration {
      */
     real get_range(int dim) const {
         return range_max[dim] - range_min[dim];
+    }
+    
+    /**
+     * @brief Get wall position for mirror boundaries (Morris 1997 formula)
+     * 
+     * Wall position is offset by ±0.5*dx from the particle domain boundary:
+     * - Lower wall: x_wall = range_min - 0.5*dx
+     * - Upper wall: x_wall = range_max + 0.5*dx
+     * 
+     * This ensures ghost particles maintain correct spacing from real particles.
+     * 
+     * @param dim Dimension index
+     * @param is_upper True for upper boundary, false for lower
+     * @return Wall position coordinate
+     */
+    real get_wall_position(int dim, bool is_upper) const {
+        if (is_upper) {
+            return range_max[dim] + 0.5 * particle_spacing[dim];
+        } else {
+            return range_min[dim] - 0.5 * particle_spacing[dim];
+        }
     }
 };
 
