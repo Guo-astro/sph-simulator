@@ -21,6 +21,9 @@ namespace disph
 template<int Dim>
 void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
+    // Validate particle arrays in debug builds
+    sim->validate_particle_arrays();
+    
     if(this->m_first) {
         this->initial_smoothing(sim);
         this->m_first = false;
@@ -33,9 +36,9 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     const real dt = sim->dt;
     auto * tree = sim->tree.get();
 
-    // Use cached combined particle list (built when tree was created)
-    // This includes both real particles AND ghost particles
-    auto & search_particles = sim->cached_search_particles;
+    // Create type-safe neighbor accessor - ONLY accepts SearchParticleArray
+    // This prevents the array index mismatch bug at compile time
+    auto neighbor_accessor = sim->create_neighbor_accessor();
 
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
@@ -86,10 +89,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         const Vector<Dim> & pos_i = p_i.pos;
         int n_neighbor = 0;
         
-        // REFACTORED: Use result.neighbor_indices.size()
-        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
-            int const j = result.neighbor_indices[n];
-            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
+        // TYPE-SAFE: Iterate with type-safe iterator yielding NeighborIndex
+        for(auto neighbor_idx : result) {
+            // TYPE-SAFE: Access neighbor through accessor - compile error if wrong array type
+            const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);
 
@@ -106,7 +109,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             dh_pres_i += p_j.mass * p_j.ene * dhw_ij;
             dh_n_i += dhw_ij;
 
-            if(i != j) {
+            if(i != neighbor_idx()) {
                 const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, p_i.vel - p_j.vel) / r;
                 if(v_sig > v_sig_max) {
                     v_sig_max = v_sig;
@@ -130,9 +133,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             // balsara switch
             real div_v = 0.0;
             real rot_v = 0.0;
-            for(int n = 0; n < n_neighbor; ++n) {
-                int const j = result.neighbor_indices[n];  // CRITICAL FIX: Use result.neighbor_indices, not uninitialized neighbor_list
-                auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
+            // TYPE-SAFE: Iterate first n_neighbor elements with type-safe iterator
+            auto it = result.begin();
+            for(int n = 0; n < n_neighbor; ++n, ++it) {
+                const auto neighbor_idx = *it;
+                const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
                 const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
                 const real r = abs(r_ij);
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);
@@ -157,9 +162,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             }
         } else if(this->m_use_time_dependent_av) {
             real div_v = 0.0;
-            for(int n = 0; n < n_neighbor; ++n) {
-                int const j = result.neighbor_indices[n];  // CRITICAL FIX: Use result.neighbor_indices, not uninitialized neighbor_list
-                auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
+            // TYPE-SAFE: Iterate first n_neighbor elements with type-safe iterator
+            auto it = result.begin();
+            for(int n = 0; n < n_neighbor; ++n, ++it) {
+                const auto neighbor_idx = *it;
+                const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
                 const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
                 const real r = abs(r_ij);
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);

@@ -27,15 +27,17 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 template<int Dim>
 void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
+    // Validate particle arrays in debug builds
+    sim->validate_particle_arrays();
+    
     auto & particles = sim->particles;
     auto * periodic = sim->periodic.get();
     const int num = sim->particle_num;
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
-    // Use cached combined particle list (built when tree was created)
-    // This includes both real particles AND ghost particles
-    auto & search_particles = sim->cached_search_particles;
+    // Create type-safe neighbor accessor - ONLY accepts SearchParticleArray
+    auto neighbor_accessor = sim->create_neighbor_accessor();
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -71,10 +73,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = 0.0;
 
-        // REFACTORED: Use result.neighbor_indices
-        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
-            int const j = result.neighbor_indices[n];
-            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
+        // TYPE-SAFE: Iterate with type-safe iterator yielding NeighborIndex
+        for(auto neighbor_idx : result) {
+            // TYPE-SAFE: Access neighbor through accessor - compile error if wrong array type
+            const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);            if(r >= std::max(h_i, p_j.sml) || r == 0.0) {
                 continue;

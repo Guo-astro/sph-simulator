@@ -1,4 +1,9 @@
-# Integration tests - end-to-end workflow tests
+# Integration tests - component interaction tests
+
+target_sources(sph_tests
+    PRIVATE
+        neighbor_accessor_sph_integration_test.cpp  # BDD integration tests for type-safe neighbor access in SPH methods
+)
 
 # Full initialization sequence test
 # add_executable(full_initialization_test

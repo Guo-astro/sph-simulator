@@ -36,6 +36,9 @@ void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 template<int Dim>
 void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
+    // Validate particle arrays in debug builds
+    sim->validate_particle_arrays();
+    
     auto & particles = sim->particles;
     auto * periodic = sim->periodic.get();
     const int num = sim->particle_num;
@@ -43,8 +46,8 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * tree = sim->tree.get();
     const real dt = sim->dt;
     
-    // Use cached combined particle list (built when tree was created)
-    auto & search_particles = sim->cached_search_particles;
+    // Create type-safe neighbor accessor - ONLY accepts SearchParticleArray
+    auto neighbor_accessor = sim->create_neighbor_accessor();
 
     // for MUSCL - only access gradient arrays if 2nd order is enabled
     std::vector<Vector<Dim>> *grad_d_ptr = nullptr;
@@ -73,6 +76,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         // Perform neighbor search using declarative API
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
         // Exhaustive search fallback for debugging
+        auto & search_particles = sim->cached_search_particles;
         std::vector<int> neighbor_list(search_config.max_neighbors);
         const int search_count = static_cast<int>(search_particles.size());
         int const n_neighbor = exhaustive_search(p_i, p_i.sml, search_particles, search_count, 
@@ -111,10 +115,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = utilities::constants::ZERO;
 
-        // REFACTORED: Use result.neighbor_indices (clean, declarative)
-        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
-            int const j = result.neighbor_indices[n];
-            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles to include ghosts
+        // TYPE-SAFE: Iterate with type-safe iterator yielding NeighborIndex
+        for(auto neighbor_idx : result) {
+            // TYPE-SAFE: Access neighbor through accessor - compile error if wrong array type
+            const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);
 
@@ -132,11 +136,11 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             // Ghost particles don't have gradient arrays, so use 1st order for them
             const bool is_ghost = (p_j.type == static_cast<int>(ParticleType::GHOST));
             
-            // CRITICAL FIX: j >= num means accessing ghost particles
+            // CRITICAL FIX: neighbor_idx() >= num means accessing ghost particles
             // Gradient arrays (grad_d, grad_p, grad_v) are ONLY sized for [0, num)
             // Accessing j >= num will cause out-of-bounds memory access
             // Must check BOTH is_ghost flag AND j < num for safety
-            const bool use_2nd_order = this->m_is_2nd_order && !is_ghost && (j < num);
+            const bool use_2nd_order = this->m_is_2nd_order && !is_ghost && (neighbor_idx() < num);
 
             if(use_2nd_order) {
                 // Murante et al. (2011) - 2nd order MUSCL reconstruction
@@ -153,7 +157,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 Vector<Dim> dv_i, dv_j;
                 for(int k = 0; k < Dim; ++k) {
                     dv_i[k] = inner_product(grad_v[k][i], e_ij);
-                    dv_j[k] = inner_product(grad_v[k][j], e_ij);
+                    dv_j[k] = inner_product(grad_v[k][neighbor_idx()], e_ij);
                 }
                 const real dve_i = inner_product(dv_i, e_ij) * r;
                 const real dve_j = inner_product(dv_j, e_ij) * r;
@@ -163,14 +167,14 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 // density
                 const real dd_ij = p_i.dens - p_j.dens;
                 const real dd_i = inner_product(grad_d[i], e_ij) * r;
-                const real dd_j = inner_product(grad_d[j], e_ij) * r;
+                const real dd_j = inner_product(grad_d[neighbor_idx()], e_ij) * r;
                 right[1] = p_i.dens - this->m_slope_limiter->limit(dd_ij, dd_i) * delta_i;
                 left[1] = p_j.dens + this->m_slope_limiter->limit(dd_ij, dd_j) * delta_j;
 
                 // pressure
                 const real dp_ij = p_i.pres - p_j.pres;
                 const real dp_i = inner_product(grad_p[i], e_ij) * r;
-                const real dp_j = inner_product(grad_p[j], e_ij) * r;
+                const real dp_j = inner_product(grad_p[neighbor_idx()], e_ij) * r;
                 right[2] = p_i.pres - this->m_slope_limiter->limit(dp_ij, dp_i) * delta_i;
                 left[2] = p_j.pres + this->m_slope_limiter->limit(dp_ij, dp_j) * delta_j;
 

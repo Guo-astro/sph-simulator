@@ -21,6 +21,7 @@ target_sources(sph_tests
         csv_writer_test.cpp  # BDD tests for CSV output writer (TDD)
         unit_conversion_mode_test.cpp  # BDD tests for type-safe unit conversion control
         output_system_integration_test.cpp  # BDD integration tests for complete output system
+        type_safe_neighbor_accessor_test.cpp  # BDD unit tests for type-safe neighbor access (TDD)
         # protobuf_writer_test.cpp  # BDD tests for Protobuf output writer (TDD) - TODO: fix protobuf types
         # metadata_writer_test.cpp  # BDD tests for metadata writer (TDD) - TODO: fix parameter types
         # output_coordinator_test.cpp  # BDD tests for output coordinator (TDD) - TODO: fix compilation errors

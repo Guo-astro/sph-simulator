@@ -29,6 +29,9 @@ void PreInteraction<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 template<int Dim>
 void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
+    // Validate particle arrays in debug builds
+    sim->validate_particle_arrays();
+    
     if(this->m_first) {
         this->initial_smoothing(sim);
         this->m_first = false;
@@ -40,8 +43,8 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
-    // Use cached combined particle list (built when tree was created)
-    auto & search_particles = sim->cached_search_particles;
+    // Create type-safe neighbor accessor - ONLY accepts SearchParticleArray
+    auto neighbor_accessor = sim->create_neighbor_accessor();
 
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
@@ -96,6 +99,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         if(this->m_iteration) {
             // Use combined search_particles (real + ghost) when performing
             // Newton-Raphson for smoothing length so neighbor indices match.
+            auto & search_particles = sim->cached_search_particles;
             // REFACTORED: Pass result.neighbor_indices vector directly
             p_i.sml = this->newton_raphson(p_i, search_particles, result.neighbor_indices, 
                                           static_cast<int>(result.neighbor_indices.size()), periodic, kernel);
@@ -107,10 +111,10 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         const Vector<Dim> & pos_i = p_i.pos;
         int n_neighbor = 0;
         
-        // REFACTORED: Use result.neighbor_indices.size() instead of n_neighbor_tmp
-        for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
-            int const j = result.neighbor_indices[n];
-            auto & p_j = search_particles[j];
+        // TYPE-SAFE: Iterate with type-safe iterator yielding NeighborIndex
+        for(auto neighbor_idx : result) {
+            // TYPE-SAFE: Access neighbor through accessor - compile error if wrong array type
+            const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);            if(r >= p_i.sml) {
                 break;
@@ -119,7 +123,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             ++n_neighbor;
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
 
-            if(i != j) {
+            if(i != neighbor_idx()) {
                 const real v_sig = p_i.sound + p_j.sound - utilities::constants::SIGNAL_VELOCITY_COEFF * inner_product(r_ij, p_i.vel - p_j.vel) / r;
                 if(v_sig > v_sig_max) {
                     v_sig_max = v_sig;
@@ -143,9 +147,11 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 
         Vector<Dim> dd, du; // dP = (gamma - 1) * (rho * du + drho * u)
         Vector<Dim> dv[Dim];
-        for(int n = 0; n < n_neighbor; ++n) {
-            int const j = neighbor_list[n];
-            auto & p_j = search_particles[j];
+        // TYPE-SAFE: Iterate first n_neighbor elements with type-safe iterator
+        auto it = result.begin();
+        for(int n = 0; n < n_neighbor; ++n, ++it) {
+            const auto neighbor_idx = *it;
+            const auto & p_j = neighbor_accessor.get_neighbor(neighbor_idx);
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);
             const Vector<Dim> dw_ij = kernel->dw(r_ij, r, p_i.sml);

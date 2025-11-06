@@ -17,6 +17,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstddef>
+#include "core/neighbors/neighbor_accessor.hpp"
 
 /**
  * @struct NeighborSearchResult
@@ -55,6 +56,71 @@ struct NeighborSearchResult {
     
     /// Total number of candidates evaluated (including rejected or truncated)
     int total_candidates_found;
+    
+    /**
+     * Type-safe iterator that returns NeighborIndex instead of raw int.
+     * 
+     * This iterator wraps the underlying vector<int> iterator and converts
+     * each int to a NeighborIndex on dereference.
+     * 
+     * Enables type-safe range-based for loops:
+     *   for (auto neighbor_idx : result) {
+     *       const auto& p = accessor.get_neighbor(neighbor_idx);
+     *   }
+     */
+    class NeighborIndexIterator {
+    private:
+        std::vector<int>::const_iterator m_iter;
+        
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = sph::NeighborIndex;
+        using difference_type = std::ptrdiff_t;
+        using pointer = const sph::NeighborIndex*;
+        using reference = sph::NeighborIndex;
+        
+        explicit NeighborIndexIterator(std::vector<int>::const_iterator iter)
+            : m_iter(iter) {}
+        
+        /**
+         * Dereference returns NeighborIndex (by value).
+         * Caller must use this with NeighborAccessor::get_neighbor().
+         */
+        sph::NeighborIndex operator*() const {
+            return sph::NeighborIndex{*m_iter};
+        }
+        
+        NeighborIndexIterator& operator++() {
+            ++m_iter;
+            return *this;
+        }
+        
+        NeighborIndexIterator operator++(int) {
+            auto tmp = *this;
+            ++m_iter;
+            return tmp;
+        }
+        
+        bool operator==(const NeighborIndexIterator& other) const {
+            return m_iter == other.m_iter;
+        }
+        
+        bool operator!=(const NeighborIndexIterator& other) const {
+            return m_iter != other.m_iter;
+        }
+    };
+    
+    /**
+     * Range-based for loop support.
+     * Returns type-safe iterator that yields NeighborIndex.
+     */
+    NeighborIndexIterator begin() const {
+        return NeighborIndexIterator{neighbor_indices.begin()};
+    }
+    
+    NeighborIndexIterator end() const {
+        return NeighborIndexIterator{neighbor_indices.end()};
+    }
     
     /**
      * @brief Check if all neighbor indices are valid (non-negative)

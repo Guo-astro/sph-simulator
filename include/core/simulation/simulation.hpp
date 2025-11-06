@@ -7,6 +7,8 @@
 #include "../utilities/vector.hpp"
 #include "../particles/sph_particle.hpp"
 #include "../kernels/kernel_function.hpp"
+#include "../neighbors/particle_array_types.hpp"
+#include "../neighbors/neighbor_accessor.hpp"
 #include "../../defines.hpp"
 
 namespace sph {
@@ -83,6 +85,82 @@ public:
      * @return true if index refers to a real particle, false if ghost
      */
     bool is_real_particle(int index) const { return index < particle_num; }
+    
+    // ========================================================================
+    // Type-Safe Neighbor Access API
+    // ========================================================================
+    
+    /**
+     * @brief Get type-safe wrapper for real particles only (no ghosts)
+     * 
+     * Returns a typed wrapper that prevents accidental use with neighbor indices.
+     * Use this when iterating over or updating real particles directly.
+     * 
+     * @return RealParticleArray<Dim> wrapper around particles vector
+     */
+    RealParticleArray<Dim> get_real_particles() {
+        return RealParticleArray<Dim>{particles};
+    }
+    
+    /**
+     * @brief Get type-safe wrapper for search particles (real + ghost)
+     * 
+     * Returns a typed wrapper that is REQUIRED for neighbor access.
+     * Neighbor indices reference this array, not the real particles array.
+     * 
+     * IMPORTANT: Always use NeighborAccessor to access elements by neighbor index.
+     * Direct indexing is prevented by the type system.
+     * 
+     * @return SearchParticleArray<Dim> wrapper around cached_search_particles
+     */
+    SearchParticleArray<Dim> get_search_particles() {
+        return SearchParticleArray<Dim>{cached_search_particles};
+    }
+    
+    /**
+     * @brief Create type-safe neighbor accessor
+     * 
+     * Returns an accessor that enforces:
+     * - Neighbor indices ONLY access SearchParticleArray (real + ghost)
+     * - Compile-time error if you try to use RealParticleArray
+     * - Debug builds: runtime bounds checking with exceptions
+     * 
+     * Example usage:
+     *   auto accessor = sim->create_neighbor_accessor();
+     *   for (auto neighbor_idx : result) {
+     *       const auto& p_j = accessor.get_neighbor(neighbor_idx);
+     *       // ... computation
+     *   }
+     * 
+     * @return NeighborAccessor<Dim> for type-safe neighbor access
+     */
+    NeighborAccessor<Dim> create_neighbor_accessor() {
+        return NeighborAccessor<Dim>{get_search_particles()};
+    }
+    
+    /**
+     * @brief Validate particle array invariants (debug builds only)
+     * 
+     * Checks:
+     * - cached_search_particles.size() >= particles.size()
+     * - Search particles include all real particles
+     * 
+     * Throws std::logic_error if invariants violated.
+     * In release builds (NDEBUG defined), this is a no-op for performance.
+     * 
+     * Call this at the entry of SPH calculation methods to catch bugs early.
+     */
+    void validate_particle_arrays() const {
+        #ifndef NDEBUG
+        if (cached_search_particles.size() < static_cast<size_t>(particle_num)) {
+            throw std::logic_error(
+                "Particle array invariant violated: "
+                "cached_search_particles (" + std::to_string(cached_search_particles.size()) + 
+                ") must include all real particles (" + std::to_string(particle_num) + ")"
+            );
+        }
+        #endif
+    }
 };
 
 // Type aliases for convenience
