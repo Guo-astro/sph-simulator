@@ -123,7 +123,9 @@ run-ssph: build
 	@echo "Using OpenMP with all available CPU cores"
 	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(SSPH_PLUGIN)
 	@echo "Copying SSPH results..."
-	@cp -f $(OUTPUT_DIR)/ssph_shock_tube_2d/*.dat $(SSPH_RESULTS)/
+	@if [ -d "$(OUTPUT_DIR)/ssph_shock_tube_2d" ]; then \
+		cp -rf $(OUTPUT_DIR)/ssph_shock_tube_2d/* $(SSPH_RESULTS)/ 2>/dev/null || true; \
+	fi
 	@echo "✓ SSPH simulation complete"
 
 # Run SSPH + ghosts simulation
@@ -134,7 +136,9 @@ run-ssph-ghosts: build
 	@echo "Using OpenMP with all available CPU cores"
 	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(SSPH_GHOSTS_PLUGIN)
 	@echo "Copying SSPH + ghosts results..."
-	@cp -f $(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d/*.dat $(SSPH_GHOSTS_RESULTS)/
+	@if [ -d "$(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d" ]; then \
+		cp -rf $(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d/* $(SSPH_GHOSTS_RESULTS)/ 2>/dev/null || true; \
+	fi
 	@echo "✓ SSPH + ghosts simulation complete"
 
 # Run GSPH simulation
@@ -145,7 +149,9 @@ run-gsph: build
 	@echo "Using OpenMP with all available CPU cores"
 	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(GSPH_PLUGIN)
 	@echo "Copying GSPH results..."
-	@cp -f $(OUTPUT_DIR)/gsph_shock_tube_2d/*.dat $(GSPH_RESULTS)/
+	@if [ -d "$(OUTPUT_DIR)/gsph_shock_tube_2d" ]; then \
+		cp -rf $(OUTPUT_DIR)/gsph_shock_tube_2d/* $(GSPH_RESULTS)/ 2>/dev/null || true; \
+	fi
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
@@ -156,7 +162,9 @@ run-disph: build
 	@echo "Using OpenMP with all available CPU cores"
 	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(DISPH_PLUGIN)
 	@echo "Copying DISPH results..."
-	@cp -f $(OUTPUT_DIR)/disph_shock_tube_2d/*.dat $(DISPH_RESULTS)/
+	@if [ -d "$(OUTPUT_DIR)/disph_shock_tube_2d" ]; then \
+		cp -rf $(OUTPUT_DIR)/disph_shock_tube_2d/* $(DISPH_RESULTS)/ 2>/dev/null || true; \
+	fi
 	@echo "✓ DISPH simulation complete"
 
 # Run all simulations

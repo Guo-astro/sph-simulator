@@ -48,14 +48,32 @@ target_compile_options(sph_tests
 # Tests use Dim=1 for simplicity (defined via constexpr in each test file)
 # No DIM macro needed
 
-# Add subdirectories for organized tests
-add_subdirectory(core)
-add_subdirectory(algorithms)
-add_subdirectory(tree)
+# Add subdirectories for three-tier test structure
+# Unit tests - fast, isolated component tests
+add_subdirectory(unit/core/particles)
+add_subdirectory(unit/core/neighbors)
+add_subdirectory(unit/core/kernels)
+add_subdirectory(unit/core/parameters)
+add_subdirectory(unit/core/output)
+add_subdirectory(unit/core/dimension)
+add_subdirectory(unit/core/units)
+add_subdirectory(unit/algorithms/riemann)
+add_subdirectory(unit/algorithms/limiters)
+add_subdirectory(unit/algorithms/sph)
+add_subdirectory(unit/algorithms/viscosity)
+add_subdirectory(unit/tree)
+add_subdirectory(unit/boundary)
+add_subdirectory(unit/utilities)
+
+# Integration tests - component interaction tests
+add_subdirectory(integration/ghost_boundary)
+add_subdirectory(integration/neighbor_search)
+add_subdirectory(integration/coordinators)
+add_subdirectory(integration/output_pipeline)
+add_subdirectory(integration/plugins)
+
+# Keep legacy directories for now (will be removed in Phase 4)
 add_subdirectory(modules)
-add_subdirectory(utilities)
-add_subdirectory(boundary)
-add_subdirectory(integration)
 add_subdirectory(numerical)
 add_subdirectory(performance)
 add_subdirectory(regression)

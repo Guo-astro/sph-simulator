@@ -42,6 +42,17 @@ file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
 
+# Add parameter builder sources from core/parameters subdirectory
+file(GLOB SPH_PARAMETER_SOURCES "${SPH_SRC_DIR}/core/parameters/*.cpp")
+
+# Add algorithm registry sources from core/algorithms subdirectory
+file(GLOB SPH_CORE_ALGORITHM_SOURCES "${SPH_SRC_DIR}/core/algorithms/*.cpp")
+
+# Add spatial coordinator sources from core/spatial subdirectory (exclude broken template files)
+file(GLOB SPH_SPATIAL_SOURCES "${SPH_SRC_DIR}/core/spatial/*.cpp")
+list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "bhtree_templates\\.cpp$")
+list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "simulation_templates\\.cpp$")
+
 # Build multiple plugins for different SPH methods
 set(PLUGIN_SOURCES
     ssph:src/plugin_ssph.cpp
@@ -62,6 +73,9 @@ foreach(PLUGIN_DEF ${PLUGIN_SOURCES})
         ${SPH_GSPH_SOURCES}
         ${SPH_ALGORITHM_SOURCES}
         ${SPH_CORE_SOURCES}
+        ${SPH_PARAMETER_SOURCES}
+        ${SPH_CORE_ALGORITHM_SOURCES}
+        ${SPH_SPATIAL_SOURCES}
     )
 
     target_compile_features(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC cxx_std_17)

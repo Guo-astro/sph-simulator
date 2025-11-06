@@ -27,6 +27,17 @@ CMakeUserPresets.json
 *.swp
 *~
 
+# Backup files
+*.bak
+*.bak[0-9]
+*.orig
+*.tmp
+
+# Log files
+*.log
+run.log
+disph_run.log
+
 # System
 .DS_Store
 __pycache__/
