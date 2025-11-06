@@ -13,12 +13,6 @@
 },
 {
   "directory": "/Users/guo/sph-simulation/build_tests",
-  "command": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -DSPH_USE_OPENMP -I/Users/guo/sph-simulation/include -isystem /opt/homebrew/include -isystem /Users/guo/.conan2/p/nlohm0567ffc90cfc1/p/include -isystem /opt/homebrew/opt/libomp/include -g -std=gnu++17 -arch arm64 -isysroot macosx -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wno-sign-compare -Wno-float-conversion -Wno-double-promotion -funroll-loops -ffast-math -Xclang -fopenmp -o CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.o -c /Users/guo/sph-simulation/src/core/sph_parameters_builder.cpp",
-  "file": "/Users/guo/sph-simulation/src/core/sph_parameters_builder.cpp",
-  "output": "CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.o"
-},
-{
-  "directory": "/Users/guo/sph-simulation/build_tests",
   "command": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -DSPH_USE_OPENMP -I/Users/guo/sph-simulation/include -isystem /opt/homebrew/include -isystem /Users/guo/.conan2/p/nlohm0567ffc90cfc1/p/include -isystem /opt/homebrew/opt/libomp/include -g -std=gnu++17 -arch arm64 -isysroot macosx -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wno-sign-compare -Wno-float-conversion -Wno-double-promotion -funroll-loops -ffast-math -Xclang -fopenmp -o CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder_base.cpp.o -c /Users/guo/sph-simulation/src/core/sph_parameters_builder_base.cpp",
   "file": "/Users/guo/sph-simulation/src/core/sph_parameters_builder_base.cpp",
   "output": "CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder_base.cpp.o"

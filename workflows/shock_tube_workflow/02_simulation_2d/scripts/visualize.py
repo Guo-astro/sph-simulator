@@ -12,27 +12,35 @@ from pathlib import Path
 import argparse
 
 def read_sph_data(filename):
-    """Read SPH output file"""
-    data = np.loadtxt(filename)
+    """Read SPH output file
+    
+    Format (for 2D): pos(2), vel(2), acc(2), mass, dens, pres, ene, sml, id, neighbor, alpha, gradh
+    Columns: 0-1=pos, 2-3=vel, 4-5=acc, 6=mass, 7=dens, 8=pres, 9=ene, ...
+    """
+    data = np.loadtxt(filename, comments='#')
     return {
         'x': data[:, 0],
         'y': data[:, 1],
         'vx': data[:, 2],
         'vy': data[:, 3],
-        'rho': data[:, 4],
-        'p': data[:, 5],
-        'e': data[:, 6]
+        'rho': data[:, 7],   # dens
+        'p': data[:, 8],      # pres
+        'e': data[:, 9]       # ene
     }
 
 def plot_2d_field(x, y, field, title, output_file):
     """Create 2D scatter plot of a field"""
-    plt.figure(figsize=(12, 4))
-    scatter = plt.scatter(x, y, c=field, cmap='viridis', s=20)
+    plt.figure(figsize=(14, 4))
+    # Adjust point size based on region (smaller in sparse right region)
+    point_sizes = np.where(x < 0.5, 20, 5)
+    scatter = plt.scatter(x, y, c=field, cmap='viridis', s=point_sizes, alpha=0.8)
     plt.colorbar(scatter, label=title)
     plt.xlabel('x')
     plt.ylabel('y')
     plt.title(f'{title} - 2D Distribution')
-    plt.axis('equal')
+    plt.xlim(-0.5, 1.5)
+    plt.ylim(0, 0.5)
+    plt.gca().set_aspect('equal')  # Equal aspect ratio
     plt.tight_layout()
     plt.savefig(output_file, dpi=150)
     plt.close()
@@ -75,15 +83,15 @@ def main():
     output_dir = results_dir / 'plots'
     output_dir.mkdir(exist_ok=True)
     
-    # Find output files
-    output_files = sorted(results_dir.glob('output_*.txt'))
+    # Find output files (00000.dat, 00001.dat, etc.)
+    output_files = sorted([f for f in results_dir.glob('*.dat') if f.stem.isdigit()])
     if not output_files:
         print(f"No output files found in {results_dir}")
         return
     
     # Select file
     if args.time_step >= 0:
-        target_file = results_dir / f'output_{args.time_step:04d}.txt'
+        target_file = results_dir / f'{args.time_step:05d}.dat'
         if not target_file.exists():
             print(f"File not found: {target_file}")
             return

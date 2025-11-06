@@ -23,7 +23,7 @@ class SodShockTube:
         self.rho_L = 1.0
         self.p_L = 1.0
         self.u_L = 0.0
-        self.rho_R = 0.125
+        self.rho_R = 0.25  # Modified 4:1 density ratio instead of 8:1
         self.p_R = 0.1
         self.u_R = 0.0
         self.x_discontinuity = 0.5
@@ -125,13 +125,15 @@ def read_sph_data(filename):
     """Read SPH output file
     
     Format (for 2D): pos(2), vel(2), acc(2), mass, dens, pres, ene, sml, id, neighbor, alpha, gradh
+    Columns: 0-1=pos, 2-3=vel, 4-5=acc, 6=mass, 7=dens, 8=pres, 9=ene, ...
     """
-    data = np.loadtxt(filename)
+    data = np.loadtxt(filename, comments='#')
     return {
         'x': data[:, 0],
         'y': data[:, 1],
         'vx': data[:, 2],
         'vy': data[:, 3],
+        'mass': data[:, 6],
         'rho': data[:, 7],   # dens
         'p': data[:, 8],      # pres
         'e': data[:, 9]       # ene
@@ -161,8 +163,17 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
     print(f"Found {len(output_files)} output files")
     print(f"Creating animation: {output_file}")
     
-    # Initialize analytical solution
+    # Read initial conditions to get actual SPH densities
+    initial_data = read_sph_data(output_files[0])
+    rho_left_actual = np.mean(initial_data['rho'][initial_data['x'] < 0.0])
+    rho_right_actual = np.mean(initial_data['rho'][initial_data['x'] > 0.5])
+    print(f"Actual SPH initial densities: left={rho_left_actual:.4f}, right={rho_right_actual:.4f}")
+    
+    # Initialize analytical solution with actual SPH initial conditions
     sod = SodShockTube(gamma)
+    # Override with actual SPH densities for better comparison
+    sod.rho_L = rho_left_actual
+    sod.rho_R = rho_right_actual
     x_analytical = np.linspace(-0.5, 1.5, 500)
     
     # Create figure with 2x2 subplots
@@ -193,14 +204,17 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
         # Extract time from filename
         time = frame_idx * 0.01  # Assuming 0.01 time interval
         
-        # 2D density field
+        # 2D density field - use aspect ratio to show proper spacing
+        # Adjust point size based on local particle spacing
+        point_sizes = np.where(data['x'] < 0.5, 20, 5)  # Smaller points in sparse right region
         scatter = ax_2d.scatter(data['x'], data['y'], c=data['rho'], 
-                               cmap='viridis', s=10, vmin=0, vmax=1.2)
+                               cmap='viridis', s=point_sizes, vmin=0, vmax=1.2, alpha=0.8)
         ax_2d.set_xlabel('x', fontsize=12)
         ax_2d.set_ylabel('y', fontsize=12)
         ax_2d.set_title(f'{method_name} 2D Density Field - t = {time:.3f}s', fontsize=14)
         ax_2d.set_xlim(-0.5, 1.5)
         ax_2d.set_ylim(0, 0.5)
+        ax_2d.set_aspect('equal')  # Equal aspect ratio to show true spacing
         plt.colorbar(scatter, ax=ax_2d, label='Density')
         
         # Extract centerline data

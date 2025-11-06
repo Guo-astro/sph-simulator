@@ -68,32 +68,35 @@ public:
         // X-direction: shock tube [-0.5, 1.5] with discontinuity at x=0.5
         // Y-direction: [0, 0.5] for visualization
         
-        // Right side (lower density)
-        // REDUCED RESOLUTION for faster computation (was 50×25 → 11,250 particles)
-        const int Nx_right = 25;  // Reduced from 50
-        const int Ny = 10;        // Reduced from 25 → ~2,875 particles
-        const real Lx_right = 1.0;  // [0.5, 1.5]
+        // MODIFIED SOD SHOCK TUBE: 4:1 density ratio with uniform mass particles
         const real Ly = 0.5;
-        const real dx_right = Lx_right / Nx_right;
-        const real dy = Ly / Ny;
+        const real Lx_left = 1.0;
+        const real Lx_right = 1.0;
         
-        // Left side (higher density)
-        const real Lx_left = 1.0;  // [-0.5, 0.5]
-        const real dx_left = dx_right / 8.0;  // 8× denser
-        const int Nx_left = static_cast<int>(Lx_left / dx_left);
+        const int Nx_left = 40;
+        const real dx_left = Lx_left / Nx_left;
+        const real dy = dx_left;  // Uniform Y-spacing for both regions
+        const int Ny = static_cast<int>(Ly / dy);
         
-        const int num = (Nx_left + Nx_right) * Ny;
-        const real mass = 0.125 * dx_right * dy;  // Uniform mass per particle
+        // For uniform mass: m = ρ_left * dx_left * dy = ρ_right * dx_right * dy
+        // So: dx_right = dx_left * (ρ_left / ρ_right) = dx_left * (1.0 / 0.25) = 4 * dx_left
+        const real dx_right = 4.0 * dx_left;
+        const int Nx_right = static_cast<int>(Lx_right / dx_right);
+        
+        const int num = Nx_left * Ny + Nx_right * Ny;
+        
+        const real mass = 1.0 * dx_left * dy;  // Uniform mass for all particles
         
         std::vector<SPHParticle<Dim>> particles(num);
         
         std::cout << "\n--- Particle Initialization ---\n";
         std::cout << "Total particles: " << num << "\n";
         std::cout << "Grid: " << (Nx_left + Nx_right) << " × " << Ny << "\n";
-        std::cout << "Left state:  ρ=1.0,   P=1.0,  dx=" << dx_left << "\n";
-        std::cout << "Right state: ρ=0.125, P=0.1,  dx=" << dx_right << "\n";
+        std::cout << "Left state:  ρ=1.0,  P=1.0,  dx=" << dx_left << "\n";
+        std::cout << "Right state: ρ=0.25, P=0.1,  dx=" << dx_right << "\n";
         std::cout << "Discontinuity at x=0.5\n";
         std::cout << "Y-extent: [0, " << Ly << "]\n";
+        std::cout << "Uniform mass: m=" << mass << "\n";
         
         int idx = 0;
         
@@ -127,7 +130,7 @@ public:
                 auto& p = particles[idx];
                 p.pos = Vector<Dim>{x_right, y};
                 p.vel = Vector<Dim>{0.0, 0.0};
-                p.dens = 0.125;
+                p.dens = 0.25;
                 p.pres = 0.1;
                 p.mass = mass;
                 p.ene = p.pres / ((gamma - 1.0) * p.dens);
@@ -284,11 +287,11 @@ public:
         
         // CRITICAL: Set per-boundary particle spacing for Morris 1997 wall offset calculation
         // X-direction: Left boundary has dense particles (dx_left), right has sparse (dx_right)
-        ghost_config.spacing_lower[0] = dx_left;   // Left wall: use local spacing
-        ghost_config.spacing_upper[0] = dx_right;  // Right wall: use local spacing
-        // Y-direction: Uniform spacing throughout
-        ghost_config.spacing_lower[1] = dx_left;        // Bottom wall
-        ghost_config.spacing_upper[1] = dx_right;        // Top wall
+        ghost_config.spacing_lower[0] = dx_left;   // Left wall: use dense spacing
+        ghost_config.spacing_upper[0] = dx_right;  // Right wall: use sparse spacing
+        // Y-direction: Both top and bottom span both regions, use uniform spacing
+        ghost_config.spacing_lower[1] = dy;   // Bottom wall: use uniform spacing
+        ghost_config.spacing_upper[1] = dy;   // Top wall: use uniform spacing
         
         // Initialize ghost particle manager
         sim->ghost_manager->initialize(ghost_config);
@@ -314,8 +317,8 @@ public:
         std::cout << "    Right wall position: " << ghost_config.get_wall_position(0, true) << "\n";
         std::cout << "  Y-boundary: MIRROR (NO_SLIP) [" << ghost_config.range_min[1]
                   << ", " << ghost_config.range_max[1] << "]\n";
-        std::cout << "    Particle spacing (dy): " << dy << "\n";
-        std::cout << "    Wall offset: ±" << (0.5 * dy) << "\n";
+        std::cout << "    Particle spacing: dy=" << dy << "\n";
+        std::cout << "    Wall offset (left): ±" << (0.5 * dy) << "\n";
         std::cout << "    Bottom wall position: " << ghost_config.get_wall_position(1, false) << "\n";
         std::cout << "    Top wall position:    " << ghost_config.get_wall_position(1, true) << "\n";
         std::cout << "  Kernel support radius: " << (max_sml * 2.0) << "\n";

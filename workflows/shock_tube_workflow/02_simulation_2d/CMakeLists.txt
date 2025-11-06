@@ -42,38 +42,53 @@ file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
 
-# Build plugin as shared library
-add_library(shock_tube_2d_plugin SHARED 
-    src/plugin_2d.cpp
-    ${SPH_SOURCES}
-    ${SPH_DISPH_SOURCES}
-    ${SPH_GSPH_SOURCES}
-    ${SPH_ALGORITHM_SOURCES}
-    ${SPH_CORE_SOURCES}
+# Build multiple plugins for different SPH methods
+set(PLUGIN_SOURCES
+    ssph:src/plugin_ssph.cpp
+    ssph_ghosts:src/plugin_ssph_ghosts.cpp
+    gsph:src/plugin_gsph.cpp
+    disph:src/plugin_disph.cpp
 )
 
-target_compile_features(shock_tube_2d_plugin PUBLIC cxx_std_17)
-target_compile_options(shock_tube_2d_plugin PRIVATE
-    -Wall
-    -Wno-sign-compare
-    -funroll-loops
-    -ffast-math
-)
+foreach(PLUGIN_DEF ${PLUGIN_SOURCES})
+    string(REPLACE ":" ";" PLUGIN_PAIR ${PLUGIN_DEF})
+    list(GET PLUGIN_PAIR 0 PLUGIN_NAME)
+    list(GET PLUGIN_PAIR 1 PLUGIN_SRC)
+    
+    add_library(shock_tube_2d_${PLUGIN_NAME}_plugin SHARED 
+        ${PLUGIN_SRC}
+        ${SPH_SOURCES}
+        ${SPH_DISPH_SOURCES}
+        ${SPH_GSPH_SOURCES}
+        ${SPH_ALGORITHM_SOURCES}
+        ${SPH_CORE_SOURCES}
+    )
 
-target_include_directories(shock_tube_2d_plugin PUBLIC 
-    ${SPH_INCLUDE_DIR}
-)
+    target_compile_features(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC cxx_std_17)
+    target_compile_options(shock_tube_2d_${PLUGIN_NAME}_plugin PRIVATE
+        -Wall
+        -Wno-sign-compare
+        -funroll-loops
+        -ffast-math
+    )
 
-target_link_libraries(shock_tube_2d_plugin PUBLIC
-    OpenMP::OpenMP_CXX
-    Boost::headers
-    nlohmann_json::nlohmann_json
-)
+    target_include_directories(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC 
+        ${SPH_INCLUDE_DIR}
+    )
 
-set_target_properties(shock_tube_2d_plugin PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
-)
+    target_link_libraries(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC
+        OpenMP::OpenMP_CXX
+        Boost::headers
+        nlohmann_json::nlohmann_json
+    )
+
+    set_target_properties(shock_tube_2d_${PLUGIN_NAME}_plugin PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+        OUTPUT_NAME "shock_tube_2d_${PLUGIN_NAME}_plugin"
+    )
+    
+    message(STATUS "Building shock_tube_2d_${PLUGIN_NAME}_plugin")
+endforeach()
 
 # Build standalone SPH executable for this workflow
 add_executable(sph2d 
@@ -93,13 +108,20 @@ target_include_directories(sph2d PUBLIC
 )
 
 target_link_libraries(sph2d PUBLIC
-    shock_tube_2d_plugin
+    shock_tube_2d_ssph_plugin
+    shock_tube_2d_ssph_ghosts_plugin
+    shock_tube_2d_gsph_plugin
+    shock_tube_2d_disph_plugin
 )
 
 set_target_properties(sph2d PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-message(STATUS "Building shock_tube_2d_plugin for 2D")
+message(STATUS "Building 4 SPH method plugins for 2D:")
+message(STATUS "  - shock_tube_2d_ssph_plugin")
+message(STATUS "  - shock_tube_2d_ssph_ghosts_plugin")
+message(STATUS "  - shock_tube_2d_gsph_plugin")
+message(STATUS "  - shock_tube_2d_disph_plugin")
 message(STATUS "Building local sph2d executable")
 message(STATUS "SPH root: ${SPH_ROOT}")

@@ -507,30 +507,6 @@ src/core/sph_algorithm_registry.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_algorithm_registry.cpp.s
 .PHONY : src/core/sph_algorithm_registry.cpp.s
 
-src/core/sph_parameters_builder.o: src/core/sph_parameters_builder.cpp.o
-.PHONY : src/core/sph_parameters_builder.o
-
-# target to build an object file
-src/core/sph_parameters_builder.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.o
-.PHONY : src/core/sph_parameters_builder.cpp.o
-
-src/core/sph_parameters_builder.i: src/core/sph_parameters_builder.cpp.i
-.PHONY : src/core/sph_parameters_builder.i
-
-# target to preprocess a source file
-src/core/sph_parameters_builder.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.i
-.PHONY : src/core/sph_parameters_builder.cpp.i
-
-src/core/sph_parameters_builder.s: src/core/sph_parameters_builder.cpp.s
-.PHONY : src/core/sph_parameters_builder.s
-
-# target to generate assembly for a file
-src/core/sph_parameters_builder.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/sph_lib.dir/build.make CMakeFiles/sph_lib.dir/src/core/sph_parameters_builder.cpp.s
-.PHONY : src/core/sph_parameters_builder.cpp.s
-
 src/core/sph_parameters_builder_base.o: src/core/sph_parameters_builder_base.cpp.o
 .PHONY : src/core/sph_parameters_builder_base.o
 
@@ -754,9 +730,6 @@ help:
 	@echo "... src/core/sph_algorithm_registry.o"
 	@echo "... src/core/sph_algorithm_registry.i"
 	@echo "... src/core/sph_algorithm_registry.s"
-	@echo "... src/core/sph_parameters_builder.o"
-	@echo "... src/core/sph_parameters_builder.i"
-	@echo "... src/core/sph_parameters_builder.s"
 	@echo "... src/core/sph_parameters_builder_base.o"
 	@echo "... src/core/sph_parameters_builder_base.i"
 	@echo "... src/core/sph_parameters_builder_base.s"

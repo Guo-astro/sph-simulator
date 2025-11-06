@@ -4,6 +4,7 @@ build/
 
 # Output and results
 output/
+output_*/
 !output/.gitkeep
 *.dat
 *.txt

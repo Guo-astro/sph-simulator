@@ -85,29 +85,44 @@ int ParameterEstimator::suggest_neighbor_number(
     int dimension
 ) {
     // Calculate expected neighbors based on kernel support and dimension
-    // For cubic spline with support radius h = 2*dx:
-    // 1D: ~4 neighbors
-    // 2D: ~π*(2*dx)²/dx² ≈ 12-16 neighbors
-    // 3D: ~(4/3)*π*(2*dx)³/dx³ ≈ 32-40 neighbors
+    // 
+    // Theory: For isotropic spacing dx, smoothing length h = kernel_support * dx
+    // Number of neighbors = (kernel volume) / (particle volume)
+    // 
+    // 1D: 2*h / dx = 2 * kernel_support
+    // 2D: π*h² / dx² = π * kernel_support²
+    // 3D: (4/3)*π*h³ / dx³ = (4/3)*π * kernel_support³
+    //
+    // For anisotropic distributions, use geometric mean spacing to get
+    // a representative "isotropic equivalent" neighbor count.
+    // This prevents catastrophically large smoothing lengths when particles
+    // are much more closely spaced in some dimensions than others.
     
     int neighbor_num = 0;
     
+    // Use conservative safety factor of 1.2× theoretical value
+    // (Original code used 4.0×, which was far too aggressive for anisotropic distributions)
+    // Lower values work well when geometric mean spacing accounts for anisotropy
+    constexpr real SAFETY_FACTOR = 1.2;
+    
     if (dimension == 1) {
         // In 1D: neighbors within h on each side
-        neighbor_num = static_cast<int>(2 * kernel_support) + 2;
+        neighbor_num = static_cast<int>(2.0 * kernel_support * SAFETY_FACTOR);
     } else if (dimension == 2) {
-        // In 2D: πr² area
-        real area = M_PI * kernel_support * kernel_support;
-        neighbor_num = static_cast<int>(area * 4.0);  // Safety factor
+        // In 2D: πh² / dx²
+        real theoretical = M_PI * kernel_support * kernel_support;
+        neighbor_num = static_cast<int>(theoretical * SAFETY_FACTOR);
     } else if (dimension == 3) {
-        // In 3D: (4/3)πr³ volume
-        real volume = (4.0 / 3.0) * M_PI * kernel_support * kernel_support * kernel_support;
-        neighbor_num = static_cast<int>(volume * 4.0);  // Safety factor
+        // In 3D: (4/3)πh³ / dx³
+        real theoretical = (4.0 / 3.0) * M_PI * kernel_support * kernel_support * kernel_support;
+        neighbor_num = static_cast<int>(theoretical * SAFETY_FACTOR);
     }
     
     // Clamp to reasonable range
+    // Lower bounds ensure sufficient accuracy
+    // Upper bounds prevent excessive computation
     const int min_safe = dimension == 1 ? 4 : dimension == 2 ? 12 : 30;
-    const int max_reasonable = dimension == 1 ? 10 : dimension == 2 ? 100 : 200;
+    const int max_reasonable = dimension == 1 ? 10 : dimension == 2 ? 50 : 100;
     
     neighbor_num = std::max(min_safe, std::min(max_reasonable, neighbor_num));
     

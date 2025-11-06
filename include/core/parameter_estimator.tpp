@@ -106,8 +106,19 @@ real ParameterEstimator::calculate_spacing_1d(const std::vector<SPHParticle<Dim>
         return 0.0;
     }
     
-    // Find minimum spacing
-    real min_spacing = std::numeric_limits<real>::max();
+    // For anisotropic distributions, we need to find the characteristic spacing
+    // that should be used for isotropic smoothing length calculation.
+    // Using minimum spacing can be catastrophic if particles are much more closely
+    // spaced in one dimension than others (e.g., dx=0.005, dy=0.05).
+    //
+    // Strategy: Find minimum spacing in each dimension separately, then use
+    // geometric mean to get a representative isotropic spacing.
+    // This prevents smoothing lengths from becoming catastrophically large.
+    
+    Vector<Dim> min_spacing_per_dim;
+    for (int d = 0; d < Dim; ++d) {
+        min_spacing_per_dim[d] = std::numeric_limits<real>::max();
+    }
     
     // Sample to avoid O(N²) complexity
     const int sample_size = std::min(100, static_cast<int>(particles.size()));
@@ -115,15 +126,38 @@ real ParameterEstimator::calculate_spacing_1d(const std::vector<SPHParticle<Dim>
     for (int i = 0; i < sample_size; ++i) {
         for (int j = i + 1; j < sample_size; ++j) {
             Vector<Dim> dx = particles[i].pos - particles[j].pos;
-            real dist = abs(dx);
             
-            if (dist > 1.0e-10 && dist < min_spacing) {
-                min_spacing = dist;
+            // Track minimum spacing in each dimension
+            for (int d = 0; d < Dim; ++d) {
+                real abs_dx = std::abs(dx[d]);
+                if (abs_dx > 1.0e-10 && abs_dx < min_spacing_per_dim[d]) {
+                    min_spacing_per_dim[d] = abs_dx;
+                }
             }
         }
     }
     
-    return min_spacing;
+    // Calculate geometric mean of spacing across dimensions
+    // This gives a representative "isotropic equivalent" spacing
+    // For isotropic distributions, this equals the actual spacing
+    // For anisotropic distributions, it prevents catastrophically large smoothing lengths
+    real spacing_product = 1.0;
+    int valid_dims = 0;
+    for (int d = 0; d < Dim; ++d) {
+        if (min_spacing_per_dim[d] < std::numeric_limits<real>::max()) {
+            spacing_product *= min_spacing_per_dim[d];
+            ++valid_dims;
+        }
+    }
+    
+    if (valid_dims == 0) {
+        return 0.0;
+    }
+    
+    // Geometric mean: (dx * dy * dz)^(1/Dim)
+    real geometric_mean = std::pow(spacing_product, 1.0 / valid_dims);
+    
+    return geometric_mean;
 }
 
 template<int Dim>
