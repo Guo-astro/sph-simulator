@@ -14,9 +14,9 @@ static constexpr int Dim = 1;
 
 #include <gtest/gtest.h>
 #include "solver.hpp"
-#include "core/simulation.hpp"
-#include "core/sph_particle.hpp"
-#include "core/neighbor_search_config.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/spatial/neighbor_search_config.hpp"
 #include "utilities/vec_n.hpp"
 #include <memory>
 #include <vector>

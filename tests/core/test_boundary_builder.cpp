@@ -10,9 +10,9 @@
  */
 
 #include <gtest/gtest.h>
-#include "core/boundary_builder.hpp"
-#include "core/boundary_types.hpp"
-#include "core/vector.hpp"
+#include "core/boundaries/boundary_builder.hpp"
+#include "core/boundaries/boundary_types.hpp"
+#include "core/utilities/vector.hpp"
 
 using namespace sph;
 

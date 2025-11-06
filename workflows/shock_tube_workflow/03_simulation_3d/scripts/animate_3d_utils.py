@@ -10,29 +10,37 @@ import matplotlib.animation as animation
 from pathlib import Path
 
 
-def load_sph_data_3d(dat_file):
-    """Load 3D SPH simulation data from .dat file
+def load_sph_data_3d(csv_file):
+    """Load 3D SPH simulation data from CSV file
     
     Args:
-        dat_file: Path to the data file
+        csv_file: Path to the CSV data file
     
     Returns:
         time, x, y, z, rho, vx, vy, vz, p, e: Simulation data arrays
     """
-    data = np.loadtxt(dat_file, comments='#')
-    with open(dat_file, 'r') as f:
-        time = float(f.readline().replace('#', '').strip())
+    import pandas as pd
     
-    # Column indices for 3D: 0=x, 1=vx, 2=y, 3=vy, 4=z, 5=vz, 6=rho, 7=p, 8=e
-    x = data[:, 0]
-    vx = data[:, 1]
-    y = data[:, 2]
-    vy = data[:, 3]
-    z = data[:, 4]
-    vz = data[:, 5]
-    rho = data[:, 6]
-    p = data[:, 7]
-    e = data[:, 8]
+    # Read CSV file
+    df = pd.read_csv(csv_file)
+    
+    # Filter real particles (type == 0)
+    df_real = df[df['type'] == 0]
+    
+    # Extract time from filename (snapshot number * timestep)
+    snapshot_num = int(csv_file.stem)
+    time = snapshot_num * 0.01  # Assuming 0.01 timestep
+    
+    # Map CSV columns to variables
+    x = df_real['pos_x'].values
+    y = df_real['pos_y'].values
+    z = df_real['pos_z'].values
+    vx = df_real['vel_x'].values
+    vy = df_real['vel_y'].values
+    vz = df_real['vel_z'].values
+    rho = df_real['density'].values
+    p = df_real['pressure'].values
+    e = df_real['energy'].values
     
     return time, x, y, z, rho, vx, vy, vz, p, e
 
@@ -43,12 +51,13 @@ def create_animation_3d(sph_dir, output_file, gamma=1.4, method_name='SPH'):
     Shows slice views (xy, xz, yz planes) of the density field
     
     Args:
-        sph_dir: Directory containing SPH output .dat files
+        sph_dir: Directory containing SPH output CSV files
         output_file: Output animation filename
         gamma: Adiabatic index (default 1.4)
         method_name: Name of SPH method for plot labels
     """
-    sph_files = sorted([f for f in Path(sph_dir).glob("*.dat") if f.name != 'energy.dat'])
+    sph_files = sorted([f for f in Path(sph_dir).glob("*.csv") 
+                       if f.stem.isdigit() and 'energy' not in f.name])
     
     if len(sph_files) == 0:
         print(f"Error: No data files found in {sph_dir}")

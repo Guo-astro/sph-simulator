@@ -1,9 +1,9 @@
 #pragma once
 
 #include "module.hpp"
-#include "core/vector.hpp"
-#include "core/sph_particle.hpp"
-#include "core/periodic.hpp"
+#include "core/utilities/vector.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/periodic.hpp"
 
 namespace sph
 {

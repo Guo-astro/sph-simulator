@@ -13,8 +13,8 @@ static constexpr int Dim = 1;
  */
 
 #include <gtest/gtest.h>
-#include "core/bhtree.hpp"
-#include "core/sph_particle.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "utilities/vec_n.hpp"
 #include <vector>
 #include <algorithm>

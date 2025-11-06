@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package sph.output;
+
+// Single particle state
+message Particle {
+    // Kinematic properties
+    repeated double position = 1;       // Dim components [x, y, z]
+    repeated double velocity = 2;       // Dim components [vx, vy, vz]
+    repeated double acceleration = 3;   // Dim components [ax, ay, az]
+    
+    // Thermodynamic properties
+    double mass = 4;
+    double density = 5;
+    double pressure = 6;
+    double internal_energy = 7;
+    double sound_speed = 8;
+    
+    // SPH properties
+    double smoothing_length = 9;
+    double gradh_term = 10;              // Grad-h correction term
+    
+    // Artificial viscosity
+    double balsara_switch = 11;
+    double alpha_coefficient = 12;
+    
+    // Optional properties
+    double gravitational_potential = 13;
+    
+    // Particle metadata
+    int32 id = 14;
+    int32 neighbor_count = 15;
+    int32 type = 16;  // 0=REAL, 1=GHOST
+}
+
+// Complete snapshot at one timestep
+message Snapshot {
+    // Metadata
+    int32 timestep = 1;
+    double time = 2;
+    int32 dimension = 3;
+    
+    // Particle data
+    repeated Particle particles = 4;
+    
+    // Optional: ghost particles stored separately
+    repeated Particle ghost_particles = 5;
+}
+
+// Energy data for a single timestep
+message EnergySnapshot {
+    double time = 1;
+    double kinetic_energy = 2;
+    double thermal_energy = 3;
+    double potential_energy = 4;
+    double total_energy = 5;
+}
+
+// Time series of energy data
+message EnergySeries {
+    repeated EnergySnapshot snapshots = 1;
+}

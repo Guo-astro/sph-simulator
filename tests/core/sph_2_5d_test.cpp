@@ -8,10 +8,10 @@ static constexpr int Dim = 1;
 #include "../bdd_helpers.hpp"
 
 // Include 2.5D headers
-#include "../../include/core/sph_particle_2_5d.hpp"
-#include "../../include/core/cubic_spline_2_5d.hpp"
-#include "../../include/core/bhtree_2_5d.hpp"
-#include "../../include/core/simulation_2_5d.hpp"
+#include "../../include/core/particles/sph_particle_2_5d.hpp"
+#include "../../include/core/kernels/cubic_spline_2_5d.hpp"
+#include "../../include/core/spatial/bhtree_2_5d.hpp"
+#include "../../include/core/simulation/simulation_2_5d.hpp"
 #include "../../include/parameters.hpp"
 
 using namespace sph;

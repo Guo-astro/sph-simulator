@@ -1,7 +1,7 @@
-#include "core/simulation_plugin.hpp"
-#include "core/simulation.hpp"
+#include "core/plugins/simulation_plugin.hpp"
+#include "core/simulation/simulation.hpp"
 #include "parameters.hpp"
-#include "core/sph_particle.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "exception.hpp"
 #include "defines.hpp"
 #include <iostream>

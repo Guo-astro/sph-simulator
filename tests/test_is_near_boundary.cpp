@@ -6,9 +6,9 @@ static constexpr int Dim = 1;
  * @brief Minimal test to debug is_near_boundary logic
  */
 
-#include "core/ghost_particle_manager.hpp"
-#include "core/boundary_types.hpp"
-#include "core/sph_particle.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
+#include "core/boundaries/boundary_types.hpp"
+#include "core/particles/sph_particle.hpp"
 #include <iostream>
 
 using namespace sph;

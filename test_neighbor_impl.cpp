@@ -1,6 +1,6 @@
-#include "core/neighbor_search_result.hpp"
-#include "core/neighbor_collector.hpp"
-#include "core/neighbor_search_config.hpp"
+#include "core/spatial/neighbor_search_result.hpp"
+#include "core/spatial/neighbor_collector.hpp"
+#include "core/spatial/neighbor_search_config.hpp"
 #include <iostream>
 #include <cassert>
 

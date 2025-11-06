@@ -3,7 +3,7 @@ static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
 #include <gtest/gtest.h>
-#include "core/sph_particle.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "defines.hpp"
 #include <cmath>
 #include <limits>

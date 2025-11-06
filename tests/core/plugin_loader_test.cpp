@@ -3,9 +3,9 @@ static constexpr int Dim = 1;
 
 #include <gtest/gtest.h>
 #include "../bdd_helpers.hpp"
-#include "core/plugin_loader.hpp"
-#include "core/simulation_plugin.hpp"
-#include "core/simulation.hpp"
+#include "core/plugins/plugin_loader.hpp"
+#include "core/plugins/simulation_plugin.hpp"
+#include "core/simulation/simulation.hpp"
 #include "parameters.hpp"
 #include <memory>
 #include <string>
@@ -29,7 +29,7 @@ FEATURE(PluginLoaderFeature) {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
             
             WHEN("We create a plugin loader with this path") {
-                PluginLoader loader(plugin_path);
+                PluginLoader<Dim> loader(plugin_path);
                 
                 THEN("The loader should successfully load the library") {
                     EXPECT_TRUE(loader.is_loaded()) << "Failed to load plugin: " << loader.get_error();
@@ -43,7 +43,7 @@ FEATURE(PluginLoaderFeature) {
             std::string invalid_path = "non_existent_plugin.dylib";
             
             WHEN("We attempt to load the plugin") {
-                PluginLoader loader(invalid_path);
+                PluginLoader<Dim> loader(invalid_path);
                 
                 THEN("The loader should fail to load") {
                     EXPECT_FALSE(loader.is_loaded());
@@ -59,7 +59,7 @@ FEATURE(PluginLoaderFeature) {
     SCENARIO(CreatesPluginInstance, InstantiatesPlugin) {
         GIVEN("A loaded plugin library") {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
-            PluginLoader loader(plugin_path);
+            PluginLoader<Dim> loader(plugin_path);
             ASSERT_TRUE(loader.is_loaded());
             
             WHEN("We create a plugin instance") {
@@ -85,7 +85,7 @@ FEATURE(PluginLoaderFeature) {
     SCENARIO(InitializesSimulation, ConfiguresSimulationState) {
         GIVEN("A plugin instance and simulation objects") {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
-            PluginLoader loader(plugin_path);
+            PluginLoader<Dim> loader(plugin_path);
             auto plugin = loader.create_plugin();
             ASSERT_NE(plugin, nullptr);
             
@@ -123,7 +123,7 @@ FEATURE(PluginLoaderFeature) {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
             
             WHEN("We create and destroy plugin instances") {
-                PluginLoader loader(plugin_path);
+                PluginLoader<Dim> loader(plugin_path);
                 auto plugin1 = loader.create_plugin();
                 auto plugin2 = loader.create_plugin();
                 
@@ -148,7 +148,7 @@ FEATURE(PluginLoaderFeature) {
             std::string relative_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
             
             WHEN("We load the plugin with relative path") {
-                PluginLoader loader(relative_path);
+                PluginLoader<Dim> loader(relative_path);
                 
                 THEN("The plugin should load successfully") {
                     EXPECT_TRUE(loader.is_loaded());
@@ -182,8 +182,8 @@ FEATURE(PluginLoaderEdgeCases) {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
             
             WHEN("We load the same plugin multiple times") {
-                PluginLoader loader1(plugin_path);
-                PluginLoader loader2(plugin_path);
+                PluginLoader<Dim> loader1(plugin_path);
+                PluginLoader<Dim> loader2(plugin_path);
                 
                 THEN("Both loaders should work independently") {
                     EXPECT_TRUE(loader1.is_loaded());
@@ -208,7 +208,7 @@ FEATURE(PluginLoaderIntegration) {
             std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
             
             WHEN("We load and initialize through solver pattern") {
-                PluginLoader loader(plugin_path);
+                PluginLoader<Dim> loader(plugin_path);
                 auto plugin = loader.create_plugin();
                 auto params = std::make_shared<SPHParameters>();
                 auto sim = std::make_shared<Simulation<Dim>>(params);

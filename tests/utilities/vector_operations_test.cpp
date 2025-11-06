@@ -3,7 +3,7 @@ static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
 #include "defines.hpp"
-#include "core/vector.hpp"
+#include "core/utilities/vector.hpp"
 #include <cmath>
 #include <limits>
 

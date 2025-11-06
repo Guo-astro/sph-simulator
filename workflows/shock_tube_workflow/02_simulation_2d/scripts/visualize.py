@@ -12,20 +12,26 @@ from pathlib import Path
 import argparse
 
 def read_sph_data(filename):
-    """Read SPH output file
+    """Read SPH output file (CSV format)
     
-    Format (for 2D): pos(2), vel(2), acc(2), mass, dens, pres, ene, sml, id, neighbor, alpha, gradh
-    Columns: 0-1=pos, 2-3=vel, 4-5=acc, 6=mass, 7=dens, 8=pres, 9=ene, ...
+    CSV columns: pos_x, pos_y, vel_x, vel_y, acc_x, acc_y, mass, density, pressure, 
+                 energy, sound_speed, smoothing_length, gradh, balsara, alpha, 
+                 potential, id, neighbors, type
     """
-    data = np.loadtxt(filename, comments='#')
+    import pandas as pd
+    df = pd.read_csv(filename)
+    
+    # Filter real particles (type == 0)
+    df_real = df[df['type'] == 0]
+    
     return {
-        'x': data[:, 0],
-        'y': data[:, 1],
-        'vx': data[:, 2],
-        'vy': data[:, 3],
-        'rho': data[:, 7],   # dens
-        'p': data[:, 8],      # pres
-        'e': data[:, 9]       # ene
+        'x': df_real['pos_x'].values,
+        'y': df_real['pos_y'].values,
+        'vx': df_real['vel_x'].values,
+        'vy': df_real['vel_y'].values,
+        'rho': df_real['density'].values,
+        'p': df_real['pressure'].values,
+        'e': df_real['energy'].values
     }
 
 def plot_2d_field(x, y, field, title, output_file):

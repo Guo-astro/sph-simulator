@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
-#include "core/sph_particle.hpp"
-#include "core/bhtree.hpp"
-#include "core/periodic.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/boundaries/periodic.hpp"
 #include "parameters.hpp"
 
 using namespace sph;

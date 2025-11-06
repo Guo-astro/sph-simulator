@@ -2,12 +2,12 @@
 
 #include "disph/d_pre_interaction.hpp"
 #include "parameters.hpp"
-#include "core/simulation.hpp"
-#include "core/periodic.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/boundaries/periodic.hpp"
 #include "openmp.hpp"
-#include "core/kernel_function.hpp"
+#include "core/kernels/kernel_function.hpp"
 #include "exception.hpp"
-#include "core/bhtree.hpp"
+#include "core/spatial/bhtree.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
@@ -33,13 +33,16 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     const real dt = sim->dt;
     auto * tree = sim->tree.get();
 
+    // Use cached combined particle list (built when tree was created)
+    // This includes both real particles AND ghost particles
+    auto & search_particles = sim->cached_search_particles;
+
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
-        std::vector<int> neighbor_list(this->m_neighbor_number * neighbor_list_size);
-
+        
         // guess smoothing length
         constexpr real A = Dim == 1 ? 2.0 :
                            Dim == 2 ? M_PI :
@@ -86,7 +89,7 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         // REFACTORED: Use result.neighbor_indices.size()
         for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
             int const j = result.neighbor_indices[n];
-            auto & p_j = particles[j];
+            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
             const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
             const real r = abs(r_ij);
 
@@ -128,8 +131,8 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             real div_v = 0.0;
             real rot_v = 0.0;
             for(int n = 0; n < n_neighbor; ++n) {
-                int const j = neighbor_list[n];
-                auto & p_j = particles[j];
+                int const j = result.neighbor_indices[n];  // CRITICAL FIX: Use result.neighbor_indices, not uninitialized neighbor_list
+                auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
                 const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
                 const real r = abs(r_ij);
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);
@@ -155,8 +158,8 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         } else if(this->m_use_time_dependent_av) {
             real div_v = 0.0;
             for(int n = 0; n < n_neighbor; ++n) {
-                int const j = neighbor_list[n];
-                auto & p_j = particles[j];
+                int const j = result.neighbor_indices[n];  // CRITICAL FIX: Use result.neighbor_indices, not uninitialized neighbor_list
+                auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
                 const Vector<Dim> r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
                 const real r = abs(r_ij);
                 const Vector<Dim> dw = kernel->dw(r_ij, r, p_i.sml);
@@ -203,7 +206,7 @@ real PreInteraction<Dim>::newton_raphson(
     constexpr real A = Dim == 1 ? 2.0 :
                        Dim == 2 ? M_PI :
                                   4.0 * M_PI / 3.0;
-    const real b = p_i.mass * this->m_neighbor_number / A;
+    const real b = this->m_neighbor_number / A;
 
     // f = n h^d - b
     // f' = dn/dh h^d + d n h^{d-1}

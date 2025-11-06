@@ -7,9 +7,9 @@ static constexpr int Dim = 1;
  */
 
 #include <gtest/gtest.h>
-#include "core/ghost_particle_manager.hpp"
-#include "core/sph_particle.hpp"
-#include "core/boundary_types.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/boundary_types.hpp"
 #include "defines.hpp"
 #include <iostream>
 

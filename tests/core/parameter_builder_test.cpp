@@ -3,11 +3,11 @@ static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
 #include "parameters.hpp"
-#include "core/sph_algorithm_registry.hpp"
-#include "core/sph_parameters_builder_base.hpp"
-#include "core/ssph_parameters_builder.hpp"
-#include "core/disph_parameters_builder.hpp"
-#include "core/gsph_parameters_builder.hpp"
+#include "core/algorithms/sph_algorithm_registry.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/parameters/ssph_parameters_builder.hpp"
+#include "core/parameters/disph_parameters_builder.hpp"
+#include "core/parameters/gsph_parameters_builder.hpp"
 #include <memory>
 
 using namespace sph;
@@ -227,6 +227,9 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                 }
             }
         }
+    }
+}
+
 FEATURE(PluginParameterIntegration) {
     
     SCENARIO(PluginParameterIntegration, PluginUsesNewBuilderForTypeSafety) {

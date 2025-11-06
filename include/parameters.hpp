@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.hpp"
-#include "core/sph_types.hpp"
+#include "core/particles/sph_types.hpp"
 #include <array>
 #include <string>
 

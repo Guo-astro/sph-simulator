@@ -1,9 +1,9 @@
 #include "defines.hpp"
 #include "gravity_force.hpp"
-#include "core/sph_particle.hpp"
-#include "core/periodic.hpp"
-#include "core/simulation.hpp"
-#include "core/bhtree.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/periodic.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/spatial/bhtree.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"

@@ -16,7 +16,7 @@ static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
 #include "../../include/algorithms/viscosity/monaghan_viscosity.hpp"
-#include "../../include/core/sph_particle.hpp"
+#include "../../include/core/particles/sph_particle.hpp"
 #include <cmath>
 
 using namespace sph;

@@ -122,21 +122,27 @@ class SodShockTube:
 
 
 def read_sph_data(filename):
-    """Read SPH output file
+    """Read SPH output file (CSV format)
     
-    Format (for 2D): pos(2), vel(2), acc(2), mass, dens, pres, ene, sml, id, neighbor, alpha, gradh
-    Columns: 0-1=pos, 2-3=vel, 4-5=acc, 6=mass, 7=dens, 8=pres, 9=ene, ...
+    CSV columns: pos_x, pos_y, vel_x, vel_y, acc_x, acc_y, mass, density, pressure, 
+                 energy, sound_speed, smoothing_length, gradh, balsara, alpha, 
+                 potential, id, neighbors, type
     """
-    data = np.loadtxt(filename, comments='#')
+    import pandas as pd
+    df = pd.read_csv(filename)
+    
+    # Filter real particles (type == 0)
+    df_real = df[df['type'] == 0]
+    
     return {
-        'x': data[:, 0],
-        'y': data[:, 1],
-        'vx': data[:, 2],
-        'vy': data[:, 3],
-        'mass': data[:, 6],
-        'rho': data[:, 7],   # dens
-        'p': data[:, 8],      # pres
-        'e': data[:, 9]       # ene
+        'x': df_real['pos_x'].values,
+        'y': df_real['pos_y'].values,
+        'vx': df_real['vel_x'].values,
+        'vy': df_real['vel_y'].values,
+        'mass': df_real['mass'].values,
+        'rho': df_real['density'].values,
+        'p': df_real['pressure'].values,
+        'e': df_real['energy'].values
     }
 
 
@@ -153,8 +159,9 @@ def extract_centerline(x, y, field, y_center=0.25, tol=0.05):
 def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
     """Create animation of 2D shock tube simulation"""
     results_path = Path(results_dir)
-    # Match numeric output files: 00000.dat, 00001.dat, etc. (not energy.dat)
-    output_files = sorted([f for f in results_path.glob('*.dat') if f.stem.isdigit()])
+    # Match numeric CSV files: 00000.csv, 00001.csv, etc. (not energy.csv)
+    output_files = sorted([f for f in results_path.glob('*.csv') 
+                          if f.stem.isdigit() and 'energy' not in f.name])
     
     if not output_files:
         print(f"No output files found in {results_dir}")

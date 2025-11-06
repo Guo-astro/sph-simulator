@@ -14,8 +14,8 @@
  */
 
 #include <gtest/gtest.h>
-#include "core/boundary_types.hpp"
-#include "core/sph_particle.hpp"
+#include "core/boundaries/boundary_types.hpp"
+#include "core/particles/sph_particle.hpp"
 #include <cmath>
 
 using namespace sph;

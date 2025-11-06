@@ -7,8 +7,8 @@ static constexpr int Dim = 1;
  */
 
 #include "../bdd_helpers.hpp"
-#include "../../include/core/cubic_spline.hpp"
-#include "../../include/core/wendland_kernel.hpp"
+#include "../../include/core/kernels/cubic_spline.hpp"
+#include "../../include/core/kernels/wendland_kernel.hpp"
 #include <cmath>
 
 using namespace sph;

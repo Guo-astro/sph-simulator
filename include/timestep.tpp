@@ -1,8 +1,8 @@
 #include "parameters.hpp"
 #include "timestep.hpp"
-#include "core/sph_particle.hpp"
-#include "core/simulation.hpp"
-#include "core/vector.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/utilities/vector.hpp"
 #include "openmp.hpp"
 
 #include <algorithm>

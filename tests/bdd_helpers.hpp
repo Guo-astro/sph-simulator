@@ -38,6 +38,7 @@
 #define WHEN(description)
 #define THEN(description)
 #define AND(description)
+#define AND_THEN(description)
 #define BUT(description)
 
 // Test fixture with BDD naming

@@ -12,10 +12,10 @@ static constexpr int Dim = 1;
  * - SimulationParameters: High-level orchestration (time, SPH type)
  */
 
-#include "core/physics_parameters.hpp"
-#include "core/computational_parameters.hpp"
-#include "core/output_parameters.hpp"
-#include "core/simulation_parameters.hpp"
+#include "core/parameters/physics_parameters.hpp"
+#include "core/parameters/computational_parameters.hpp"
+#include "core/parameters/output_parameters.hpp"
+#include "core/parameters/simulation_parameters.hpp"
 #include <gtest/gtest.h>
 #include <stdexcept>
 
@@ -84,8 +84,8 @@ FEATURE(PhysicsParameters) {
     SCENARIO(BuildingWithPeriodicBoundary) {
         GIVEN("A physics parameter builder") {
             WHEN("Setting periodic boundary conditions") {
-                real range_min[Dim] = {-1.0};
-                real range_max[Dim] = {1.0};
+                std::array<real, 3> range_min = {-1.0, -1.0, -1.0};
+                std::array<real, 3> range_max = {1.0, 1.0, 1.0};
                 
                 auto physics = PhysicsParametersBuilder()
                     .with_gamma(1.4)

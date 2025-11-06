@@ -3,7 +3,7 @@ static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
 #include "solver.hpp"
-#include "core/plugin_loader.hpp"
+#include "core/plugins/plugin_loader.hpp"
 #include <memory>
 #include <cstdlib>
 

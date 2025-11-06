@@ -1,10 +1,10 @@
 #include "defines.hpp"
 #include "fluid_force.hpp"
-#include "core/sph_particle.hpp"
-#include "core/periodic.hpp"
-#include "core/simulation.hpp"
-#include "core/bhtree.hpp"
-#include "core/kernel_function.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/periodic.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/kernels/kernel_function.hpp"
 #include "algorithms/viscosity/monaghan_viscosity.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG

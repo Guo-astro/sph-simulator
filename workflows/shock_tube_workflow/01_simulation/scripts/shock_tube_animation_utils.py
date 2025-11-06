@@ -21,7 +21,7 @@ class SodShockTube:
       Dynamics: A Practical Introduction. Springer.
     """
 
-    def __init__(self, gamma=1.4):
+    def __init__(self, gamma=1.4, x_discontinuity=0.5):
         self.gamma = gamma
         # Initial conditions (Sod 1978, standard test case)
         self.rho_L = 1.0      # Left state density
@@ -30,7 +30,7 @@ class SodShockTube:
         self.rho_R = 0.125    # Right state density (Sod 1978: p5 = 0.125)
         self.p_R = 0.1        # Right state pressure (Sod 1978: p5 = 0.1)
         self.u_R = 0.0        # Right state velocity
-        self.x_discontinuity = 0.5  # Discontinuity location
+        self.x_discontinuity = x_discontinuity  # Discontinuity location (default 0.5)
 
     def sound_speed(self, p, rho):
         return np.sqrt(self.gamma * p / rho)
@@ -190,25 +190,60 @@ class SodShockTube:
 
 
 def load_sph_data(dat_file):
-    """Load SPH simulation data from .dat file
+    """Load SPH simulation data from .csv file (new format)
 
     Args:
-        dat_file: Path to the data file
+        dat_file: Path to the data file (.csv)
 
     Returns:
         time, x, rho, v, p, e: Simulation data arrays
     """
-    data = np.loadtxt(dat_file, comments='#')
-    with open(dat_file, 'r') as f:
-        time = float(f.readline().replace('#', '').strip())
-
-    # Include all particles (both real and ghost) for visualization
-    # Column indices: 0=x, 1=v, 4=rho, 5=p, 6=e, -1=type
-    x = data[:, 0]
-    rho = data[:, 4]
-    v = data[:, 1]
-    p = data[:, 5]
-    e = data[:, 6]  # Energy from file (column 6, not 7!)
+    import pandas as pd
+    
+    # Convert .dat extension to .csv if needed
+    csv_file = str(dat_file).replace('.dat', '.csv')
+    
+    # Read CSV with pandas
+    df = pd.read_csv(csv_file)
+    
+    # Extract time from energy.csv file (contains actual simulation time)
+    # This is more accurate than computing from snapshot number due to adaptive timesteps
+    snapshot_num = int(Path(csv_file).stem)
+    energy_file = Path(csv_file).parent / 'energy.csv'
+    
+    if energy_file.exists():
+        try:
+            energy_df = pd.read_csv(energy_file)
+            # Get time from energy file at this snapshot index
+            if snapshot_num < len(energy_df):
+                time = energy_df.iloc[snapshot_num]['time']
+            else:
+                # Fallback if snapshot number exceeds energy file length
+                time = snapshot_num * 0.01
+        except Exception as e:
+            # Fallback if reading energy file fails
+            print(f"Warning: Could not read time from energy.csv: {e}")
+            time = snapshot_num * 0.01
+    else:
+        # Fallback if energy file doesn't exist
+        time = snapshot_num * 0.01
+    
+    # Map CSV columns to expected variables
+    # CSV columns: pos_x, vel_x, acc_x, mass, density, pressure, energy, ...
+    x = df['pos_x'].values
+    v = df['vel_x'].values  
+    rho = df['density'].values
+    p = df['pressure'].values
+    e = df['energy'].values
+    
+    # Filter to only real particles (type == 0)
+    if 'type' in df.columns:
+        real_mask = df['type'] == 0
+        x = x[real_mask]
+        v = v[real_mask]
+        rho = rho[real_mask]
+        p = p[real_mask]
+        e = e[real_mask]
 
     return time, x, rho, v, p, e
 
@@ -217,23 +252,34 @@ def create_animation(sph_dir, output_file, gamma=1.4, method_name='SPH'):
     """Create animated comparison of SPH vs analytical Sod shock tube solution
 
     Args:
-        sph_dir: Directory containing SPH output .dat files
+        sph_dir: Directory containing SPH output .csv files
         output_file: Output animation filename
         gamma: Adiabatic index (default 1.4)
         method_name: Name of SPH method for plot labels
     """
-    sph_files = sorted([f for f in Path(sph_dir).glob("*.dat") if f.name != 'energy.dat'])
+    # Look for CSV files instead of .dat files
+    sph_files = sorted([f for f in Path(sph_dir).glob("*.csv") if 'energy' not in f.name])
 
     if len(sph_files) == 0:
-        print(f"Error: No data files found in {sph_dir}")
+        print(f"Error: No CSV files found in {sph_dir}")
         return
 
     n_frames = len(sph_files)
     print(f"Creating {method_name} animation with {n_frames} frames")
 
+    # Load first snapshot to determine domain range (using REAL particles only)
     _, x_sample, _, _, _, _ = load_sph_data(sph_files[0])
     x_min, x_max = x_sample.min(), x_sample.max()
-    x_analytic = np.linspace(x_min, x_max, 1000)
+    
+    # For Sod shock tube, use standard domain [0, 1] or [-0.5, 1.5]
+    # If data spans approximately this range, use it; otherwise use standard
+    if abs(x_min - (-0.5)) < 0.1 and abs(x_max - 1.5) < 0.1:
+        # Data is in [-0.5, 1.5] range - use it
+        x_analytic = np.linspace(x_min, x_max, 1000)
+    else:
+        # Fallback to standard Sod domain [0, 1]
+        x_analytic = np.linspace(0, 1, 1000)
+        
     solver = SodShockTube(gamma=gamma)
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))

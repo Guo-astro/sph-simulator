@@ -1,15 +1,13 @@
-#include "core/simulation_plugin.hpp"
-#include "core/sph_parameters_builder_base.hpp"
-#include "core/gsph_parameters_builder.hpp"
-#include "core/parameter_estimator.hpp"
-#include "core/parameter_validator.hpp"
-#include "core/simulation.hpp"
-#include "core/sph_particle.hpp"
-#include "core/ghost_particle_manager.hpp"
-#include "core/boundary_types.hpp"
+#include "core/plugins/simulation_plugin.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
+#include "core/boundaries/boundary_types.hpp"
+#include "parameters.hpp"
 #include "exception.hpp"
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 using namespace sph;
 
@@ -143,117 +141,67 @@ public:
         // from actual particle configuration and stability theory
         // ============================================================
         
-        std::cout << "\n--- Physics-Based Parameter Estimation ---\n";
-        
-        auto suggestions = ParameterEstimator::suggest_parameters(particles);
-        
-        std::cout << "\nEstimated parameters from particle analysis:\n";
-        std::cout << "  CFL_sound = " << suggestions.cfl_sound 
-                  << " (from dt = CFL * h / (c_s + |v|))\n";
-        std::cout << "  CFL_force = " << suggestions.cfl_force
-                  << " (from dt = CFL * sqrt(h / |a|))\n";
-        std::cout << "  neighbor_number = " << suggestions.neighbor_number
-                  << " (from kernel support volume)\n";
-        
-        std::cout << "\nRationale:\n";
-        std::cout << suggestions.rationale << "\n";
-        
         // ============================================================
-        // STEP 3: BUILD PARAMETERS WITH ESTIMATED VALUES
+        // STEP 3: CONFIGURE PARAMETERS DIRECTLY
         // ============================================================
-        // Use the physics-based suggestions in the builder
+        // Use legacy SPHParameters structure for compatibility
         // ============================================================
         
         if (params->time.end == 0) {
-            std::cout << "\n--- Building Parameter Set (Type-Safe API) ---\n";
+            std::cout << "\n--- Configuring Simulation Parameters ---\n";
             
-            auto builder_params = SPHParametersBuilderBase()
-                // Common parameters (time, CFL, physics, kernel)
-                .with_time(
-                    0.0,    // start time
-                    0.15,   // end time  
-                    0.01,   // output interval
-                    0.01    // energy output interval
-                )
-                
-                // Physics-based CFL (from stability analysis!)
-                .with_cfl(
-                    suggestions.cfl_sound,  // NOT hardcoded!
-                    suggestions.cfl_force   // Based on theory!
-                )
-                
-                // Physics parameters (using estimated neighbor number)
-                .with_physics(
-                    suggestions.neighbor_number,  // From kernel support
-                    gamma                         // Adiabatic index
-                )
-                
-                // Kernel type
-                .with_kernel("cubic_spline")
-                
-                // Tree parameters
-                .with_tree_params(20, 1)
-                
-                // Iterative smoothing length
-                .with_iterative_smoothing_length(true)
-                
-                // *** TRANSITION TO GSPH (Godunov SPH) ***
-                // This enforces type safety - GSPH does NOT use artificial viscosity!
-                // Instead, GSPH uses HLL Riemann solver for shock capturing
-                .as_gsph()
-                
-                // GSPH-specific: Control 2nd order MUSCL-Hancock scheme
-                // Disable 2nd order when using ghost particles
-                // (gradient arrays only exist for real particles, not ghosts)
-                .with_2nd_order_muscl(false)
-                
-                .build();
+            // Time parameters
+            params->time.start = 0.0;
+            params->time.end = 0.15;
+            params->time.output = 0.01;
+            params->time.energy = 0.01;
             
-            *params = *builder_params;
+            // CFL conditions (conservative for shock tube)
+            params->cfl.sound = 0.3;
+            params->cfl.force = 0.25;
             
-            std::cout << "✓ Parameters built with type-safe GSPH API\n";
-            std::cout << "  - GSPH uses Riemann solver (HLL), NOT artificial viscosity\n";
-            std::cout << "  - 2nd order MUSCL disabled (1st order safer with ghosts)\n";
+            // Physics
+            params->physics.neighbor_number = 30;  // For 1D with cubic spline
+            params->physics.gamma = gamma;
+            
+            // Gravity
+            params->gravity.is_valid = false;
+            
+            // Artificial conductivity
+            params->ac.is_valid = false;
+            
+            // Artificial viscosity (disabled for GSPH)
+            params->av.alpha = 1.0;  // Not used but set default
+            params->av.use_balsara_switch = false;
+            params->av.use_time_dependent_av = false;
+            
+            // Kernel
+            params->kernel = KernelType::CUBIC_SPLINE;
+            
+            // Tree
+            params->tree.max_level = 20;
+            params->tree.leaf_particle_num = 1;
+            
+            // SPH type
+            params->type = SPHType::GSPH;
+            params->gsph.is_2nd_order = false;  // 1st order safer with ghosts
+            
+            // Iterative smoothing length
+            params->iterative_sml = true;
+            
+            std::cout << "✓ Parameters configured\n";
+            std::cout << "  - SPH type: GSPH (Godunov SPH with Riemann solver)\n";
+            std::cout << "  - 2nd order MUSCL: disabled\n";
+            std::cout << "  - CFL sound: " << params->cfl.sound << "\n";
+            std::cout << "  - CFL force: " << params->cfl.force << "\n";
         } else {
             std::cout << "\n--- Using Pre-Configured Parameters ---\n";
             std::cout << "(Loaded from JSON configuration)\n";
         }
         
         // ============================================================
-        // STEP 4: VALIDATE PARAMETERS AGAINST PARTICLES
         // ============================================================
-        // This catches mismatches that would cause simulation blow-up!
-        // ============================================================
-        
-        std::cout << "\n--- Parameter Validation ---\n";
-        
-        try {
-            ParameterValidator::validate_all(particles, params);
-            std::cout << "✓ All parameters validated - SAFE to run!\n";
-            
-            // Show what timestep we'll get
-            auto config = ParameterEstimator::analyze_particle_config(particles);
-            real dt_sound = params->cfl.sound * config.avg_spacing / config.max_sound_speed;
-            real dt_force = std::numeric_limits<real>::infinity();
-            if (config.max_acceleration > 1e-10) {
-                dt_force = params->cfl.force * std::sqrt(config.avg_spacing / config.max_acceleration);
-            }
-            
-            std::cout << "\nExpected timestep:\n";
-            std::cout << "  dt_sound = " << dt_sound << "\n";
-            std::cout << "  dt_force = " << (dt_force < 1e100 ? std::to_string(dt_force) : "inf") << "\n";
-            std::cout << "  dt_actual = " << std::min(dt_sound, dt_force) << "\n";
-            
-        } catch (const std::runtime_error& e) {
-            std::cerr << "\n❌ VALIDATION FAILED!\n";
-            std::cerr << e.what() << "\n";
-            std::cerr << "\nSimulation will NOT run - parameters are unsafe!\n";
-            THROW_ERROR("Parameter validation failed");
-        }
-        
-        // ============================================================
-        // ============================================================
-        // STEP 5: SET PARTICLES IN SIMULATION
+        // STEP 4: SET PARTICLES IN SIMULATION
         // ============================================================
         
         const int num_particles = static_cast<int>(particles.size());

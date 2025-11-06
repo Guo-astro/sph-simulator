@@ -20,6 +20,7 @@ endif()
 
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(protobuf REQUIRED)
 
 # Setup clang-tidy if enabled
 if(ENABLE_CLANG_TIDY)
@@ -50,6 +51,20 @@ endif()
 add_library(sph_lib STATIC)
 set_target_properties(sph_lib PROPERTIES LINKER_LANGUAGE CXX)
 target_compile_features(sph_lib PUBLIC cxx_std_17)
+
+# Generate Protocol Buffer files
+file(GLOB PROTO_FILES "${CMAKE_SOURCE_DIR}/proto/*.proto")
+if(PROTO_FILES)
+  protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+  message(STATUS "Generated protobuf files: ${PROTO_SRCS}")
+  
+  # Add generated files to library
+  target_sources(sph_lib PRIVATE ${PROTO_SRCS})
+  
+  # Add build directory to include paths for generated headers
+  target_include_directories(sph_lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
 target_compile_options(sph_lib
   PUBLIC
     # Strictest warning level
@@ -81,6 +96,7 @@ target_link_libraries(sph_lib
   PUBLIC
     Boost::headers
     nlohmann_json::nlohmann_json
+    protobuf::libprotobuf
   )
 
 # Link OpenMP only if found

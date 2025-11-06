@@ -28,7 +28,7 @@
 
 #include "artificial_viscosity.hpp"
 #include "../../utilities/constants.hpp"
-#include "../../core/vector.hpp"
+#include "../../core/utilities/vector.hpp"
 #include <algorithm>
 #include <string>
 #include <cmath>

@@ -21,11 +21,11 @@ static constexpr int Dim = 1;
 
 #include <gtest/gtest.h>
 #include "../bdd_helpers.hpp"
-#include "core/spatial_tree_coordinator.hpp"
-#include "core/simulation.hpp"
-#include "core/sph_particle.hpp"
-#include "core/ghost_particle_manager.hpp"
-#include "core/neighbor_search_config.hpp"
+#include "core/spatial/spatial_tree_coordinator.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
+#include "core/spatial/neighbor_search_config.hpp"
 #include <memory>
 #include <vector>
 #include <cmath>

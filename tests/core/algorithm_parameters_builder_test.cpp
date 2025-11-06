@@ -1,7 +1,7 @@
-#include "core/sph_parameters_builder_base.hpp"
-#include "core/ssph_parameters_builder.hpp"
-#include "core/disph_parameters_builder.hpp"
-#include "core/gsph_parameters_builder.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/parameters/ssph_parameters_builder.hpp"
+#include "core/parameters/disph_parameters_builder.hpp"
+#include "core/parameters/gsph_parameters_builder.hpp"
 #include <gtest/gtest.h>
 #include <memory>
 
@@ -426,9 +426,5 @@ TEST_F(AlgorithmParametersBuilderTest, ErrorMessage_MissingTime) {
     }
 }
 
-// ==================== Main ====================
+// Main provided by GTest::gtest_main
 
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

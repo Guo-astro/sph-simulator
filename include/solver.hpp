@@ -7,7 +7,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include "defines.hpp"
-#include "core/plugin_loader.hpp"  // For PluginDeleter type
+#include "core/plugins/plugin_loader.hpp"  // For PluginDeleter type
 
 namespace sph
 {

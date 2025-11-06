@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include "../../core/sph_particle.hpp"
-#include "../../core/vector.hpp"
+#include "../../core/particles/sph_particle.hpp"
+#include "../../core/utilities/vector.hpp"
 #include "../../defines.hpp"
 
 namespace sph {

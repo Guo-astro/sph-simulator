@@ -13,16 +13,16 @@
  * - Morris 1997 ghost particle boundaries
  */
 
-#include "core/simulation_plugin.hpp"
-#include "core/sph_parameters_builder_base.hpp"
-#include "core/gsph_parameters_builder.hpp"
-#include "core/parameter_estimator.hpp"
-#include "core/parameter_validator.hpp"
-#include "core/simulation.hpp"
-#include "core/sph_particle.hpp"
-#include "core/vector.hpp"
-#include "core/ghost_particle_manager.hpp"
-#include "core/boundary_types.hpp"
+#include "core/plugins/simulation_plugin.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/parameters/gsph_parameters_builder.hpp"
+#include "core/parameters/parameter_estimator.hpp"
+#include "core/parameters/parameter_validator.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/utilities/vector.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
+#include "core/boundaries/boundary_types.hpp"
 #include "exception.hpp"
 #include <vector>
 #include <iostream>

@@ -3,10 +3,15 @@ cmake_minimum_required(VERSION 3.13)
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
 
-# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
-list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+# Add SPH root and build directory to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
+list(APPEND CMAKE_PREFIX_PATH 
+    ${SPH_ROOT}
+    ${SPH_ROOT}/build
+)
 
-if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
   include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
@@ -38,12 +43,57 @@ file(GLOB SPH_DISPH_SOURCES "${SPH_SRC_DIR}/disph/*.cpp")
 file(GLOB SPH_GSPH_SOURCES "${SPH_SRC_DIR}/gsph/*.cpp")
 file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 
-# Add core parameter validation/estimation sources (exclude plugin_loader which needs C++17)
-file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
+# Add core parameter sources
+file(GLOB_RECURSE SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
+list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "bhtree_templates\\.cpp$")  # Has broken include path
 
-# Build plugin as shared library
-add_library(shock_tube_plugin SHARED 
+# Build GSPH plugin
+add_library(shock_tube_plugin_gsph SHARED 
+    src/plugin_gsph.cpp
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
+    ${SPH_CORE_SOURCES}
+)
+
+target_compile_features(shock_tube_plugin_gsph PUBLIC cxx_std_17)
+target_compile_options(shock_tube_plugin_gsph PRIVATE
+    -Wall -Wno-sign-compare -funroll-loops -ffast-math
+)
+target_include_directories(shock_tube_plugin_gsph PUBLIC ${SPH_INCLUDE_DIR})
+target_link_libraries(shock_tube_plugin_gsph PUBLIC
+    OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
+)
+set_target_properties(shock_tube_plugin_gsph PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
+
+# Build DISPH plugin
+add_library(shock_tube_plugin_disph SHARED 
+    src/plugin_disph.cpp
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
+    ${SPH_CORE_SOURCES}
+)
+
+target_compile_features(shock_tube_plugin_disph PUBLIC cxx_std_17)
+target_compile_options(shock_tube_plugin_disph PRIVATE
+    -Wall -Wno-sign-compare -funroll-loops -ffast-math
+)
+target_include_directories(shock_tube_plugin_disph PUBLIC ${SPH_INCLUDE_DIR})
+target_link_libraries(shock_tube_plugin_disph PUBLIC
+    OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
+)
+set_target_properties(shock_tube_plugin_disph PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
+
+# Build Enhanced plugin (for compatibility)
+add_library(shock_tube_plugin_enhanced SHARED 
     src/plugin_enhanced.cpp
     ${SPH_SOURCES}
     ${SPH_DISPH_SOURCES}
@@ -52,31 +102,16 @@ add_library(shock_tube_plugin SHARED
     ${SPH_CORE_SOURCES}
 )
 
-target_compile_features(shock_tube_plugin PUBLIC cxx_std_17)
-target_compile_definitions(shock_tube_plugin PRIVATE 
-    # DEBUG_GHOST_PARTICLES  # Uncomment for ghost particle debug output
-    # EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG  # Uncomment for debugging - tree-based search incompatible with dynamic ghosts
+target_compile_features(shock_tube_plugin_enhanced PUBLIC cxx_std_17)
+target_compile_options(shock_tube_plugin_enhanced PRIVATE
+    -Wall -Wno-sign-compare -funroll-loops -ffast-math
 )
-target_compile_options(shock_tube_plugin PRIVATE
-    -Wall
-    -Wno-sign-compare
-    -funroll-loops
-    -ffast-math
+target_include_directories(shock_tube_plugin_enhanced PUBLIC ${SPH_INCLUDE_DIR})
+target_link_libraries(shock_tube_plugin_enhanced PUBLIC
+    OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
 )
-
-target_include_directories(shock_tube_plugin PUBLIC 
-    ${SPH_INCLUDE_DIR}
-)
-
-target_link_libraries(shock_tube_plugin PUBLIC
-    OpenMP::OpenMP_CXX
-    Boost::headers
-    nlohmann_json::nlohmann_json
-)
-
-set_target_properties(shock_tube_plugin PROPERTIES
+set_target_properties(shock_tube_plugin_enhanced PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )
 
 # Build standalone SPH executable for this workflow
@@ -101,13 +136,15 @@ target_include_directories(sph PUBLIC
 )
 
 target_link_libraries(sph PUBLIC
-    shock_tube_plugin
+    shock_tube_plugin_enhanced  # Default to enhanced plugin
 )
 
 set_target_properties(sph PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-message(STATUS "Building shock_tube_plugin for 1D")
+message(STATUS "Building shock_tube_plugin_gsph for GSPH")
+message(STATUS "Building shock_tube_plugin_disph for DISPH")
+message(STATUS "Building shock_tube_plugin_enhanced for Enhanced")
 message(STATUS "Building local sph executable")
 message(STATUS "SPH root: ${SPH_ROOT}")

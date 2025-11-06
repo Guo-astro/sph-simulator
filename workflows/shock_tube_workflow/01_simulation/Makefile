@@ -14,7 +14,9 @@ SPH_ROOT := ../../..
 BUILD_DIR := build
 SPH_BIN := $(BUILD_DIR)/sph
 LIB_DIR := lib
-PLUGIN := $(LIB_DIR)/libshock_tube_plugin.dylib
+PLUGIN_ENHANCED := $(LIB_DIR)/libshock_tube_plugin_enhanced.dylib
+PLUGIN_GSPH := $(LIB_DIR)/libshock_tube_plugin_gsph.dylib
+PLUGIN_DISPH := $(LIB_DIR)/libshock_tube_plugin_disph.dylib
 CONFIG_DIR := config
 RESULTS_DIR := results
 ANALYSIS_DIR := $(RESULTS_DIR)/analysis
@@ -64,15 +66,16 @@ clean:
 	@echo "=== Cleaning Build Artifacts ==="
 	@rm -rf $(BUILD_DIR)
 	@rm -f $(LIB_DIR)/*.dylib
-	@rm -f shock_tube_plugin_enhanced.dylib
+	@rm -f *.dylib
 	@echo "✓ Build artifacts cleaned"
 
 # Clean all outputs (results, plots, animations)
 clean-outputs:
 	@echo "=== Cleaning All Outputs ==="
 	@echo "Removing simulation results..."
-	@rm -rf $(RESULTS_DIR)/gsph/*.dat
-	@rm -rf $(RESULTS_DIR)/disph/*.dat
+	@rm -rf $(RESULTS_DIR)/gsph/*.csv
+	@rm -rf $(RESULTS_DIR)/disph/*.csv
+	@rm -rf output/shock_tube_*
 	@echo "Removing analysis outputs..."
 	@rm -rf $(ANALYSIS_DIR)/plots/*.png
 	@rm -rf $(ANALYSIS_DIR)/animations/*.mp4
@@ -88,20 +91,36 @@ clean-all: clean clean-outputs
 run-gsph: build
 	@echo "=== Running GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
+	@mkdir -p output
 	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
+	@echo "Running GSPH plugin..."
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN_GSPH)
 	@echo "Copying GSPH results..."
-	@cp -f output/shock_tube_enhanced/*.dat $(GSPH_RESULTS)/
+	@if [ -d "output/shock_tube_gsph/snapshots" ]; then \
+		cp -f output/shock_tube_gsph/snapshots/*.csv $(GSPH_RESULTS)/ 2>/dev/null || \
+		cp -f output/shock_tube_gsph/*.csv $(GSPH_RESULTS)/ 2>/dev/null || true; \
+		cp -f output/shock_tube_gsph/energy.csv $(GSPH_RESULTS)/ 2>/dev/null || true; \
+	else \
+		echo "Warning: No GSPH output found in expected location"; \
+	fi
 	@echo "✓ GSPH simulation complete"
 
 # Run DISPH simulation
 run-disph: build
 	@echo "=== Running DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
+	@mkdir -p output
 	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN)
+	@echo "Running DISPH plugin..."
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN_DISPH)
 	@echo "Copying DISPH results..."
-	@cp -f output/shock_tube_enhanced/*.dat $(DISPH_RESULTS)/
+	@if [ -d "output/shock_tube_disph/snapshots" ]; then \
+		cp -f output/shock_tube_disph/snapshots/*.csv $(DISPH_RESULTS)/ 2>/dev/null || \
+		cp -f output/shock_tube_disph/*.csv $(DISPH_RESULTS)/ 2>/dev/null || true; \
+		cp -f output/shock_tube_disph/energy.csv $(DISPH_RESULTS)/ 2>/dev/null || true; \
+	else \
+		echo "Warning: No DISPH output found in expected location"; \
+	fi
 	@echo "✓ DISPH simulation complete"
 
 # Run both simulations

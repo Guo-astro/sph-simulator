@@ -20,9 +20,9 @@ static constexpr int Dim = 1;
 
 #include <gtest/gtest.h>
 #include "../bdd_helpers.hpp"
-#include "core/neighbor_search_result.hpp"
-#include "core/neighbor_collector.hpp"
-#include "core/neighbor_search_config.hpp"
+#include "core/spatial/neighbor_search_result.hpp"
+#include "core/spatial/neighbor_collector.hpp"
+#include "core/spatial/neighbor_search_config.hpp"
 
 // Forward declarations no longer needed - will include actual headers
 

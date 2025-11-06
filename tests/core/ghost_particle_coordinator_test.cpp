@@ -19,10 +19,10 @@ static constexpr int Dim = 1;
 
 #include <gtest/gtest.h>
 #include "../bdd_helpers.hpp"
-#include "core/ghost_particle_coordinator.hpp"
-#include "core/simulation.hpp"
-#include "core/sph_particle.hpp"
-#include "core/ghost_particle_manager.hpp"
+#include "core/boundaries/ghost_particle_coordinator.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/ghost_particle_manager.hpp"
 #include <memory>
 #include <vector>
 #include <cmath>

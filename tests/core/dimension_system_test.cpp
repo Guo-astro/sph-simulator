@@ -13,7 +13,7 @@ static constexpr int Dim = 1;
  */
 
 #include "../bdd_helpers.hpp"
-#include "../../include/core/vector.hpp"
+#include "../../include/core/utilities/vector.hpp"
 #include <cmath>
 
 using namespace sph;

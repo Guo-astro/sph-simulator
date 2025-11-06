@@ -23,7 +23,8 @@ def create_multi_method_animation_2d(result_dirs, output_file, gamma=1.4):
     # Filter out methods that don't have data
     available_methods = {}
     for method, dir_path in result_dirs.items():
-        sph_files = sorted([f for f in Path(dir_path).glob("*.dat") if f.name != 'energy.dat'])
+        sph_files = sorted([f for f in Path(dir_path).glob("*.csv") 
+                           if f.stem.isdigit() and 'energy' not in f.name])
         if len(sph_files) > 0:
             available_methods[method] = sph_files
         else:

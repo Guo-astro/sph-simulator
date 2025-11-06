@@ -4,16 +4,16 @@
 
 #include "solver.hpp"
 #include "parameters.hpp"
-#include "core/sph_particle.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "logger.hpp"
 #include "exception.hpp"
 #include "output.hpp"
-#include "core/simulation.hpp"
-#include "core/periodic.hpp"
-#include "core/bhtree.hpp"
-#include "core/plugin_loader.hpp"
-#include "core/simulation_plugin.hpp"
-#include "core/sph_algorithm_registry.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/boundaries/periodic.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/plugins/plugin_loader.hpp"
+#include "core/plugins/simulation_plugin.hpp"
+#include "core/algorithms/sph_algorithm_registry.hpp"
 
 // SPH modules
 #include "timestep.hpp"

@@ -9,10 +9,10 @@ static constexpr int Dim = 1;
  * are checked against actual particle distributions to prevent simulation blow-up.
  */
 
-#include "core/parameter_validator.hpp"
-#include "core/parameter_estimator.hpp"
-#include "core/simulation_parameters.hpp"
-#include "core/sph_particle.hpp"
+#include "core/parameters/parameter_validator.hpp"
+#include "core/parameters/parameter_estimator.hpp"
+#include "core/parameters/simulation_parameters.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "../bdd_helpers.hpp"
 #include <vector>
 #include <cmath>

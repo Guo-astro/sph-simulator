@@ -2,8 +2,8 @@
 static constexpr int Dim = 1;
 
 #include "../bdd_helpers.hpp"
-#include "core/bhtree.hpp"
-#include "core/sph_particle.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/particles/sph_particle.hpp"
 #include "parameters.hpp"
 #include <vector>
 #include <memory>

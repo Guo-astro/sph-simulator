@@ -1,10 +1,10 @@
 #include "defines.hpp"
 #include "disph/d_fluid_force.hpp"
-#include "core/sph_particle.hpp"
-#include "core/periodic.hpp"
-#include "core/simulation.hpp"
-#include "core/bhtree.hpp"
-#include "core/kernel_function.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "core/boundaries/periodic.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/spatial/bhtree.hpp"
+#include "core/kernels/kernel_function.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
 #include "exhaustive_search.hpp"
@@ -32,6 +32,10 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     const int num = sim->particle_num;
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
+
+    // Use cached combined particle list (built when tree was created)
+    // This includes both real particles AND ghost particles
+    auto & search_particles = sim->cached_search_particles;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -70,7 +74,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         // REFACTORED: Use result.neighbor_indices
         for(int n = 0; n < static_cast<int>(result.neighbor_indices.size()); ++n) {
             int const j = result.neighbor_indices[n];
-            auto & p_j = particles[j];
+            auto & p_j = search_particles[j];  // CRITICAL FIX: Use search_particles (includes ghosts)
             const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = abs(r_ij);            if(r >= std::max(h_i, p_j.sml) || r == 0.0) {
                 continue;

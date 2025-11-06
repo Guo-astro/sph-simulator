@@ -2,12 +2,12 @@
 
 #include "parameters.hpp"
 #include "gsph/g_pre_interaction.hpp"
-#include "core/simulation.hpp"
-#include "core/periodic.hpp"
+#include "core/simulation/simulation.hpp"
+#include "core/boundaries/periodic.hpp"
 #include "openmp.hpp"
-#include "core/kernel_function.hpp"
+#include "core/kernels/kernel_function.hpp"
 #include "exception.hpp"
-#include "core/bhtree.hpp"
+#include "core/spatial/bhtree.hpp"
 #include "utilities/constants.hpp"
 
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG

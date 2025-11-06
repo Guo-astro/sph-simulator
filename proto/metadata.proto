@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package sph.output;
+
+// Metadata for a simulation run
+message SimulationMetadata {
+    // Version information
+    string schema_version = 1;
+    string code_version = 2;
+    
+    // Timestamp
+    string creation_time = 3;  // ISO 8601 format
+    
+    // Dimension
+    int32 dimension = 4;
+    
+    // Unit system
+    UnitSystemInfo unit_system = 5;
+    
+    // Physics parameters
+    PhysicsParams physics = 6;
+    
+    // Computational parameters
+    ComputationalParams computational = 7;
+    
+    // Output parameters
+    OutputParams output = 8;
+    
+    // SPH algorithm
+    string sph_algorithm = 9;  // "SSPH", "GSPH", "DISPH", etc.
+}
+
+message UnitSystemInfo {
+    string name = 1;  // "galactic", "SI", "cgs"
+    string length_unit = 2;
+    string mass_unit = 3;
+    string time_unit = 4;
+    string velocity_unit = 5;
+    string density_unit = 6;
+    string pressure_unit = 7;
+    string energy_unit = 8;
+    
+    // Conversion factors (for reference)
+    double length_factor = 9;
+    double mass_factor = 10;
+    double time_factor = 11;
+}
+
+message PhysicsParams {
+    double gamma = 1;
+    int32 neighbor_number = 2;
+    ArtificialViscosityParams artificial_viscosity = 3;
+    bool has_gravity = 4;
+    bool has_periodic_boundary = 5;
+}
+
+message ArtificialViscosityParams {
+    double alpha = 1;
+    bool use_balsara_switch = 2;
+    bool use_time_dependent = 3;
+}
+
+message ComputationalParams {
+    string kernel_type = 1;
+    bool iterative_smoothing_length = 2;
+    double kernel_ratio = 3;
+}
+
+message OutputParams {
+    int32 particle_interval = 1;
+    int32 energy_interval = 2;
+    repeated string output_formats = 3;  // e.g., ["csv", "protobuf"]
+}
