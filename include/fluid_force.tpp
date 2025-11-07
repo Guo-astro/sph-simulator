@@ -17,57 +17,32 @@ namespace sph
 template<int Dim>
 void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
-    m_neighbor_number = param->physics.neighbor_number;
-    m_use_ac = param->ac.is_valid;
+    m_neighbor_number = param->get_physics().neighbor_number;
+    const auto& ac_params = param->get_ac();
+    m_use_ac = ac_params.is_valid;
     if(m_use_ac) {
-        m_alpha_ac = param->ac.alpha;
-        m_use_gravity = param->gravity.is_valid;
+        m_alpha_ac = ac_params.alpha;
+        m_use_gravity = param->has_gravity();
     }
     
     // Initialize modular artificial viscosity
+    const auto& av_params = param->get_av();
     m_artificial_viscosity = std::make_unique<algorithms::viscosity::MonaghanViscosity<Dim>>(
-        param->av.use_balsara_switch
+        av_params.use_balsara_switch
     );
 }
 
 template<int Dim>
 void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
-    // ULTRA MINIMAL - Just a volatile write to prevent optimization
-    volatile int entry_marker = 42;
-    (void)entry_marker;  // Prevent unused variable warning
-    
-    // CRITICAL: Use stderr instead of WRITE_LOG to avoid any macro issues
-    std::cerr << ">>> FluidForce::calculation ENTRY (stderr)" << std::endl;
-    
-    WRITE_LOG << "    FluidForce::calculation ENTRY (WRITE_LOG)";
-    
-    static int calc_call_count = 0;
-    std::cerr << ">>> After static var decl" << std::endl;
-    
-    WRITE_LOG << "    After static var increment";
-    ++calc_call_count;
-    
-    std::cerr << ">>> calc_call_count = " << calc_call_count << std::endl;
-    
-    WRITE_LOG << "    calc_call_count = " << calc_call_count;
-    
     if (!sim) {
         WRITE_LOG << "ERROR: FluidForce::calculation called with null sim!";
         return;
     }
     
-    WRITE_LOG << "    sim pointer valid, getting particles...";
-    
     auto & particles = sim->particles;
-    WRITE_LOG << "    Got particles reference";
-    
     auto * periodic = sim->periodic.get();
-    WRITE_LOG << "    Got periodic pointer";
-    
     const int num = sim->particle_num;
-    WRITE_LOG << "    num = " << num;
-    
     auto * kernel = sim->kernel.get();
     auto * tree = sim->tree.get();
 
@@ -75,7 +50,12 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     auto & search_particles = sim->cached_search_particles;
     const int search_size = static_cast<int>(search_particles.size());
     
-    WRITE_LOG << "    search_size = " << search_size;
+#ifndef NDEBUG
+    if (num > 0) {
+        WRITE_LOG << ">>> FluidForce START: p[0].pres=" << particles[0].pres 
+                  << ", dens=" << particles[0].dens << ", sml=" << particles[0].sml;
+    }
+#endif
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
@@ -98,6 +78,16 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         const real p_per_rho2_i = p_i.pres / sqr(p_i.dens);
         const real h_i = p_i.sml;
         const real gradh_i = p_i.gradh;
+        
+#ifndef NDEBUG
+        if (i == 0) {
+#pragma omp critical
+            {
+                WRITE_LOG << ">>> FluidForce p[0]: pres=" << p_i.pres << ", dens=" << p_i.dens 
+                          << ", sml=" << h_i << ", p_per_rho2_i=" << p_per_rho2_i;
+            }
+        }
+#endif
 
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = 0.0;
@@ -110,8 +100,7 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 #pragma omp critical
                 {
                     WRITE_LOG << "ERROR in FluidForce: Particle " << i << " has neighbor index " << j 
-                             << " which is out of bounds [0, " << search_size << ")"
-                             << " at call #" << calc_call_count;
+                             << " which is out of bounds [0, " << search_size << ")";
                 }
                 continue;  // Skip this neighbor
             }
@@ -146,8 +135,6 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         p_i.acc = acc;
         p_i.dene = dene;
     }
-    
-    WRITE_LOG << "    FluidForce::calculation complete for call #" << calc_call_count;
 }
 
 // Artificial conductivity (Wadsley et al. 2008, Price 2008)

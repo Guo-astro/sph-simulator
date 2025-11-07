@@ -16,6 +16,12 @@ namespace {
  // Hernquist & Katz (1989)
 inline real f(const real r, const real h)
 {
+    // Guard against division by zero
+    constexpr real r_min = 1.0e-10;
+    if (r < r_min) {
+        return (-0.5 * (1.0 / 3.0) + 1.4) / (h * 0.5);
+    }
+    
     const real e = h * 0.5;
     const real u = r / e;
     
@@ -30,6 +36,12 @@ inline real f(const real r, const real h)
 
 inline real g(const real r, const real h)
 {
+    // Guard against division by zero
+    constexpr real r_min = 1.0e-10;
+    if (r < r_min) {
+        return (4.0 / 3.0) / (h * h * h * 0.125);
+    }
+    
     const real e = h * 0.5;
     const real u = r / e;
     
@@ -46,57 +58,56 @@ inline real g(const real r, const real h)
 template<int Dim>
 void GravityForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
-    m_is_valid = param->gravity.is_valid;
-    if(m_is_valid) {
-        m_constant = param->gravity.constant;
-    }
+    // ✅ TYPE-SAFE: Store gravity variant directly - no binary flags
+    m_gravity = param->get_gravity();
+    
+#ifndef NDEBUG
+    std::visit([](auto&& g) {
+        using T = std::decay_t<decltype(g)>;
+        if constexpr (std::is_same_v<T, SPHParameters::NewtonianGravity>) {
+            WRITE_LOG << ">>> GravityForce::initialize: Newtonian gravity, G=" << g.constant << ", theta=" << g.theta;
+        } else if constexpr (std::is_same_v<T, SPHParameters::ModifiedGravity>) {
+            WRITE_LOG << ">>> GravityForce::initialize: Modified gravity (not yet implemented)";
+        } else {
+            WRITE_LOG << ">>> GravityForce::initialize: No gravity";
+        }
+    }, m_gravity);
+#endif
 }
 
 template<int Dim>
 void GravityForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
 {
-    if(!m_is_valid) {
-        return;
-    }
-
-    auto & particles = sim->particles;
-    const int num = sim->particle_num;
-#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
-    auto * periodic = sim->periodic.get();
-    
-    // Use cached combined particle list (built when tree was created)
-    auto & search_particles = sim->cached_search_particles;
-
-#pragma omp parallel for
-    const int search_num = sim->get_total_particle_count();
-#else
-    auto * tree = sim->tree.get();
+    // ✅ TYPE-SAFE: Pattern match on gravity variant - no m_is_valid check
+    std::visit([&sim](auto&& g) {
+        using T = std::decay_t<decltype(g)>;
+        if constexpr (std::is_same_v<T, SPHParameters::NewtonianGravity>) {
+            // Newtonian gravity: use Barnes-Hut tree
+            auto& particles = sim->particles;
+            const int num = sim->particle_num;
+            
+#ifndef NDEBUG
+            WRITE_LOG << ">>> GravityForce::calculation: Newtonian gravity, G=" << g.constant;
+            WRITE_LOG << ">>> GravityForce START: p[0].acc=" << abs(particles[0].acc);
 #endif
-
+            
+            auto* tree = sim->tree.get();
+#ifndef NDEBUG
+            WRITE_LOG << ">>> GravityForce: tree=" << (tree ? "valid" : "NULL");
+#endif
+            
 #pragma omp parallel for
-    for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
-        auto & p_i = particles[i];
-        
-#ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
-        const int search_num = static_cast<int>(search_particles.size());
-        real phi = 0.0;
-        Vector<Dim> force(0.0);
-        const Vector<Dim> & r_i = p_i.pos;
-
-        for(int j = 0; j < search_num; ++j) {  // Search includes ghost particles
-            const auto & p_j = search_particles[j];  // Access from combined list
-            const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, p_j.pos);
-            const real r = abs(r_ij);
-            phi -= m_constant * p_j.mass * (f(r, p_i.sml) + f(r, p_j.sml)) * 0.5;
-            force -= r_ij * (m_constant * p_j.mass * (g(r, p_i.sml) + g(r, p_j.sml)) * 0.5);
+            for(int i = 0; i < num; ++i) {
+                auto& p_i = particles[i];
+                tree->tree_force(p_i);
+            }
+            
+#ifndef NDEBUG
+            WRITE_LOG << ">>> GravityForce END: p[0].acc=" << abs(particles[0].acc);
+#endif
         }
-
-        p_i.acc += force;
-        p_i.phi = phi;
-#else
-        tree->tree_force(p_i);
-#endif
-    }
+        // NoGravity or ModifiedGravity: do nothing (no force calculation)
+    }, m_gravity);
 }
 
 }

@@ -1,5 +1,8 @@
-#include "core/plugins/simulation_plugin.hpp"
-#include "core/simulation/simulation.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/parameters/ssph_parameters_builder.hpp"
+#include "core/boundaries/boundary_builder.hpp"
 #include "parameters.hpp"
 #include "core/particles/sph_particle.hpp"
 #include "exception.hpp"
@@ -24,32 +27,31 @@ namespace sph {
  * 
  * Reference: Springel (2010)
  */
-class KHIPlugin : public SimulationPlugin<2> {
+class KHIPlugin : public SimulationPluginV3<2> {
 public:
     std::string get_name() const override {
         return "kelvin_helmholtz_instability";
     }
     
     std::string get_description() const override {
-        return "2D Kelvin-Helmholtz instability";
+        return "2D Kelvin-Helmholtz instability (V3 pure functional interface)";
     }
     
     std::string get_version() const override {
-        return "2.0.0";
+        return "2.0.1";  // V3 migration
     }
     
-    void initialize(std::shared_ptr<Simulation<2>> sim,
-                   std::shared_ptr<SPHParameters> param) override {
+    InitialCondition<2> create_initial_condition() const override {
         // This plugin is for 2D simulations
         static constexpr int Dim = 2;
+        static constexpr real gamma = 5.0 / 3.0;
 
-        std::cout << "Initializing Kelvin-Helmholtz instability...\n";
+        std::cout << "Initializing Kelvin-Helmholtz instability (V3 functional interface)...\n";
         
         const int N = 128;  // Grid resolution
         const int num = N * N * 3 / 4;
         const real dx = 1.0 / N;
         const real mass = 1.5 / num;
-        const real gamma = param->physics.gamma;
         
         std::vector<SPHParticle<Dim>> particles(num);
         
@@ -105,23 +107,56 @@ public:
             }
         }
         
-        sim->particles = particles;
-        sim->particle_num = particles.size();
-        
-        // Set simulation parameters
-        param->time.end = 2.0;
-        param->time.output = 0.05;
-        param->cfl.sound = 0.3;
-        param->physics.neighbor_number = 50;
-        param->periodic.is_valid = true;
-        param->periodic.range_max[0] = 1.0;
-        param->periodic.range_max[1] = 1.0;
-        param->periodic.range_min[0] = 0.0;
-        param->periodic.range_min[1] = 0.0;
-        
-        std::cout << "Initialization complete!\n";
         std::cout << "  Total particles: " << particles.size() << "\n";
         std::cout << "  Particle mass: " << mass << "\n";
+        
+        // Build parameters with type-safe builder
+        std::shared_ptr<SPHParameters> param;
+        try {
+            param = SPHParametersBuilderBase()
+                .with_time(
+                    /*start=*/0.0,
+                    /*end=*/2.0,
+                    /*output=*/0.05,
+                    /*energy=*/0.05
+                )
+                .with_cfl(
+                    /*sound=*/0.3,
+                    /*force=*/0.25
+                )
+                .with_physics(
+                    /*neighbor_number=*/50,
+                    /*gamma=*/gamma
+                )
+                .with_kernel("cubic_spline")
+                .as_ssph()
+                .with_artificial_viscosity(
+                    /*alpha=*/1.0,
+                    /*use_balsara_switch=*/true,
+                    /*use_time_dependent_av=*/false
+                )
+                .build();
+        } catch (const std::exception& e) {
+            throw std::runtime_error(std::string("Parameter build failed: ") + e.what());
+        }
+        
+        // Build periodic boundary configuration
+        Vector<Dim> domain_min = {0.0, 0.0};
+        Vector<Dim> domain_max = {1.0, 1.0};
+        
+        auto boundary_config = BoundaryBuilder<Dim>()
+            .with_periodic_boundaries()
+            .in_range(domain_min, domain_max)
+            .build();
+        
+        std::cout << "V3 initialization complete!\n";
+        
+        // Return V3 initial condition
+        return InitialCondition<Dim>{
+            .particles = std::move(particles),
+            .parameters = param,
+            .boundary_config = boundary_config
+        };
     }
     
     std::vector<std::string> get_source_files() const override {
@@ -131,4 +166,4 @@ public:
 
 } // namespace sph
 
-DEFINE_SIMULATION_PLUGIN(sph::KHIPlugin, 2)
+DEFINE_SIMULATION_PLUGIN_V3(sph::KHIPlugin, 2)

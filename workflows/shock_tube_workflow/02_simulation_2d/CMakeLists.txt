@@ -3,17 +3,58 @@ cmake_minimum_required(VERSION 3.13)
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
 
-# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
-list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+# Determine which Conan toolchain to use based on build type
+# For Release builds, prefer build_release; for Debug builds, prefer build/build_tests
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  # Add SPH root and build directories to CMAKE_PREFIX_PATH (Release priority)
+  list(APPEND CMAKE_PREFIX_PATH 
+      ${SPH_ROOT}
+      ${SPH_ROOT}/build_release
+      ${SPH_ROOT}/build
+      ${SPH_ROOT}/build_tests
+  )
 
-if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
-  include(${SPH_ROOT}/conan_toolchain.cmake)
+  if(EXISTS ${SPH_ROOT}/build_release/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_release/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+    include(${SPH_ROOT}/conan_toolchain.cmake)
+  endif()
+else()
+  # Add SPH root and build directories to CMAKE_PREFIX_PATH (Debug priority)
+  list(APPEND CMAKE_PREFIX_PATH 
+      ${SPH_ROOT}
+      ${SPH_ROOT}/build
+      ${SPH_ROOT}/build_tests
+      ${SPH_ROOT}/build_release
+  )
+
+  if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_release/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_release/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+    include(${SPH_ROOT}/conan_toolchain.cmake)
+  endif()
 endif()
 
 project(shock_tube_2d_workflow)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ✅ Ensure NDEBUG is defined for Release builds (suppresses debug logs)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DNDEBUG)
+    message(STATUS "Release mode: NDEBUG defined (debug logs disabled)")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Debug mode: Debug logs enabled")
+endif()
 
 # Paths
 set(SPH_INCLUDE_DIR "${SPH_ROOT}/include")
@@ -53,10 +94,42 @@ file(GLOB SPH_SPATIAL_SOURCES "${SPH_SRC_DIR}/core/spatial/*.cpp")
 list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "bhtree_templates\\.cpp$")
 list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "simulation_templates\\.cpp$")
 
+# ========================================
+# Create shared SPH library (compile once, link multiple times)
+# This dramatically speeds up build times
+# ========================================
+add_library(sph_core_2d SHARED
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
+    ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_CORE_ALGORITHM_SOURCES}
+    ${SPH_SPATIAL_SOURCES}
+)
+
+target_compile_features(sph_core_2d PUBLIC cxx_std_17)
+target_compile_options(sph_core_2d PRIVATE
+    -Wall
+    -Wno-sign-compare
+    -funroll-loops
+    # -ffast-math  # Disabled: can cause issues with Release builds
+)
+
+target_include_directories(sph_core_2d PUBLIC 
+    ${SPH_INCLUDE_DIR}
+)
+
+target_link_libraries(sph_core_2d PUBLIC
+    OpenMP::OpenMP_CXX
+    Boost::headers
+    nlohmann_json::nlohmann_json
+)
+
 # Build multiple plugins for different SPH methods
 set(PLUGIN_SOURCES
     ssph:src/plugin_ssph.cpp
-    ssph_ghosts:src/plugin_ssph_ghosts.cpp
     gsph:src/plugin_gsph.cpp
     disph:src/plugin_disph.cpp
 )
@@ -66,16 +139,9 @@ foreach(PLUGIN_DEF ${PLUGIN_SOURCES})
     list(GET PLUGIN_PAIR 0 PLUGIN_NAME)
     list(GET PLUGIN_PAIR 1 PLUGIN_SRC)
     
+    # Build plugin with ONLY its specific source file, link against shared library
     add_library(shock_tube_2d_${PLUGIN_NAME}_plugin SHARED 
         ${PLUGIN_SRC}
-        ${SPH_SOURCES}
-        ${SPH_DISPH_SOURCES}
-        ${SPH_GSPH_SOURCES}
-        ${SPH_ALGORITHM_SOURCES}
-        ${SPH_CORE_SOURCES}
-        ${SPH_PARAMETER_SOURCES}
-        ${SPH_CORE_ALGORITHM_SOURCES}
-        ${SPH_SPATIAL_SOURCES}
     )
 
     target_compile_features(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC cxx_std_17)
@@ -83,17 +149,16 @@ foreach(PLUGIN_DEF ${PLUGIN_SOURCES})
         -Wall
         -Wno-sign-compare
         -funroll-loops
-        -ffast-math
+        # -ffast-math  # Disabled: can cause issues with Release builds
     )
 
     target_include_directories(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC 
         ${SPH_INCLUDE_DIR}
     )
 
+    # Link against the shared SPH core library instead of compiling everything again
     target_link_libraries(shock_tube_2d_${PLUGIN_NAME}_plugin PUBLIC
-        OpenMP::OpenMP_CXX
-        Boost::headers
-        nlohmann_json::nlohmann_json
+        sph_core_2d
     )
 
     set_target_properties(shock_tube_2d_${PLUGIN_NAME}_plugin PROPERTIES
@@ -114,7 +179,7 @@ target_compile_options(sph2d PRIVATE
     -Wall
     -Wno-sign-compare
     -funroll-loops
-    -ffast-math
+    # -ffast-math  # Disabled: can cause issues with Release builds
 )
 
 target_include_directories(sph2d PUBLIC 
@@ -123,18 +188,22 @@ target_include_directories(sph2d PUBLIC
 
 target_link_libraries(sph2d PUBLIC
     shock_tube_2d_ssph_plugin
-    shock_tube_2d_ssph_ghosts_plugin
     shock_tube_2d_gsph_plugin
     shock_tube_2d_disph_plugin
 )
 
+# Set RPATH so the executable can find shared libraries in the same directory
 set_target_properties(sph2d PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib"
+    INSTALL_RPATH "@executable_path;@executable_path/../lib"
+    MACOSX_RPATH TRUE
 )
 
-message(STATUS "Building 4 SPH method plugins for 2D:")
+message(STATUS "Build complete for shock_tube_workflow/02_simulation_2d")
+
+message(STATUS "Building 3 SPH method plugins for 2D:")
 message(STATUS "  - shock_tube_2d_ssph_plugin")
-message(STATUS "  - shock_tube_2d_ssph_ghosts_plugin")
 message(STATUS "  - shock_tube_2d_gsph_plugin")
 message(STATUS "  - shock_tube_2d_disph_plugin")
 message(STATUS "Building local sph2d executable")

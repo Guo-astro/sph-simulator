@@ -1,6 +1,7 @@
 # Makefile for Shock Tube Workflow
 # Usage:
-#   make           - Build the plugin
+#   make           - Build the plugin (Release mode, no debug logs)
+#   make BUILD_TYPE=Debug  - Build with debug logs enabled
 #   make clean     - Clean build artifacts
 #   make run-gsph  - Run GSPH simulation
 #   make run-disph - Run DISPH simulation
@@ -8,6 +9,9 @@
 #   make plot      - Generate comparison plots
 #   make animate   - Generate comparison animation
 #   make viz       - Generate all visualizations
+
+# Build configuration
+BUILD_TYPE ?= Release
 
 # Paths
 SPH_ROOT := ../../..
@@ -41,24 +45,29 @@ help:
 	@echo "Shock Tube Workflow Makefile"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make build         - Build the shock tube plugin"
-	@echo "  make clean         - Clean build artifacts only"
-	@echo "  make clean-outputs - Clean all outputs (results, plots, animations)"
-	@echo "  make clean-all     - Clean everything (build + outputs)"
-	@echo "  make run-gsph      - Run GSPH simulation"
-	@echo "  make run-disph     - Run DISPH simulation"
-	@echo "  make run-all       - Run both simulations"
-	@echo "  make plot          - Generate comparison plots (currently unavailable)"
-	@echo "  make animate       - Generate comparison animation"
-	@echo "  make viz           - Generate all visualizations (animate only)"
-	@echo "  make full          - Build + Run all + Visualize (incremental build)"
-	@echo "  make full-clean    - Full workflow with clean rebuild from scratch"
+	@echo "  make build              - Build plugins (Release mode, no debug logs)"
+	@echo "  make BUILD_TYPE=Debug   - Build with debug logs enabled"
+	@echo "  make clean              - Clean build artifacts only"
+	@echo "  make clean-outputs      - Clean all outputs (results, plots, animations)"
+	@echo "  make clean-all          - Clean everything (build + outputs)"
+	@echo "  make run-gsph           - Run GSPH simulation"
+	@echo "  make run-disph          - Run DISPH simulation"
+	@echo "  make run-all            - Run both simulations"
+	@echo "  make plot               - Generate comparison plots"
+	@echo "  make animate            - Generate comparison animation"
+	@echo "  make viz                - Generate all visualizations (plot + animate)"
+	@echo "  make full               - Build + Run all + Visualize (incremental build)"
+	@echo "  make full-clean         - Full workflow with clean rebuild from scratch"
+	@echo ""
+	@echo "Build Types:"
+	@echo "  Release (default) - Optimized, no debug logs"
+	@echo "  Debug             - Debug symbols, verbose logging"
 
 # Build plugin
 build:
-	@echo "=== Building Shock Tube Plugin ==="
+	@echo "=== Building Shock Tube Plugin ($(BUILD_TYPE) mode) ==="
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=Debug .. && make
+	@cd $(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) .. && make
 	@echo "✓ Plugin built: $(PLUGIN)"
 
 # Clean build artifacts only
@@ -130,8 +139,9 @@ run-all: run-gsph run-disph
 # Generate comparison plot
 plot:
 	@echo "=== Generating Comparison Plot ==="
-	@echo "Note: No plotting script available. Skipping plot generation."
-	@echo "✓ Plot generation skipped (no script available)"
+	@mkdir -p $(PLOTS_DIR)
+	@cd $(SCRIPTS_DIR) && python3 plot_comparison.py
+	@echo "✓ Plot saved: $(PLOTS_DIR)/comparison_plot.png"
 
 # Generate animation
 animate:
@@ -146,7 +156,7 @@ animate:
 	@echo "  - $(ANIMATIONS_DIR)/disph_vs_analytical.mp4"
 
 # Generate all visualizations
-viz: animate
+viz: plot animate
 	@echo "✓ All visualizations complete"
 
 # Full workflow (incremental build - no clean)
@@ -159,8 +169,8 @@ full: build run-all viz
 	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"
 	@echo "  DISPH:     $(RESULTS_DIR)/disph/"
 	@echo "  Analysis:  $(ANALYSIS_DIR)/"
+	@echo "  Plots:     $(PLOTS_DIR)/"
 	@echo "  Animation: $(ANIMATIONS_DIR)/"
-	@echo "Note: Plot generation not available (no plotting script)"
 	@echo "========================================="
 
 # Full workflow from scratch (clean rebuild)
@@ -173,6 +183,6 @@ full-clean: clean build run-all viz
 	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"
 	@echo "  DISPH:     $(RESULTS_DIR)/disph/"
 	@echo "  Analysis:  $(ANALYSIS_DIR)/"
+	@echo "  Plots:     $(PLOTS_DIR)/"
 	@echo "  Animation: $(ANIMATIONS_DIR)/"
-	@echo "Note: Plot generation not available (no plotting script)"
 	@echo "========================================="

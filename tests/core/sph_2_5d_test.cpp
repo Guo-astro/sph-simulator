@@ -111,11 +111,11 @@ GIVEN("Two 2.5D particles") {
             WHEN("Building 2.5D tree and calculating gravity") {
                 BHTree25D tree;
                 auto params = std::make_shared<SPHParameters>();
-                params->tree.max_level = 5;
-                params->tree.leaf_particle_num = 1;
-                params->gravity.is_valid = true;
-                params->gravity.constant = 1.0;
-                params->gravity.theta = 0.5;
+                params->get_tree().max_level = 5;
+                params->get_tree().leaf_particle_num = 1;
+                params->has_gravity() = true;
+                params->get_newtonian_gravity().constant = 1.0;
+                params->get_newtonian_gravity().theta = 0.5;
                 
                 tree.initialize(params);
                 tree.resize(2);
@@ -140,12 +140,12 @@ GIVEN("Two 2.5D particles") {
 TEST(SPH25DTest, Simulation25DInitialization) {
 GIVEN("SPH parameters for 2.5D simulation") {
             auto params = std::make_shared<SPHParameters>();
-            params->kernel = KernelType::CUBIC_SPLINE;
-            params->tree.max_level = 5;
-            params->tree.leaf_particle_num = 8;
-            params->gravity.is_valid = true;
-            params->gravity.constant = 1.0;
-            params->time.start = 0.0;
+            params->get_kernel() = KernelType::CUBIC_SPLINE;
+            params->get_tree().max_level = 5;
+            params->get_tree().leaf_particle_num = 8;
+            params->has_gravity() = true;
+            params->get_newtonian_gravity().constant = 1.0;
+            params->get_time().start = 0.0;
             
             WHEN("Creating 2.5D simulation") {
                 Simulation25D sim(params);

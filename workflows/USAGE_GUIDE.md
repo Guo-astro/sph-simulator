@@ -235,12 +235,15 @@ Outputs:
 
 ## 🏗️ Plugin Architecture
 
-Each workflow implements the `SimulationPlugin` interface:
+Each workflow implements the `SimulationPluginV3` interface (compile-time type-safe):
 
 ```cpp
-#include "core/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
+#include "core/boundary/boundary_builder.hpp"
 
-class MyPlugin : public SimulationPlugin {
+template<int Dim>
+class MyPlugin : public SimulationPluginV3<Dim> {
 public:
     std::string get_name() const override {
         return "my_simulation";
@@ -254,10 +257,33 @@ public:
         return "1.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation> sim,
-                   std::shared_ptr<SPHParameters> param) override {
+    InitialCondition<Dim> create_initial_condition() const override {
+        std::vector<SPHParticle<Dim>> particles;
+        
         // Set up particles
-        // Configure parameters
+        // ... particle creation code ...
+        
+        // Build parameters using type-safe builder
+        auto param = SPHParametersBuilderBase()
+            .with_time(0.0, 1.0, 0.1, 0.1)
+            .with_cfl(0.3, 0.25)
+            .with_physics(50, 1.4)
+            .with_kernel("cubic_spline")
+            .as_ssph()
+            .with_artificial_viscosity(1.0, true, false)
+            .build();
+        
+        // Build boundary configuration
+        auto boundary_config = BoundaryBuilder<Dim>()
+            .with_no_boundaries()
+            .build();
+        
+        // Return initial condition (V3 pure functional interface)
+        return InitialCondition<Dim>{
+            .particles = std::move(particles),
+            .parameters = param,
+            .boundary_config = boundary_config
+        };
     }
     
     std::vector<std::string> get_source_files() const override {
@@ -265,8 +291,14 @@ public:
     }
 };
 
-DEFINE_SIMULATION_PLUGIN(MyPlugin)
+DEFINE_SIMULATION_PLUGIN_V3(MyPlugin, DIM)
 ```
+
+**Key V3 Benefits:**
+- **Compile-time type safety**: Dimension mismatches caught at compile time
+- **Pure functional**: Plugins cannot access uninitialized Simulation state
+- **Immutable**: Initial conditions are returned, not mutated in-place
+- **Builder pattern**: Type-safe parameter construction with validation
 
 ## 🔧 Building Workflows
 

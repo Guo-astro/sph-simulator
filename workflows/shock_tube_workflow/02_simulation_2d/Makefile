@@ -1,48 +1,45 @@
 # Makefile for 2D Shock Tube Workflow
 # Usage:
-#   make           - Build the plugin
+#   make           - Build the plugin (Release mode, no debug logs)
+#   make BUILD_TYPE=Debug  - Build with debug logs enabled
 #   make clean     - Clean build artifacts
+#   make run-ssph  - Run SSPH simulation
 #   make run-gsph  - Run GSPH simulation
 #   make run-disph - Run DISPH simulation
-#   make run-all   - Run both simulations
+#   make run-all   - Run all simulations
 #   make plot      - Generate comparison plots
 #   make animate   - Generate comparison animation
 #   make viz       - Generate all visualizations
+
+# Build configuration
+BUILD_TYPE ?= Release
 
 # Paths
 SPH_ROOT := ../../..
 BUILD_DIR := build
 SPH_BIN := $(BUILD_DIR)/sph2d
 LIB_DIR := lib
-PLUGIN := $(LIB_DIR)/libshock_tube_2d_plugin.dylib
+PLUGIN_SSPH := $(LIB_DIR)/libshock_tube_2d_ssph_plugin.dylib
+PLUGIN_GSPH := $(LIB_DIR)/libshock_tube_2d_gsph_plugin.dylib
+PLUGIN_DISPH := $(LIB_DIR)/libshock_tube_2d_disph_plugin.dylib
 CONFIG_DIR := config
 RESULTS_DIR := results
 ANALYSIS_DIR := $(RESULTS_DIR)/analysis
 PLOTS_DIR := $(ANALYSIS_DIR)/plots
 ANIMATIONS_DIR := $(ANALYSIS_DIR)/animations
 SCRIPTS_DIR := scripts
-OUTPUT_DIR := output
-
-# Conan toolchain path
-CONAN_TOOLCHAIN := $(SPH_ROOT)/build_tests/conan_toolchain.cmake
 
 # Configs
+SSPH_CONFIG := $(CONFIG_DIR)/ssph.json
 GSPH_CONFIG := $(CONFIG_DIR)/gsph.json
 DISPH_CONFIG := $(CONFIG_DIR)/disph.json
 
 # Results
 SSPH_RESULTS := $(RESULTS_DIR)/ssph
-SSPH_GHOSTS_RESULTS := $(RESULTS_DIR)/ssph_ghosts
 GSPH_RESULTS := $(RESULTS_DIR)/gsph
 DISPH_RESULTS := $(RESULTS_DIR)/disph
 
-# Plugins
-SSPH_PLUGIN := $(LIB_DIR)/libshock_tube_2d_ssph_plugin.dylib
-SSPH_GHOSTS_PLUGIN := $(LIB_DIR)/libshock_tube_2d_ssph_ghosts_plugin.dylib
-GSPH_PLUGIN := $(LIB_DIR)/libshock_tube_2d_gsph_plugin.dylib
-DISPH_PLUGIN := $(LIB_DIR)/libshock_tube_2d_disph_plugin.dylib
-
-.PHONY: all clean clean-all clean-outputs clean-build build run-ssph run-ssph-ghosts run-gsph run-disph run-all plot animate viz help full full-clean full-all-algorithms
+.PHONY: all clean clean-all clean-outputs clean-build build run-ssph run-gsph run-disph run-all plot animate viz help full full-clean
 
 # Default target
 all: build
@@ -51,59 +48,53 @@ help:
 	@echo "2D Shock Tube Workflow Makefile"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make build         - Build all 4 SPH method plugins"
-	@echo "  make clean         - Clean build artifacts only"
-	@echo "  make clean-outputs - Clean all outputs (results, plots, animations)"
-	@echo "  make clean-all     - Clean everything (build + outputs)"
-	@echo "  make run-ssph      - Run SSPH simulation"
-	@echo "  make run-ssph-ghosts - Run SSPH + ghosts simulation"
-	@echo "  make run-gsph      - Run GSPH simulation"
-	@echo "  make run-disph     - Run DISPH simulation"
-	@echo "  make run-all       - Run all 4 simulations"
-	@echo "  make plot          - Generate comparison plots (currently unavailable)"
-	@echo "  make animate       - Generate comparison animations (5 files)"
-	@echo "  make viz           - Generate all visualizations"
-	@echo "  make full          - Build + Run all + Visualize (incremental build)"
-	@echo "  make full-clean    - Full workflow with clean rebuild from scratch"
-	@echo "  make full-all-algorithms - Full workflow testing all SPH algorithms"
+	@echo "  make build              - Build plugins (Release mode, no debug logs)"
+	@echo "  make BUILD_TYPE=Debug   - Build with debug logs enabled"
+	@echo "  make clean              - Clean build artifacts only"
+	@echo "  make clean-outputs      - Clean all outputs (results, plots, animations)"
+	@echo "  make clean-all          - Clean everything (build + outputs)"
+	@echo "  make run-ssph           - Run SSPH simulation"
+	@echo "  make run-gsph           - Run GSPH simulation"
+	@echo "  make run-disph          - Run DISPH simulation"
+	@echo "  make run-all            - Run all simulations"
+	@echo "  make plot               - Generate comparison plots"
+	@echo "  make animate            - Generate comparison animation"
+	@echo "  make viz                - Generate all visualizations (plot + animate)"
+	@echo "  make full               - Build + Run all + Visualize (incremental build)"
+	@echo "  make full-clean         - Full workflow with clean rebuild from scratch"
+	@echo ""
+	@echo "Build Types:"
+	@echo "  Release (default) - Optimized, no debug logs"
+	@echo "  Debug             - Debug symbols, verbose logging"
 
 # Build plugin
 build:
-	@echo "=== Building 2D Shock Tube Plugins ==="
+	@echo "=== Building 2D Shock Tube Plugins ($(BUILD_TYPE) mode) ==="
 	@mkdir -p $(BUILD_DIR)
-	@if [ ! -f "$(CONAN_TOOLCHAIN)" ]; then \
-		echo "ERROR: Conan toolchain not found at $(CONAN_TOOLCHAIN)"; \
-		echo "Please run 'cd $(SPH_ROOT) && conan install . --build=missing' first"; \
-		exit 1; \
-	fi
-	@cd $(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=$(SPH_ROOT)/build_tests .. && make
+	@cd $(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) .. && make
 	@echo "✓ Plugins built:"
-	@echo "  - $(SSPH_PLUGIN)"
-	@echo "  - $(SSPH_GHOSTS_PLUGIN)"
-	@echo "  - $(GSPH_PLUGIN)"
-	@echo "  - $(DISPH_PLUGIN)"
+	@echo "  - $(PLUGIN_SSPH)"
+	@echo "  - $(PLUGIN_GSPH)"
+	@echo "  - $(PLUGIN_DISPH)"
 
 # Clean build artifacts only
 clean:
 	@echo "=== Cleaning Build Artifacts ==="
 	@rm -rf $(BUILD_DIR)
 	@rm -f $(LIB_DIR)/*.dylib
-	@rm -f shock_tube_2d_plugin.dylib
+	@rm -f *.dylib
 	@echo "✓ Build artifacts cleaned"
 
 # Clean all outputs (results, plots, animations)
 clean-outputs:
 	@echo "=== Cleaning All Outputs ==="
 	@echo "Removing simulation results..."
-	@rm -rf $(RESULTS_DIR)/ssph/*.dat
-	@rm -rf $(RESULTS_DIR)/ssph_ghosts/*.dat
-	@rm -rf $(RESULTS_DIR)/gsph/*.dat
-	@rm -rf $(RESULTS_DIR)/disph/*.dat
-	@echo "Removing output directories..."
-	@rm -rf $(OUTPUT_DIR)/ssph_shock_tube_2d/*.dat
-	@rm -rf $(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d/*.dat
-	@rm -rf $(OUTPUT_DIR)/gsph_shock_tube_2d/*.dat
-	@rm -rf $(OUTPUT_DIR)/disph_shock_tube_2d/*.dat
+	@rm -rf $(RESULTS_DIR)/ssph/*.csv
+	@rm -rf $(RESULTS_DIR)/gsph/*.csv
+	@rm -rf $(RESULTS_DIR)/disph/*.csv
+	@rm -rf output/ssph_shock_tube_2d
+	@rm -rf output/gsph_shock_tube_2d
+	@rm -rf output/disph_shock_tube_2d
 	@echo "Removing analysis outputs..."
 	@rm -rf $(ANALYSIS_DIR)/plots/*.png
 	@rm -rf $(ANALYSIS_DIR)/animations/*.mp4
@@ -119,38 +110,35 @@ clean-all: clean clean-outputs
 run-ssph: build
 	@echo "=== Running 2D SSPH Simulation ==="
 	@mkdir -p $(SSPH_RESULTS)
-	@mkdir -p $(OUTPUT_DIR)/ssph_shock_tube_2d
+	@mkdir -p output
 	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(SSPH_PLUGIN)
+	@echo "Running SSPH plugin..."
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN_SSPH)
 	@echo "Copying SSPH results..."
-	@if [ -d "$(OUTPUT_DIR)/ssph_shock_tube_2d" ]; then \
-		cp -rf $(OUTPUT_DIR)/ssph_shock_tube_2d/* $(SSPH_RESULTS)/ 2>/dev/null || true; \
+	@if [ -d "output/ssph_shock_tube_2d/snapshots" ]; then \
+		cp -f output/ssph_shock_tube_2d/snapshots/*.csv $(SSPH_RESULTS)/ 2>/dev/null || \
+		cp -f output/ssph_shock_tube_2d/*.csv $(SSPH_RESULTS)/ 2>/dev/null || true; \
+		cp -f output/ssph_shock_tube_2d/energy.csv $(SSPH_RESULTS)/ 2>/dev/null || true; \
+	else \
+		echo "Warning: No SSPH output found in expected location"; \
 	fi
 	@echo "✓ SSPH simulation complete"
-
-# Run SSPH + ghosts simulation
-run-ssph-ghosts: build
-	@echo "=== Running 2D SSPH + Ghosts Simulation ==="
-	@mkdir -p $(SSPH_GHOSTS_RESULTS)
-	@mkdir -p $(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d
-	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(SSPH_GHOSTS_PLUGIN)
-	@echo "Copying SSPH + ghosts results..."
-	@if [ -d "$(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d" ]; then \
-		cp -rf $(OUTPUT_DIR)/ssph_ghosts_shock_tube_2d/* $(SSPH_GHOSTS_RESULTS)/ 2>/dev/null || true; \
-	fi
-	@echo "✓ SSPH + ghosts simulation complete"
 
 # Run GSPH simulation
 run-gsph: build
 	@echo "=== Running 2D GSPH Simulation ==="
 	@mkdir -p $(GSPH_RESULTS)
-	@mkdir -p $(OUTPUT_DIR)/gsph_shock_tube_2d
+	@mkdir -p output
 	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(GSPH_PLUGIN)
+	@echo "Running GSPH plugin..."
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN_GSPH)
 	@echo "Copying GSPH results..."
-	@if [ -d "$(OUTPUT_DIR)/gsph_shock_tube_2d" ]; then \
-		cp -rf $(OUTPUT_DIR)/gsph_shock_tube_2d/* $(GSPH_RESULTS)/ 2>/dev/null || true; \
+	@if [ -d "output/gsph_shock_tube_2d/snapshots" ]; then \
+		cp -f output/gsph_shock_tube_2d/snapshots/*.csv $(GSPH_RESULTS)/ 2>/dev/null || \
+		cp -f output/gsph_shock_tube_2d/*.csv $(GSPH_RESULTS)/ 2>/dev/null || true; \
+		cp -f output/gsph_shock_tube_2d/energy.csv $(GSPH_RESULTS)/ 2>/dev/null || true; \
+	else \
+		echo "Warning: No GSPH output found in expected location"; \
 	fi
 	@echo "✓ GSPH simulation complete"
 
@@ -158,48 +146,45 @@ run-gsph: build
 run-disph: build
 	@echo "=== Running 2D DISPH Simulation ==="
 	@mkdir -p $(DISPH_RESULTS)
-	@mkdir -p $(OUTPUT_DIR)/disph_shock_tube_2d
+	@mkdir -p output
 	@echo "Using OpenMP with all available CPU cores"
-	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(DISPH_PLUGIN)
+	@echo "Running DISPH plugin..."
+	OMP_NUM_THREADS=$$(sysctl -n hw.ncpu) $(SPH_BIN) $(PLUGIN_DISPH)
 	@echo "Copying DISPH results..."
-	@if [ -d "$(OUTPUT_DIR)/disph_shock_tube_2d" ]; then \
-		cp -rf $(OUTPUT_DIR)/disph_shock_tube_2d/* $(DISPH_RESULTS)/ 2>/dev/null || true; \
+	@if [ -d "output/disph_shock_tube_2d/snapshots" ]; then \
+		cp -f output/disph_shock_tube_2d/snapshots/*.csv $(DISPH_RESULTS)/ 2>/dev/null || \
+		cp -f output/disph_shock_tube_2d/*.csv $(DISPH_RESULTS)/ 2>/dev/null || true; \
+		cp -f output/disph_shock_tube_2d/energy.csv $(DISPH_RESULTS)/ 2>/dev/null || true; \
+	else \
+		echo "Warning: No DISPH output found in expected location"; \
 	fi
 	@echo "✓ DISPH simulation complete"
 
 # Run all simulations
-run-all: run-ssph run-ssph-ghosts run-gsph run-disph
-	@echo "✓ All 4 simulations complete"
+run-all: run-ssph run-gsph run-disph
+	@echo "✓ All simulations complete"
 
 # Generate comparison plot
 plot:
 	@echo "=== Generating Comparison Plot ==="
-	@echo "Note: No plotting script available. Skipping plot generation."
-	@echo "✓ Plot generation skipped (no script available)"
+	@mkdir -p $(PLOTS_DIR)
+	@cd $(SCRIPTS_DIR) && python3 plot_comparison.py
+	@echo "✓ Plot saved: $(PLOTS_DIR)/comparison_plot.png"
 
 # Generate animation
 animate:
-	@echo "=== Generating 2D Comparison Animations ==="
+	@echo "=== Generating Comparison Animations ==="
 	@mkdir -p $(ANIMATIONS_DIR)
-	@echo "Creating All Methods Comparison..."
-	@cd $(SCRIPTS_DIR) && python3 animate_all_methods_comparison.py
-	@echo "Creating SSPH vs Analytical..."
-	@cd $(SCRIPTS_DIR) && python3 animate_ssph.py
-	@echo "Creating GSPH vs Analytical..."
-	@cd $(SCRIPTS_DIR) && python3 animate_gsph.py
-	@echo "Creating DISPH vs Analytical..."
-	@cd $(SCRIPTS_DIR) && python3 animate_disph.py
-	@echo "Creating SSPH + Ghosts vs Analytical..."
-	@cd $(SCRIPTS_DIR) && python3 animate_ssph_ghosts.py
-	@echo "✓ Animations saved:"
-	@echo "  - $(ANIMATIONS_DIR)/all_methods_comparison_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/ssph_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/gsph_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/disph_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/ssph_ghosts_2d.mp4"
+	@echo "Creating SSPH animation..."
+	@cd $(SCRIPTS_DIR) && python3 animate_ssph.py || echo "Warning: SSPH animation script not found or failed"
+	@echo "Creating GSPH animation..."
+	@cd $(SCRIPTS_DIR) && python3 animate_gsph.py || echo "Warning: GSPH animation script not found or failed"
+	@echo "Creating DISPH animation..."
+	@cd $(SCRIPTS_DIR) && python3 animate_disph.py || echo "Warning: DISPH animation script not found or failed"
+	@echo "✓ Animations saved to $(ANIMATIONS_DIR)/"
 
 # Generate all visualizations
-viz: animate
+viz: plot animate
 	@echo "✓ All visualizations complete"
 
 # Full workflow (incremental build - no clean)
@@ -209,17 +194,12 @@ full: build run-all viz
 	@echo "✓ FULL 2D WORKFLOW COMPLETE"
 	@echo "========================================="
 	@echo "Results:"
-	@echo "  SSPH:        $(RESULTS_DIR)/ssph/"
-	@echo "  SSPH+Ghosts: $(RESULTS_DIR)/ssph_ghosts/"
-	@echo "  GSPH:        $(RESULTS_DIR)/gsph/"
-	@echo "  DISPH:       $(RESULTS_DIR)/disph/"
-	@echo "  Analysis:    $(ANALYSIS_DIR)/"
-	@echo "  Animations:"
-	@echo "    - $(ANIMATIONS_DIR)/all_methods_comparison_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/ssph_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/ssph_ghosts_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/gsph_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/disph_2d.mp4"
+	@echo "  SSPH:      $(RESULTS_DIR)/ssph/"
+	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"
+	@echo "  DISPH:     $(RESULTS_DIR)/disph/"
+	@echo "  Analysis:  $(ANALYSIS_DIR)/"
+	@echo "  Plots:     $(PLOTS_DIR)/"
+	@echo "  Animation: $(ANIMATIONS_DIR)/"
 	@echo "========================================="
 
 # Full workflow from scratch (clean rebuild)
@@ -229,42 +209,10 @@ full-clean: clean build run-all viz
 	@echo "✓ FULL 2D WORKFLOW COMPLETE (CLEAN BUILD)"
 	@echo "========================================="
 	@echo "Results:"
-	@echo "  SSPH:        $(RESULTS_DIR)/ssph/"
-	@echo "  SSPH+Ghosts: $(RESULTS_DIR)/ssph_ghosts/"
-	@echo "  GSPH:        $(RESULTS_DIR)/gsph/"
-	@echo "  DISPH:       $(RESULTS_DIR)/disph/"
-	@echo "  Analysis:    $(ANALYSIS_DIR)/"
-	@echo "  Animations:"
-	@echo "    - $(ANIMATIONS_DIR)/all_methods_comparison_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/ssph_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/ssph_ghosts_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/gsph_2d.mp4"
-	@echo "    - $(ANIMATIONS_DIR)/disph_2d.mp4"
-	@echo "========================================="
-
-# Full workflow testing all algorithms (GSPH currently, DISPH/SPH when configs available)
-full-all-algorithms: clean build run-all viz
-	@echo ""
-	@echo "========================================="
-	@echo "✓ FULL 2D ALGORITHM COMPARISON COMPLETE"
-	@echo "========================================="
-	@echo "Algorithms tested:"
-	@echo "  - SSPH (Standard SPH without ghosts)"
-	@echo "  - SSPH + Ghosts (SSPH with ghost particles)"
-	@echo "  - GSPH (Godunov SPH with HLL Riemann solver)"
-	@echo "  - DISPH (Density-Independent SPH)"
-	@echo ""
-	@echo "Results:"
-	@echo "  SSPH:        $(RESULTS_DIR)/ssph/"
-	@echo "  SSPH+Ghosts: $(RESULTS_DIR)/ssph_ghosts/"
-	@echo "  GSPH:        $(RESULTS_DIR)/gsph/"
-	@echo "  DISPH:       $(RESULTS_DIR)/disph/"
-	@echo "  Analysis:    $(ANALYSIS_DIR)/"
-	@echo ""
-	@echo "Animations:"
-	@echo "  - $(ANIMATIONS_DIR)/all_methods_comparison_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/ssph_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/ssph_ghosts_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/gsph_2d.mp4"
-	@echo "  - $(ANIMATIONS_DIR)/disph_2d.mp4"
+	@echo "  SSPH:      $(RESULTS_DIR)/ssph/"
+	@echo "  GSPH:      $(RESULTS_DIR)/gsph/"
+	@echo "  DISPH:     $(RESULTS_DIR)/disph/"
+	@echo "  Analysis:  $(ANALYSIS_DIR)/"
+	@echo "  Plots:     $(PLOTS_DIR)/"
+	@echo "  Animation: $(ANIMATIONS_DIR)/"
 	@echo "========================================="

@@ -30,9 +30,8 @@ SPHParametersBuilderBase::SPHParametersBuilderBase()
         params->periodic.range_max[i] = 1.0;
     }
     
-    params->gravity.is_valid = false;
-    params->gravity.constant = 1.0;
-    params->gravity.theta = 0.5;
+    // Default: no gravity
+    params->gravity = SPHParameters::NoGravity{};
 }
 
 void SPHParametersBuilderBase::validate_time() const {
@@ -113,9 +112,8 @@ SPHParametersBuilderBase& SPHParametersBuilderBase::with_kernel(const std::strin
 }
 
 SPHParametersBuilderBase& SPHParametersBuilderBase::with_gravity(real constant, real theta) {
-    params->gravity.is_valid = true;
-    params->gravity.constant = constant;
-    params->gravity.theta = theta;
+    // ✅ TYPE-SAFE: Use variant instead of is_valid flag
+    params->gravity = SPHParameters::NewtonianGravity(constant, theta);
     return *this;
 }
 

@@ -22,8 +22,8 @@ template<int Dim>
 void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::FluidForce<Dim>::initialize(param);
-    this->m_is_2nd_order = param->gsph.is_2nd_order;
-    this->m_adiabatic_index = param->physics.gamma;
+    this->m_is_2nd_order = param->get_gsph().is_2nd_order;
+    this->m_adiabatic_index = param->get_physics().gamma;
 
     // Create HLL Riemann solver for interface state computation
     this->m_riemann_solver = std::make_unique<algorithms::riemann::HLLSolver>();

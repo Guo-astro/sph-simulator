@@ -4,6 +4,7 @@
 #include "core/utilities/vector.hpp"
 #include "core/particles/sph_particle.hpp"
 #include "core/boundaries/periodic.hpp"
+#include "parameters.hpp"
 
 namespace sph
 {
@@ -11,12 +12,9 @@ namespace sph
 template<int Dim>
 class GravityForce : public Module<Dim> {
 protected:
-    bool m_use_gravity;
-    real m_gravity_constant;
-    real m_gravity_theta;
-    
-    bool m_is_valid;
-    real m_constant;
+    // ✅ TYPE-SAFE: Store gravity variant instead of binary flags
+    // No m_is_valid boolean needed - we discriminate with std::visit
+    SPHParameters::GravityVariant m_gravity;
 
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;

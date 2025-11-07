@@ -43,16 +43,19 @@ inline real g(const real r, const real h) {
 
 template<int Dim>
 void BHTree<Dim>::initialize(std::shared_ptr<SPHParameters> param) {
-    m_max_level = param->tree.max_level;
-    m_leaf_particle_num = param->tree.leaf_particle_num;
+    const auto& tree_params = param->get_tree();
+    const auto& periodic_params = param->get_periodic();
+    
+    m_max_level = tree_params.max_level;
+    m_leaf_particle_num = tree_params.leaf_particle_num;
     m_root.clear();
     m_root.level = 1;
-    m_is_periodic = param->periodic.is_valid;
+    m_is_periodic = periodic_params.is_valid;
     
     if (m_is_periodic) {
         for (int i = 0; i < Dim; ++i) {
-            m_range_max[i] = param->periodic.range_max[i];
-            m_range_min[i] = param->periodic.range_min[i];
+            m_range_max[i] = periodic_params.range_max[i];
+            m_range_min[i] = periodic_params.range_min[i];
         }
         m_root.center = (m_range_max + m_range_min) * 0.5;
         auto range = m_range_max - m_range_min;
@@ -68,11 +71,27 @@ void BHTree<Dim>::initialize(std::shared_ptr<SPHParameters> param) {
     m_periodic = std::make_shared<Periodic<Dim>>();
     m_periodic->initialize(param);
 
-    if (param->gravity.is_valid) {
-        m_g_constant = param->gravity.constant;
-        m_theta = param->gravity.theta;
-        m_theta2 = m_theta * m_theta;
-    }
+#ifndef NDEBUG
+    WRITE_LOG << ">>> BHTree::initialize: About to pattern match on gravity variant";
+#endif
+
+    // ✅ TYPE-SAFE: Pattern matching with std::visit
+    std::visit([this](auto&& g) {
+        using T = std::decay_t<decltype(g)>;
+        if constexpr (std::is_same_v<T, SPHParameters::NewtonianGravity>) {
+            m_g_constant = g.constant;
+            m_theta = g.theta;
+            m_theta2 = m_theta * m_theta;
+#ifndef NDEBUG
+            WRITE_LOG << ">>> BHTree::initialize: Newtonian gravity, G=" << m_g_constant << ", theta=" << m_theta;
+#endif
+        }
+        // NoGravity: tree can still be used for neighbor search
+    }, param->get_gravity());
+
+#ifndef NDEBUG
+    WRITE_LOG << ">>> BHTree::initialize: After pattern match, m_g_constant=" << m_g_constant;
+#endif
 }
 
 template<int Dim>
@@ -81,6 +100,10 @@ void BHTree<Dim>::resize(const int particle_num, const int tree_size) {
 
     m_node_size = particle_num * tree_size;
     m_nodes = std::shared_ptr<BHNode>(new BHNode[m_node_size], std::default_delete<BHNode[]>());
+
+#ifndef NDEBUG
+    WRITE_LOG << ">>> BHTree::resize: m_g_constant=" << m_g_constant << ", m_theta=" << m_theta;
+#endif
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -418,10 +441,23 @@ void BHTree<Dim>::BHNode::find_neighbors_recursive(const SPHParticle<Dim>& p_i,
 template<int Dim>
 void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, const real g_constant,
                                       const Periodic<Dim>* periodic) {
+#ifndef NDEBUG
+    static int call_count = 0;
+    if (call_count++ < 5) {
+        WRITE_LOG << ">>> BHNode::calc_force called: g_constant=" << g_constant << ", theta2=" << theta2 << ", mass=" << mass;
+    }
+#endif
+    
     const Vector<Dim>& r_i = p_i.pos;
     const real l2 = edge * edge;
     const Vector<Dim> d = periodic->calc_r_ij(r_i, m_center);
     const real d2 = abs2(d);
+    
+    // Guard against self-interaction or division by zero
+    constexpr real d2_min = 1.0e-20;
+    if (d2 < d2_min) {
+        return;  // Skip this node if distance is too small
+    }
 
     if (l2 > theta2 * d2) {
         if (is_leaf) {
@@ -430,6 +466,13 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
                 const Vector<Dim>& r_j = p->pos;
                 const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
                 const real r = abs(r_ij);
+                
+                // Skip self-interaction
+                if (r < 1.0e-10) {
+                    p = p->next;
+                    continue;
+                }
+                
                 p_i.phi -= g_constant * p->mass * (f(r, p_i.sml) + f(r, p->sml)) * 0.5;
                 p_i.acc -= r_ij * (g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
                 p = p->next;

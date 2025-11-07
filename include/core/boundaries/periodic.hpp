@@ -18,11 +18,12 @@ public:
     Periodic() : m_is_valid(false) {}
     
     void initialize(std::shared_ptr<SPHParameters> param) {
-        if (param->periodic.is_valid) {
+        const auto& periodic_params = param->get_periodic();
+        if (periodic_params.is_valid) {
             m_is_valid = true;
             for (int i = 0; i < Dim; ++i) {
-                m_max[i] = param->periodic.range_max[i];
-                m_min[i] = param->periodic.range_min[i];
+                m_max[i] = periodic_params.range_max[i];
+                m_min[i] = periodic_params.range_min[i];
             }
             m_range = m_max - m_min;
         } else {

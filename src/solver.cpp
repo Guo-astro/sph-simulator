@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 #include "solver.hpp"
 #include "parameters.hpp"
@@ -12,7 +13,7 @@
 #include "core/boundaries/periodic.hpp"
 #include "core/spatial/bhtree.hpp"
 #include "core/plugins/plugin_loader.hpp"
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
 #include "core/algorithms/sph_algorithm_registry.hpp"
 
 // SPH modules
@@ -116,86 +117,8 @@ Solver<Dim>::Solver(int argc, char * argv[])
     WRITE_LOG << "OpenMP is invalid.\n";
 #endif
 
-    WRITE_LOG << "parameters";
-    WRITE_LOG << "output directory     = " << m_output_dir;
-
-    WRITE_LOG << "time";
-    WRITE_LOG << "* start time         = " << m_param->time.start;
-    WRITE_LOG << "* end time           = " << m_param->time.end;
-    WRITE_LOG << "* output time        = " << m_param->time.output;
-    WRITE_LOG << "* energy output time = " << m_param->time.energy;
-
-    switch(m_param->type) {
-    case SPHType::SSPH:
-        WRITE_LOG << "SPH type: Standard SPH";
-        break;
-    case SPHType::DISPH:
-        WRITE_LOG << "SPH type: Density Independent SPH";
-        break;
-    case SPHType::GSPH:
-        if(m_param->gsph.is_2nd_order) {
-            WRITE_LOG << "SPH type: Godunov SPH (2nd order)";
-        } else {
-            WRITE_LOG << "SPH type: Godunov SPH (1st order)";
-        }
-        break;
-    }
-
-    WRITE_LOG << "CFL condition";
-    WRITE_LOG << "* sound speed = " << m_param->cfl.sound;
-    WRITE_LOG << "* force       = " << m_param->cfl.force;
-
-    WRITE_LOG << "Artificial Viscosity";
-    WRITE_LOG << "* alpha = " << m_param->av.alpha;
-    if(m_param->av.use_balsara_switch) {
-        WRITE_LOG << "* use Balsara switch";
-    }
-    if(m_param->av.use_time_dependent_av) {
-        WRITE_LOG << "* use time dependent AV";
-        WRITE_LOG << "  * alpha max = " << m_param->av.alpha_max;
-        WRITE_LOG << "  * alpha min = " << m_param->av.alpha_min;
-        WRITE_LOG << "  * epsilon   = " << m_param->av.epsilon;
-    }
-
-    if(m_param->ac.is_valid) {
-        WRITE_LOG << "Artificial Conductivity";
-        WRITE_LOG << "* alpha = " << m_param->ac.alpha;
-    }
-
-    WRITE_LOG << "Tree";
-    WRITE_LOG << "* max tree level       = " << m_param->tree.max_level;
-    WRITE_LOG << "* leaf particle number = " << m_param->tree.leaf_particle_num;
-
-    WRITE_LOG << "Physics";
-    WRITE_LOG << "* Neighbor number = " << m_param->physics.neighbor_number;
-    WRITE_LOG << "* gamma           = " << m_param->physics.gamma;
-
-    WRITE_LOG << "Kernel";
-    switch(m_param->kernel) {
-    case KernelType::CUBIC_SPLINE:
-        WRITE_LOG << "* Cubic Spline";
-        break;
-    case KernelType::WENDLAND:
-        WRITE_LOG << "* Wendland";
-        break;
-    case KernelType::UNKNOWN:
-        WRITE_LOG << "* Unknown";
-        break;
-    }
-
-    if(m_param->iterative_sml) {
-        WRITE_LOG << "Iterative calculation for smoothing length is valid.";
-    }
-
-    if(m_param->periodic.is_valid) {
-        WRITE_LOG << "Periodic boundary condition is valid.";
-    }
-
-    if(m_param->gravity.is_valid) {
-        WRITE_LOG << "Gravity is valid.";
-        WRITE_LOG << "* G     = " << m_param->gravity.constant;
-        WRITE_LOG << "* theta = " << m_param->gravity.theta;
-    }
+    // NOTE: Parameter logging moved to log_parameters() method
+    // which is called after plugin configures parameters in make_initial_condition()
 
     // Display plugin information
     WRITE_LOG << "Simulation: " << m_plugin->get_name();
@@ -206,14 +129,42 @@ Solver<Dim>::Solver(int argc, char * argv[])
 }
 
 template<int Dim>
+Solver<Dim>::~Solver()
+{
+    // Explicitly destroy all members that might contain references to plugin code
+    // BEFORE m_plugin_loader's destructor calls dlclose().
+    // This prevents accessing unloaded shared library code during member destruction.
+    
+    // Destroy plugin first (while library is still loaded)
+    m_plugin.reset();
+    
+    // Destroy SPH modules (they might reference plugin-allocated data)
+    m_gforce.reset();
+    m_fforce.reset();
+    m_pre.reset();
+    m_timestep.reset();
+    
+    // Destroy simulation state (might contain plugin-allocated particles or callbacks)
+    m_sim.reset();
+    
+    // Destroy output manager (might have references to simulation data)
+    m_output.reset();
+    
+    // Destroy parameters (created by plugin configuration)
+    m_param.reset();
+    
+    // Now m_plugin_loader can safely be destroyed (calls dlclose())
+    // All objects that might reference plugin code have been cleaned up
+}
+
+template<int Dim>
 void Solver<Dim>::run()
 {
     initialize();
-    assert(m_sim->particles.size() == m_sim->particle_num);
 
-    const real t_end = m_param->time.end;
-    real t_out = m_param->time.output;
-    real t_ene = m_param->time.energy;
+    const real t_end = m_param->get_time().end;
+    real t_out = m_param->get_time().output;
+    real t_ene = m_param->get_time().energy;
 
     m_output->output_particle(m_sim);
     m_output->output_energy(m_sim);
@@ -244,12 +195,12 @@ void Solver<Dim>::run()
 
         if(t > t_out) {
             m_output->output_particle(m_sim);
-            t_out += m_param->time.output;
+            t_out += m_param->get_time().output;
         }
 
         if(t > t_ene) {
             m_output->output_energy(m_sim);
-            t_ene += m_param->time.energy;
+            t_ene += m_param->get_time().energy;
         }
     }
     const auto end = std::chrono::system_clock::now();
@@ -261,19 +212,68 @@ void Solver<Dim>::run()
 template<int Dim>
 void Solver<Dim>::initialize()
 {
+    // Step 1: Create initial condition from plugin (configures m_param)
+    if (!m_plugin) {
+        THROW_ERROR("No plugin loaded. Plugin is required for simulation.");
+    }
+    
+    WRITE_LOG << "Initializing simulation from plugin: " << m_plugin->get_name();
+    
+    // ===== V3 INTERFACE: Plugin returns InitialCondition data =====
+    auto initial_condition = m_plugin->create_initial_condition();
+    
+    // Validate initial condition
+    if (!initial_condition.is_valid()) {
+        THROW_ERROR("Plugin returned invalid initial condition (no particles or parameters)");
+    }
+    
+    WRITE_LOG << "Plugin returned " << initial_condition.particle_count() << " particles";
+    
+    // Step 2: Apply SPH parameters BEFORE creating Simulation
+    // Use std::move to transfer ownership and avoid copy issues with complex members
+    if (initial_condition.parameters) {
+        m_param = std::move(initial_condition.parameters);
+        WRITE_LOG << "Parameters applied from plugin";
+    } else {
+        THROW_ERROR("Plugin did not provide parameters");
+    }
+    
+    // Step 3: NOW create Simulation with properly configured parameters
     m_sim = std::make_shared<Simulation<Dim>>(m_param);
-
-    make_initial_condition();
+    
+    // Step 4: Transfer particles to simulation
+    m_sim->particles = std::move(initial_condition.particles);
+    m_sim->particle_num = static_cast<int>(m_sim->particles.size());
+    
+    // Step 5: Configure boundaries
+    if (initial_condition.boundary_config) {
+        m_sim->ghost_manager->initialize(*initial_condition.boundary_config);
+        WRITE_LOG << "Boundary configuration applied from plugin";
+    }
+    
+    WRITE_LOG << "Plugin initialization complete";
+    
+    // ✅ CRITICAL: Re-initialize tree with gravity parameters set by plugin
+    // The tree was initially created with default NoGravity in Simulation constructor
+    // After plugin modifies parameters, we must re-initialize to get correct G and theta
+    m_sim->tree->initialize(m_param);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> Tree re-initialized with plugin parameters";
+#endif
+    
+    // Log parameters AFTER plugin has configured them
+    log_parameters();
 
     m_timestep = std::make_shared<TimeStep<Dim>>();
     
-    if(m_param->type == SPHType::SSPH) {
+    if(m_param->get_type() == SPHType::SSPH) {
         m_pre = std::make_shared<PreInteraction<Dim>>();
         m_fforce = std::make_shared<FluidForce<Dim>>();
-    } else if(m_param->type == SPHType::DISPH) {
+    } else if(m_param->get_type() == SPHType::DISPH) {
         m_pre = std::make_shared<disph::PreInteraction<Dim>>();
         m_fforce = std::make_shared<disph::FluidForce<Dim>>();
-    } else if(m_param->type == SPHType::GSPH) {
+    } else if(m_param->get_type() == SPHType::GSPH) {
         m_pre = std::make_shared<gsph::PreInteraction<Dim>>();
         m_fforce = std::make_shared<gsph::FluidForce<Dim>>();
     }
@@ -281,7 +281,7 @@ void Solver<Dim>::initialize()
     m_gforce = std::make_shared<GravityForce<Dim>>();
 
     // GSPH - only add gradient arrays if 2nd order is enabled
-    if(m_param->type == SPHType::GSPH && m_param->gsph.is_2nd_order) {
+    if(m_param->get_type() == SPHType::GSPH && m_param->get_gsph().is_2nd_order) {
         std::vector<std::string> names;
         names.push_back("grad_density");
         names.push_back("grad_pressure");
@@ -310,11 +310,11 @@ void Solver<Dim>::initialize()
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
     
-    const real gamma = m_param->physics.gamma;
+    const real gamma = m_param->get_physics().gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
     assert(p.size() == num);
-    const real alpha = m_param->av.alpha;
+    const real alpha = m_param->get_av().alpha;
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         p[i].alpha = alpha;
@@ -322,25 +322,38 @@ void Solver<Dim>::initialize()
         p[i].sound = std::sqrt(c_sound * p[i].ene);
     }
 
-#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+    // Initialize particle cache for neighbor search
+    m_sim->sync_particle_cache();
+    
+    // Build initial spatial tree
     auto tree = m_sim->tree;
     tree->resize(num);
-    
-    // Populate cached_search_particles for neighbor search
-    // Initially contains only real particles (ghost particles not yet generated)
-    m_sim->cached_search_particles.clear();
-    m_sim->cached_search_particles.resize(num);
-    for (int i = 0; i < num; ++i) {
-        m_sim->cached_search_particles[i] = p[i];
-    }
-    
-    tree->make(p, num);
-#endif
+    tree->make(m_sim->cached_search_particles, num);
 
+    // Calculate initial densities and smoothing lengths
     m_pre->calculation(m_sim);
     
-    // Generate ghost particles AFTER smoothing lengths are calculated
-    // This ensures we use actual sml values for proper kernel support radius
+    // CRITICAL: Sync cache after pre_interaction updates densities
+    // This ensures fluid_force reads correct neighbor densities
+    m_sim->sync_particle_cache();
+    
+    // Calculate initial forces
+    m_fforce->calculation(m_sim);
+    
+#ifndef NDEBUG
+    auto & p_init = m_sim->particles;
+    WRITE_LOG << ">>> INITIALIZE after fluid_force: p[0].acc=" << abs(p_init[0].acc);
+#endif
+    
+    m_gforce->calculation(m_sim);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> INITIALIZE after gravity_force: p[0].acc=" << abs(p_init[0].acc);
+#endif
+    
+    // Generate ghost particles AFTER all force calculations are complete
+    // This ensures densities, pressures, and accelerations are all computed
+    // before creating ghost particles
     if (m_sim->ghost_manager && m_sim->ghost_manager->get_config().is_valid) {
         // Find maximum smoothing length among real particles
         real max_sml = 0.0;
@@ -364,29 +377,41 @@ void Solver<Dim>::initialize()
         WRITE_LOG << "* Generated " << m_sim->ghost_manager->get_ghost_count() 
                   << " ghost particles";
         
-        // Update cached_search_particles to include both real and ghost particles
-        // This is CRITICAL for neighbor search in subsequent calculations
-        // CRITICAL FIX: Use assign() instead of operator= to avoid reallocation
-        // that would invalidate tree's internal particle.next pointers
-        const auto all_particles_combined = m_sim->get_all_particles_for_search();
-        m_sim->cached_search_particles.assign(all_particles_combined.begin(), all_particles_combined.end());
+        // Extend cache with ghost particles (declarative API)
+        m_sim->extend_cache_with_ghosts();
 
-        // Rebuild spatial tree now that cached_search_particles and IDs are consistent
+        // Rebuild spatial tree with combined particles
         m_sim->make_tree();
     }
     
-    m_fforce->calculation(m_sim);
-    m_gforce->calculation(m_sim);
+    // CRITICAL: Calculate initial timestep after forces are computed
+    // This ensures accelerations are valid before computing dt
+    m_timestep->calculation(m_sim);
 }
 
 template<int Dim>
 void Solver<Dim>::integrate()
 {
+#ifndef NDEBUG
+    auto & p = m_sim->particles;
+    WRITE_LOG << ">>> INTEGRATE START: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] 
+              << "), dens=" << p[0].dens << ", acc=" << abs(p[0].acc);
+#endif
+
     // Calculate timestep based on current state
     m_timestep->calculation(m_sim);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After timestep calc: dt=" << m_sim->dt << ", p[0].acc=" << abs(p[0].acc);
+#endif
 
     // Move particles to new positions (predict step)
     predict();
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After predict: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] 
+              << "), dens=" << p[0].dens;
+#endif
     
     // Regenerate ghost particles based on NEW particle positions
     // This ensures Morris 1997 formula is applied to current positions:
@@ -395,43 +420,58 @@ void Solver<Dim>::integrate()
     if (m_sim->ghost_manager) {
         m_sim->ghost_manager->regenerate_ghosts(m_sim->particles);
         
+#ifndef NDEBUG
         WRITE_LOG << "Ghost particles regenerated: " 
                   << m_sim->ghost_manager->get_ghost_count() << " ghosts";
+#endif
+        
+        // Extend cache with regenerated ghosts (declarative API)
+        m_sim->extend_cache_with_ghosts();
     }
     
-    // Populate cached search particles for neighbor search (real + ghost)
-    // CRITICAL: Must not reallocate to avoid invalidating tree pointers
-    const auto all_particles = m_sim->get_all_particles_for_search();
-    const size_t new_size = all_particles.size();
-    const size_t old_capacity = m_sim->cached_search_particles.capacity();
-    
-    // CRITICAL FIX: Reserve BEFORE any size changes to ensure no reallocation
-    // Reserve extra space to avoid future reallocations
-    if (old_capacity < new_size) {
-        const size_t new_capacity = new_size + 100;  // Extra buffer for safety
-        WRITE_LOG << "WARNING: Resizing cached_search_particles capacity: " 
-                  << old_capacity << " -> " << new_capacity;
-        m_sim->cached_search_particles.reserve(new_capacity);
-    }
-    
-    // Now resize is safe - capacity is guaranteed >= new_size, so no reallocation
-    m_sim->cached_search_particles.resize(new_size);
-    std::copy(all_particles.begin(), all_particles.end(), m_sim->cached_search_particles.begin());
-    
-    // CRITICAL: Clear particle.next pointers after copy to avoid stale linked-list pointers
-    // The tree builder (BHNode::assign) modifies particle.next to build linked lists,
-    // and these must not contain addresses from previous vector iterations
-    for (auto& p : m_sim->cached_search_particles) {
-        p.next = nullptr;
-    }
-    
-#ifndef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
+    // Rebuild spatial tree with updated particles
     m_sim->make_tree();
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After tree build: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] << ")";
 #endif
     
     m_pre->calculation(m_sim);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After pre_interaction: p[0].dens=" << p[0].dens << ", sml=" << p[0].sml;
+#endif
+    
+    // Sync cache after pre_interaction updates densities (declarative API)
+    m_sim->sync_particle_cache();
+    
     m_fforce->calculation(m_sim);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After fluid_force: p[0].acc=" << abs(p[0].acc);
+#endif
+    
     m_gforce->calculation(m_sim);
+    
+#ifndef NDEBUG
+    WRITE_LOG << ">>> After gravity_force: p[0].acc=" << abs(p[0].acc) 
+              << ", pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] << ")";
+    
+    // Validation: Check for NaN or Inf in particle state after force calculation
+    const int num = m_sim->particle_num;
+    bool found_invalid = false;
+    for(int i = 0; i < num && !found_invalid; ++i) {
+        if(!std::isfinite(abs(p[i].acc)) || !std::isfinite(p[i].dens) || 
+           !std::isfinite(p[i].pres) || !std::isfinite(p[i].ene)) {
+            WRITE_LOG << "WARNING: Particle " << i << " has invalid state:";
+            WRITE_LOG << "  pos = (" << p[i].pos[0] << ", " << p[i].pos[1] 
+                      << (Dim >= 3 ? ", " + std::to_string(p[i].pos[2]) : "") << ")";
+            WRITE_LOG << "  acc = " << abs(p[i].acc) << ", dens = " << p[i].dens 
+                      << ", pres = " << p[i].pres << ", ene = " << p[i].ene;
+            found_invalid = true;
+        }
+    }
+#endif
     
     correct();
 }
@@ -443,7 +483,7 @@ void Solver<Dim>::predict()
     const int num = m_sim->particle_num;
     auto * periodic = m_sim->periodic.get();
     const real dt = m_sim->dt;
-    const real gamma = m_param->physics.gamma;
+    const real gamma = m_param->get_physics().gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
     // Note: p.size() may be > num if ghosts are appended
@@ -477,7 +517,7 @@ void Solver<Dim>::correct()
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
     const real dt = m_sim->dt;
-    const real gamma = m_param->physics.gamma;
+    const real gamma = m_param->get_physics().gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
     // Note: p.size() may be > num if ghosts are appended
@@ -492,18 +532,88 @@ void Solver<Dim>::correct()
 }
 
 template<int Dim>
-void Solver<Dim>::make_initial_condition()
+void Solver<Dim>::log_parameters()
 {
-    if (!m_plugin) {
-        THROW_ERROR("No plugin loaded. Plugin is required for simulation.");
+    WRITE_LOG << "parameters";
+    WRITE_LOG << "output directory     = " << m_output_dir;
+
+    WRITE_LOG << "time";
+    WRITE_LOG << "* start time         = " << m_param->get_time().start;
+    WRITE_LOG << "* end time           = " << m_param->get_time().end;
+    WRITE_LOG << "* output time        = " << m_param->get_time().output;
+    WRITE_LOG << "* energy output time = " << m_param->get_time().energy;
+
+    switch(m_param->get_type()) {
+    case SPHType::SSPH:
+        WRITE_LOG << "SPH type: Standard SPH";
+        break;
+    case SPHType::DISPH:
+        WRITE_LOG << "SPH type: Density Independent SPH";
+        break;
+    case SPHType::GSPH:
+        if(m_param->get_gsph().is_2nd_order) {
+            WRITE_LOG << "SPH type: Godunov SPH (2nd order)";
+        } else {
+            WRITE_LOG << "SPH type: Godunov SPH (1st order)";
+        }
+        break;
     }
-    
-    WRITE_LOG << "Initializing simulation from plugin: " << m_plugin->get_name();
-    
-    // Let plugin configure the simulation
-    m_plugin->initialize(m_sim, m_param);
-    
-    WRITE_LOG << "Plugin initialization complete";
+
+    WRITE_LOG << "CFL condition";
+    WRITE_LOG << "* sound speed = " << m_param->get_cfl().sound;
+    WRITE_LOG << "* force       = " << m_param->get_cfl().force;
+
+    WRITE_LOG << "Artificial Viscosity";
+    WRITE_LOG << "* alpha = " << m_param->get_av().alpha;
+    if(m_param->get_av().use_balsara_switch) {
+        WRITE_LOG << "* use Balsara switch";
+    }
+    if(m_param->get_av().use_time_dependent_av) {
+        WRITE_LOG << "* use time dependent AV";
+        WRITE_LOG << "  * alpha max = " << m_param->get_av().alpha_max;
+        WRITE_LOG << "  * alpha min = " << m_param->get_av().alpha_min;
+        WRITE_LOG << "  * epsilon   = " << m_param->get_av().epsilon;
+    }
+
+    if(m_param->get_ac().is_valid) {
+        WRITE_LOG << "Artificial Conductivity";
+        WRITE_LOG << "* alpha = " << m_param->get_ac().alpha;
+    }
+
+    WRITE_LOG << "Tree";
+    WRITE_LOG << "* max tree level       = " << m_param->get_tree().max_level;
+    WRITE_LOG << "* leaf particle number = " << m_param->get_tree().leaf_particle_num;
+
+    WRITE_LOG << "Physics";
+    WRITE_LOG << "* Neighbor number = " << m_param->get_physics().neighbor_number;
+    WRITE_LOG << "* gamma           = " << m_param->get_physics().gamma;
+
+    WRITE_LOG << "Kernel";
+    switch(m_param->get_kernel()) {
+    case KernelType::CUBIC_SPLINE:
+        WRITE_LOG << "* Cubic Spline";
+        break;
+    case KernelType::WENDLAND:
+        WRITE_LOG << "* Wendland";
+        break;
+    case KernelType::UNKNOWN:
+        WRITE_LOG << "* Unknown";
+        break;
+    }
+
+    if(m_param->get_iterative_sml()) {
+        WRITE_LOG << "Iterative calculation for smoothing length is valid.";
+    }
+
+    if(m_param->get_periodic().is_valid) {
+        WRITE_LOG << "Periodic boundary condition is valid.";
+    }
+
+    if(m_param->has_gravity()) {
+        WRITE_LOG << "Gravity is valid.";
+        WRITE_LOG << "* G     = " << m_param->get_newtonian_gravity().constant;
+        WRITE_LOG << "* theta = " << m_param->get_newtonian_gravity().theta;
+    }
 }
 
 template<int Dim>

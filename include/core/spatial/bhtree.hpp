@@ -94,9 +94,10 @@ private:
     std::shared_ptr<BHNode> m_nodes;
     int m_node_size;
 
-    real m_g_constant;
-    real m_theta;
-    real m_theta2;
+    // ✅ TYPE-SAFE: Initialize gravity parameters to zero (set by initialize())
+    real m_g_constant = 0.0;
+    real m_theta = 0.0;
+    real m_theta2 = 0.0;
     // Pointer to the particle array used to build the tree. This ensures
     // neighbor_search sorts and bounds-check against the same container
     // that was passed to make(). It is set in make() and cleared when

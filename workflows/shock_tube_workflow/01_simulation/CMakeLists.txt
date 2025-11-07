@@ -100,6 +100,9 @@ add_library(shock_tube_plugin_enhanced SHARED
     ${SPH_GSPH_SOURCES}
     ${SPH_ALGORITHM_SOURCES}
     ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_BOUNDARY_SOURCES}
+    ${SPH_ALGORITHM_REGISTRY_SOURCES}
 )
 
 target_compile_features(shock_tube_plugin_enhanced PUBLIC cxx_std_17)
@@ -111,6 +114,56 @@ target_link_libraries(shock_tube_plugin_enhanced PUBLIC
     OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
 )
 set_target_properties(shock_tube_plugin_enhanced PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
+
+# Build Baseline plugin
+add_library(shock_tube_plugin_baseline SHARED 
+    src/plugin_baseline.cpp
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
+    ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_BOUNDARY_SOURCES}
+    ${SPH_ALGORITHM_REGISTRY_SOURCES}
+)
+
+target_compile_features(shock_tube_plugin_baseline PUBLIC cxx_std_17)
+target_compile_options(shock_tube_plugin_baseline PRIVATE
+    -Wall -Wno-sign-compare -funroll-loops -ffast-math
+)
+target_include_directories(shock_tube_plugin_baseline PUBLIC ${SPH_INCLUDE_DIR})
+target_link_libraries(shock_tube_plugin_baseline PUBLIC
+    OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
+)
+set_target_properties(shock_tube_plugin_baseline PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
+
+# Build Modern plugin
+add_library(shock_tube_plugin_modern SHARED 
+    src/plugin_modern.cpp
+    ${SPH_SOURCES}
+    ${SPH_DISPH_SOURCES}
+    ${SPH_GSPH_SOURCES}
+    ${SPH_ALGORITHM_SOURCES}
+    ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_BOUNDARY_SOURCES}
+    ${SPH_ALGORITHM_REGISTRY_SOURCES}
+)
+
+target_compile_features(shock_tube_plugin_modern PUBLIC cxx_std_17)
+target_compile_options(shock_tube_plugin_modern PRIVATE
+    -Wall -Wno-sign-compare -funroll-loops -ffast-math
+)
+target_include_directories(shock_tube_plugin_modern PUBLIC ${SPH_INCLUDE_DIR})
+target_link_libraries(shock_tube_plugin_modern PUBLIC
+    OpenMP::OpenMP_CXX Boost::headers nlohmann_json::nlohmann_json
+)
+set_target_properties(shock_tube_plugin_modern PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
 )
 

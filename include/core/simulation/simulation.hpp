@@ -9,6 +9,7 @@
 #include "../kernels/kernel_function.hpp"
 #include "../neighbors/particle_array_types.hpp"
 #include "../neighbors/neighbor_accessor.hpp"
+#include "particle_cache.hpp"
 #include "../../defines.hpp"
 
 namespace sph {
@@ -38,8 +39,12 @@ public:
     std::shared_ptr<BHTree<Dim>> tree;
     std::shared_ptr<GhostParticleManager<Dim>> ghost_manager;  // New ghost particle system
 
-    // Cached combined particles for tree building (real + ghost)
-    // Must be persistent so tree can store valid pointers
+    // Type-safe particle cache for neighbor search
+    // Manages synchronization between real particles and search cache
+    ParticleCache<Dim> particle_cache;
+    
+    // Legacy field - kept for backward compatibility with tree building
+    // TODO: Remove once tree is refactored to use particle_cache
     std::vector<SPHParticle<Dim>> cached_search_particles;
 
     std::unordered_map<std::string, std::vector<real>> additional_scalar_array;
@@ -48,6 +53,24 @@ public:
     Simulation(std::shared_ptr<SPHParameters> param);
     void update_time();
     void make_tree();
+    
+    /**
+     * @brief Synchronize particle cache with current real particle state
+     * 
+     * Call this after any operation that modifies particle properties
+     * (e.g., after pre_interaction, before fluid_force).
+     * 
+     * This is the declarative, type-safe replacement for manual cache updates.
+     */
+    void sync_particle_cache();
+    
+    /**
+     * @brief Include ghost particles in search cache
+     * 
+     * Call this after ghost particles are generated and before tree rebuild.
+     */
+    void extend_cache_with_ghosts();
+    
     void add_scalar_array(const std::vector<std::string>& names);
     void add_vector_array(const std::vector<std::string>& names);
     std::vector<real>& get_scalar_array(const std::string& name);

@@ -36,7 +36,18 @@ public:
     }
 };
 
-#define WRITE_LOG      sph::Logger()
-#define WRITE_LOG_ONLY sph::Logger(true)
+// ✅ LOG LEVEL SYSTEM: Conditional logging based on build type
+// Production build (NDEBUG defined): Only errors and critical messages
+// Debug build (NDEBUG undefined): All debug messages enabled
+
+#ifdef NDEBUG
+    // Production: No debug logs, suppress output
+    #define WRITE_LOG      if (false) sph::Logger()
+    #define WRITE_LOG_ONLY if (false) sph::Logger(true)
+#else
+    // Debug: Enable all logging
+    #define WRITE_LOG      sph::Logger()
+    #define WRITE_LOG_ONLY sph::Logger(true)
+#endif
 
 }

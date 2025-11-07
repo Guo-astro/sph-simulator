@@ -23,7 +23,7 @@ template<int Dim>
 void PreInteraction<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::PreInteraction<Dim>::initialize(param);
-    this->m_is_2nd_order = param->gsph.is_2nd_order;
+    this->m_is_2nd_order = param->get_gsph().is_2nd_order;
 }
 
 template<int Dim>

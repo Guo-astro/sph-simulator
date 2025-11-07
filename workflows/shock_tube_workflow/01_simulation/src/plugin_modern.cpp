@@ -1,4 +1,5 @@
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
 #include "core/parameters/sph_parameters_builder_base.hpp"
 #include "core/parameters/ssph_parameters_builder.hpp"
 #include "core/parameters/parameter_estimator.hpp"
@@ -31,7 +32,7 @@ using namespace sph;
  * This demonstrates modern ghost particle system working correctly
  * with the Newton-Raphson fix applied.
  */
-class ModernShockTubePlugin : public SimulationPlugin<1> {
+class ModernShockTubePlugin : public SimulationPluginV3<1> {
 public:
     std::string get_name() const override {
         return "modern_shock_tube";
@@ -49,8 +50,7 @@ public:
         return {"plugin_modern.cpp"};
     }
     
-    void initialize(std::shared_ptr<Simulation<1>> sim,
-                   std::shared_ptr<SPHParameters> params) override {
+    InitialCondition<1> create_initial_condition() const override {
         static constexpr int Dim = 1;
 
         std::cout << "\n=== MODERN SHOCK TUBE (Ghost Particles Enabled) ===\n";
@@ -138,7 +138,7 @@ public:
         
         std::cout << "--- Building Parameters (Modern Mode) ---\n";
         
-        auto builder_params = SPHParametersBuilderBase()
+        auto param = SPHParametersBuilderBase()
             .with_time(0.0, 0.30, 0.01, 0.01)
             
             // SAME CFL as baseline
@@ -172,14 +172,12 @@ public:
             
             .build();
         
-        *params = *builder_params;
-        
         std::cout << "✓ Parameters set (matching baseline values):\n";
-        std::cout << "  neighbor_number = " << params->physics.neighbor_number << "\n";
-        std::cout << "  gamma = " << params->physics.gamma << "\n";
-        std::cout << "  CFL sound = " << params->cfl.sound << "\n";
-        std::cout << "  CFL force = " << params->cfl.force << "\n";
-        std::cout << "  iterative_sml = " << (params->iterative_sml ? "true" : "false") << "\n";
+        std::cout << "  neighbor_number = " << param->get_physics().neighbor_number << "\n";
+        std::cout << "  gamma = " << param->get_physics().gamma << "\n";
+        std::cout << "  CFL sound = " << param->get_cfl().sound << "\n";
+        std::cout << "  CFL force = " << param->get_cfl().force << "\n";
+        std::cout << "  iterative_sml = " << (param->get_iterative_sml() ? "true" : "false") << "\n";
         
         // ============================================================
         // VALIDATION
@@ -188,7 +186,7 @@ public:
         std::cout << "\n--- Parameter Validation ---\n";
         
         try {
-            ParameterValidator::validate_all(particles, params);
+            ParameterValidator::validate_all<Dim>(particles, param);
             std::cout << "✓ Parameters validated\n";
         } catch (const std::runtime_error& e) {
             std::cerr << "❌ VALIDATION FAILED: " << e.what() << "\n";
@@ -196,17 +194,7 @@ public:
         }
         
         // ============================================================
-        // SET PARTICLES IN SIMULATION
-        // ============================================================
-        
-        sim->particle_num = num;
-        sim->particles = std::move(particles);
-        
-        // ============================================================
         // MODERN BOUNDARY CONFIGURATION WITH GHOSTS
-        // ============================================================
-        // CRITICAL: Enable ghost particles with proper filtering
-        // This uses the Newton-Raphson fix to exclude ghosts from sml calculation
         // ============================================================
         
         std::cout << "\n--- Boundary Configuration (Type-Safe API) ---\n";
@@ -216,8 +204,6 @@ public:
             .with_periodic_boundaries()
             .in_range(Vector<Dim>{-0.5}, Vector<Dim>{1.5})
             .build();
-        
-        sim->ghost_manager->initialize(boundary_config);
         
         std::cout << BoundaryBuilder<Dim>::describe(boundary_config);
         std::cout << "\nModern mode with type-safe configuration:\n";
@@ -235,22 +221,21 @@ public:
         
         std::cout << "\n--- Configuration Summary ---\n";
         std::cout << "SPH Algorithm: SSPH (Standard SPH)\n";
-        std::cout << "Artificial Viscosity: α=" << params->av.alpha << "\n";
+        std::cout << "Artificial Viscosity: α=" << param->get_av().alpha << "\n";
         std::cout << "Kernel: Cubic Spline\n";
         std::cout << "Boundary: Periodic WITH ghosts\n";
         std::cout << "Fix: Ghost filtering in Newton-Raphson\n";
         std::cout << "\n=== Modern Initialization Complete ===\n";
         std::cout << "Ready to run with ghost particles + filtering fix\n\n";
+        
+        // ============================================================
+        // V3 INTERFACE: Return InitialCondition data
+        // ============================================================
+        return InitialCondition<1>::with_particles(std::move(particles))
+            .with_parameters(std::move(param))
+            .with_boundaries(std::move(boundary_config));
     }
 };
 
 // Plugin factory
-extern "C" {
-    SimulationPlugin<1>* create_plugin() {
-        return new ModernShockTubePlugin();
-    }
-    
-    void destroy_plugin(SimulationPlugin<1>* plugin) {
-        delete plugin;
-    }
-}
+DEFINE_SIMULATION_PLUGIN_V3(ModernShockTubePlugin, 1)

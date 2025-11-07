@@ -3,11 +3,44 @@ cmake_minimum_required(VERSION 3.13)
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
 
-# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
-list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+# Determine which Conan toolchain to use based on build type
+# For Release builds, prefer build_release; for Debug builds, prefer build/build_tests
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  # Add SPH root and build directories to CMAKE_PREFIX_PATH (Release priority)
+  list(APPEND CMAKE_PREFIX_PATH 
+      ${SPH_ROOT}
+      ${SPH_ROOT}/build_release
+      ${SPH_ROOT}/build
+      ${SPH_ROOT}/build_tests
+  )
 
-if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
-  include(${SPH_ROOT}/conan_toolchain.cmake)
+  if(EXISTS ${SPH_ROOT}/build_release/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_release/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+    include(${SPH_ROOT}/conan_toolchain.cmake)
+  endif()
+else()
+  # Add SPH root and build directories to CMAKE_PREFIX_PATH (Debug priority)
+  list(APPEND CMAKE_PREFIX_PATH 
+      ${SPH_ROOT}
+      ${SPH_ROOT}/build
+      ${SPH_ROOT}/build_tests
+      ${SPH_ROOT}/build_release
+  )
+
+  if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/build_release/conan_toolchain.cmake)
+    include(${SPH_ROOT}/build_release/conan_toolchain.cmake)
+  elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+    include(${SPH_ROOT}/conan_toolchain.cmake)
+  endif()
 endif()
 
 project(shock_tube_3d_workflow)
@@ -42,6 +75,17 @@ file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
 
+# Add parameter builder sources from core/parameters subdirectory
+file(GLOB SPH_PARAMETER_SOURCES "${SPH_SRC_DIR}/core/parameters/*.cpp")
+
+# Add algorithm registry sources from core/algorithms subdirectory
+file(GLOB SPH_CORE_ALGORITHM_SOURCES "${SPH_SRC_DIR}/core/algorithms/*.cpp")
+
+# Add spatial coordinator sources from core/spatial subdirectory (exclude broken template files)
+file(GLOB SPH_SPATIAL_SOURCES "${SPH_SRC_DIR}/core/spatial/*.cpp")
+list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "bhtree_templates\\.cpp$")
+list(FILTER SPH_SPATIAL_SOURCES EXCLUDE REGEX "simulation_templates\\.cpp$")
+
 # Build plugin as shared library
 add_library(shock_tube_3d_plugin SHARED 
     src/plugin_3d.cpp
@@ -50,6 +94,9 @@ add_library(shock_tube_3d_plugin SHARED
     ${SPH_GSPH_SOURCES}
     ${SPH_ALGORITHM_SOURCES}
     ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_CORE_ALGORITHM_SOURCES}
+    ${SPH_SPATIAL_SOURCES}
 )
 
 target_compile_features(shock_tube_3d_plugin PUBLIC cxx_std_17)

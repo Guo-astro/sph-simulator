@@ -16,17 +16,28 @@ from scipy.optimize import fsolve
 
 
 class SodShockTube:
-    """Analytical solution for Sod shock tube problem (1D)"""
+    """Analytical solution for Sod shock tube problem (1D)
+    
+    Standard Sod shock tube initial conditions:
+    - Left state (x < 0.5):  ρ=1.0, P=1.0, u=0.0
+    - Right state (x ≥ 0.5): ρ=0.125, P=0.1, u=0.0
+    - Discontinuity at x=0.5
+    - Domain: [0, 1.0]
+    
+    For SPH comparison:
+    - Use SPH-computed initial densities (from particle spacing)
+    - Pressures are prescribed initial conditions
+    """
     
     def __init__(self, gamma=1.4):
         self.gamma = gamma
         self.rho_L = 1.0
         self.p_L = 1.0
         self.u_L = 0.0
-        self.rho_R = 0.25  # Modified 4:1 density ratio instead of 8:1
+        self.rho_R = 0.125  # Standard Sod (will be overridden by SPH-computed value)
         self.p_R = 0.1
         self.u_R = 0.0
-        self.x_discontinuity = 0.5
+        self.x_discontinuity = 0.5  # Standard Sod discontinuity position
     
     def sound_speed(self, p, rho):
         return np.sqrt(self.gamma * p / rho)
@@ -146,8 +157,11 @@ def read_sph_data(filename):
     }
 
 
-def extract_centerline(x, y, field, y_center=0.25, tol=0.05):
-    """Extract field values along centerline"""
+def extract_centerline(x, y, field, y_center=0.05, tol=0.03):
+    """Extract field values along centerline
+    
+    For planar 2D domain [0,1] × [0,0.1], centerline is at y=0.05
+    """
     mask = np.abs(y - y_center) < tol
     x_center = x[mask]
     field_center = field[mask]
@@ -159,6 +173,12 @@ def extract_centerline(x, y, field, y_center=0.25, tol=0.05):
 def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
     """Create animation of 2D shock tube simulation"""
     results_path = Path(results_dir)
+    
+    # Check for snapshots subdirectory first
+    snapshots_path = results_path / 'snapshots'
+    if snapshots_path.exists() and snapshots_path.is_dir():
+        results_path = snapshots_path
+    
     # Match numeric CSV files: 00000.csv, 00001.csv, etc. (not energy.csv)
     output_files = sorted([f for f in results_path.glob('*.csv') 
                           if f.stem.isdigit() and 'energy' not in f.name])
@@ -170,32 +190,43 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
     print(f"Found {len(output_files)} output files")
     print(f"Creating animation: {output_file}")
     
-    # Read initial conditions to get actual SPH densities
+    # Read initial conditions to verify SPH-computed densities
     initial_data = read_sph_data(output_files[0])
-    rho_left_actual = np.mean(initial_data['rho'][initial_data['x'] < 0.0])
+    rho_left_actual = np.mean(initial_data['rho'][initial_data['x'] < 0.5])
     rho_right_actual = np.mean(initial_data['rho'][initial_data['x'] > 0.5])
-    print(f"Actual SPH initial densities: left={rho_left_actual:.4f}, right={rho_right_actual:.4f}")
+    p_left_actual = np.mean(initial_data['p'][initial_data['x'] < 0.5])
+    p_right_actual = np.mean(initial_data['p'][initial_data['x'] > 0.5])
     
-    # Initialize analytical solution with actual SPH initial conditions
+    print(f"SPH-computed initial state:")
+    print(f"  Left:  ρ={rho_left_actual:.4f}, P={p_left_actual:.4f}")
+    print(f"  Right: ρ={rho_right_actual:.4f}, P={p_right_actual:.4f}")
+    print(f"  Density ratio: {rho_left_actual/rho_right_actual:.2f}:1 (target: 8.0:1)")
+    print(f"  Pressure ratio: {p_left_actual/p_right_actual:.2f}:1 (target: 10.0:1)")
+    
+    # Initialize analytical solution using EXACT Sod initial conditions
+    # This is the correct approach: analytical solution uses prescribed ICs,
+    # and we compare SPH results (which compute density from spacing) against it
     sod = SodShockTube(gamma)
-    # Override with actual SPH densities for better comparison
-    sod.rho_L = rho_left_actual
-    sod.rho_R = rho_right_actual
-    x_analytical = np.linspace(-0.5, 1.5, 500)
+    # Standard Sod conditions (do NOT override with SPH-computed values):
+    # sod.rho_L = 1.0, sod.p_L = 1.0, sod.rho_R = 0.125, sod.p_R = 0.1 (already set in __init__)
+    x_analytical = np.linspace(0.0, 1.0, 500)  # Standard Sod domain [0,1]
     
-    # Create figure with 2x2 subplots
-    fig = plt.figure(figsize=(16, 12))
-    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.3)
+    # Create figure with 2x3 subplots (added energy and velocity)
+    fig = plt.figure(figsize=(18, 12))
+    gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
     
-    ax_2d = fig.add_subplot(gs[0, :])  # Top: 2D density field
-    ax_density = fig.add_subplot(gs[1, 0])  # Bottom left: density
-    ax_pressure = fig.add_subplot(gs[1, 1])  # Bottom right: pressure
+    ax_2d = fig.add_subplot(gs[0, :])  # Top row: 2D density field (spans all columns)
+    ax_density = fig.add_subplot(gs[1, 0])  # Bottom row, left: density
+    ax_pressure = fig.add_subplot(gs[1, 1])  # Bottom row, middle: pressure
+    ax_velocity = fig.add_subplot(gs[1, 2])  # Bottom row, right: velocity (NEW)
+    # ax_energy will replace 2D field or be added as third row if needed
     
     def init():
         """Initialize animation"""
         ax_2d.clear()
         ax_density.clear()
         ax_pressure.clear()
+        ax_velocity.clear()
         return []
     
     def animate(frame_idx):
@@ -203,6 +234,7 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
         ax_2d.clear()
         ax_density.clear()
         ax_pressure.clear()
+        ax_velocity.clear()
         
         # Read SPH data
         data_file = output_files[frame_idx]
@@ -212,24 +244,26 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
         time = frame_idx * 0.01  # Assuming 0.01 time interval
         
         # 2D density field - use aspect ratio to show proper spacing
-        # Adjust point size based on local particle spacing
-        point_sizes = np.where(data['x'] < 0.5, 20, 5)  # Smaller points in sparse right region
+        # Adjust point size based on local particle spacing (8:1 ratio)
+        point_sizes = np.where(data['x'] < 0.5, 10, 2)  # Smaller points in sparse right region
         scatter = ax_2d.scatter(data['x'], data['y'], c=data['rho'], 
                                cmap='viridis', s=point_sizes, vmin=0, vmax=1.2, alpha=0.8)
         ax_2d.set_xlabel('x', fontsize=12)
         ax_2d.set_ylabel('y', fontsize=12)
         ax_2d.set_title(f'{method_name} 2D Density Field - t = {time:.3f}s', fontsize=14)
-        ax_2d.set_xlim(-0.5, 1.5)
-        ax_2d.set_ylim(0, 0.5)
+        ax_2d.set_xlim(0.0, 1.0)  # Standard Sod domain
+        ax_2d.set_ylim(0, 0.1)    # Planar 2D height
         ax_2d.set_aspect('equal')  # Equal aspect ratio to show true spacing
         plt.colorbar(scatter, ax=ax_2d, label='Density')
         
         # Extract centerline data
         x_center, rho_center = extract_centerline(data['x'], data['y'], data['rho'])
         _, p_center = extract_centerline(data['x'], data['y'], data['p'])
+        _, vx_center = extract_centerline(data['x'], data['y'], data['vx'])
+        _, e_center = extract_centerline(data['x'], data['y'], data['e'])
         
         # Analytical solution
-        rho_analytical, _, p_analytical, _ = sod.shock_tube_solution(x_analytical, time)
+        rho_analytical, u_analytical, p_analytical, e_analytical = sod.shock_tube_solution(x_analytical, time)
         
         # Density comparison
         ax_density.plot(x_analytical, rho_analytical, 'k-', linewidth=2, label='Analytical')
@@ -237,7 +271,7 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
         ax_density.set_xlabel('x', fontsize=12)
         ax_density.set_ylabel('Density', fontsize=12)
         ax_density.set_title('Density (Centerline vs Analytical)', fontsize=13)
-        ax_density.set_xlim(-0.5, 1.5)
+        ax_density.set_xlim(0.0, 1.0)  # Standard Sod domain
         ax_density.set_ylim(0, 1.2)
         ax_density.grid(True, alpha=0.3)
         ax_density.legend(fontsize=10)
@@ -248,10 +282,21 @@ def create_animation(results_dir, output_file, gamma=1.4, method_name='SPH'):
         ax_pressure.set_xlabel('x', fontsize=12)
         ax_pressure.set_ylabel('Pressure', fontsize=12)
         ax_pressure.set_title('Pressure (Centerline vs Analytical)', fontsize=13)
-        ax_pressure.set_xlim(-0.5, 1.5)
+        ax_pressure.set_xlim(0.0, 1.0)  # Standard Sod domain
         ax_pressure.set_ylim(0, 1.2)
         ax_pressure.grid(True, alpha=0.3)
         ax_pressure.legend(fontsize=10)
+        
+        # Velocity comparison (NEW)
+        ax_velocity.plot(x_analytical, u_analytical, 'k-', linewidth=2, label='Analytical')
+        ax_velocity.plot(x_center, vx_center, 'go', markersize=4, alpha=0.6, label=f'{method_name} (centerline)')
+        ax_velocity.set_xlabel('x', fontsize=12)
+        ax_velocity.set_ylabel('Velocity', fontsize=12)
+        ax_velocity.set_title('Velocity (Centerline vs Analytical)', fontsize=13)
+        ax_velocity.set_xlim(0.0, 1.0)  # Standard Sod domain
+        ax_velocity.set_ylim(-0.1, 1.0)
+        ax_velocity.grid(True, alpha=0.3)
+        ax_velocity.legend(fontsize=10)
         
         return []
     

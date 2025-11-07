@@ -38,13 +38,13 @@ protected:
         
         // Create test parameters
         params = std::make_shared<SPHParameters>();
-        params->physics.gamma = 1.4;
-        params->physics.neighbor_number = 50;
+        params->get_physics().gamma = 1.4;
+        params->get_physics().neighbor_number = 50;
         params->computational.tree.max_particles_per_leaf = 20;
         params->computational.tree.opening_angle = 0.5;
         params->output.directory = kTestOutputDir;
-        params->time.end = 1.0;
-        params->time.dt_out = 0.1;
+        params->get_time().end = 1.0;
+        params->get_time().dt_out = 0.1;
         
         // Create unit systems
         galactic_units = std::make_shared<GalacticUnitSystem>();
@@ -170,8 +170,8 @@ SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, RecordsSIUnits) {
 
 SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, RecordsPhysicsParameters) {
     GIVEN("Physics parameters") {
-        params->physics.gamma = 1.4;
-        params->physics.neighbor_number = 50;
+        params->get_physics().gamma = 1.4;
+        params->get_physics().neighbor_number = 50;
         
         WHEN("We write metadata") {
             MetadataWriter::write_metadata(kTestOutputDir, *params, galactic_units);
@@ -237,8 +237,8 @@ SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, IncludesISO8601Timestamp) {
 SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, RecordsOutputConfiguration) {
     GIVEN("Output parameters") {
         params->output.directory = "output";
-        params->time.dt_out = 0.1;
-        params->time.dt_energy = 0.01;
+        params->get_time().dt_out = 0.1;
+        params->get_time().dt_energy = 0.01;
         
         WHEN("We write metadata") {
             MetadataWriter::write_metadata(kTestOutputDir, *params, galactic_units);
@@ -258,7 +258,7 @@ SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, RecordsOutputConfiguration) {
 
 SCENARIO_WITH_FIXTURE(MetadataWriterTestFixture, RecordsSPHAlgorithmType) {
     GIVEN("SPH parameters with algorithm type") {
-        params->type = SPHType::GSPH;
+        params->get_type() = SPHType::GSPH;
         
         WHEN("We write metadata") {
             MetadataWriter::write_metadata(kTestOutputDir, *params, galactic_units);

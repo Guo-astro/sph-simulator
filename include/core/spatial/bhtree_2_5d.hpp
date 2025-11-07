@@ -50,11 +50,16 @@ public:
             range_min_[2] = 0.0;
         }
         
-        if (param->gravity.is_valid) {
-            g_constant_ = param->gravity.constant;
-            theta_ = param->gravity.theta;
-            theta2_ = theta_ * theta_;
-        }
+        // ✅ TYPE-SAFE: Pattern matching with std::visit (no runtime boolean!)
+        std::visit([this](auto&& g) {
+            using T = std::decay_t<decltype(g)>;
+            if constexpr (std::is_same_v<T, SPHParameters::NewtonianGravity>) {
+                g_constant_ = g.constant;
+                theta_ = g.theta;
+                theta2_ = theta_ * theta_;
+            }
+            // NoGravity and ModifiedGravity: do nothing (members stay uninitialized)
+        }, param->get_gravity());
     }
     
     void resize(const int particle_num, const int tree_size = 5) {

@@ -13,9 +13,11 @@ namespace sph {
 
 template<int Dim>
 Simulation<Dim>::Simulation(std::shared_ptr<SPHParameters> param) {
-    if (param->kernel == KernelType::CUBIC_SPLINE) {
+    const auto kernel_type = param->get_kernel();
+    
+    if (kernel_type == KernelType::CUBIC_SPLINE) {
         kernel = std::make_shared<Spline::Cubic<Dim>>();
-    } else if (param->kernel == KernelType::WENDLAND) {
+    } else if (kernel_type == KernelType::WENDLAND) {
         if constexpr (Dim >= 2) {
             kernel = std::make_shared<Wendland::C4Kernel<Dim>>();
         } else {
@@ -31,16 +33,44 @@ Simulation<Dim>::Simulation(std::shared_ptr<SPHParameters> param) {
     // Initialize ghost particle manager
     ghost_manager = std::make_shared<GhostParticleManager<Dim>>();
 
+#ifndef NDEBUG
+    WRITE_LOG << ">>> Simulation constructor: About to create and initialize BHTree";
+#endif
+
     tree = std::make_shared<BHTree<Dim>>();
     tree->initialize(param);
 
-    time = param->time.start;
+#ifndef NDEBUG
+    WRITE_LOG << ">>> Simulation constructor: BHTree initialized";
+#endif
+
+    time = param->get_time().start;
     dt = 0.0;
 }
 
 template<int Dim>
 void Simulation<Dim>::update_time() {
     time += dt;
+}
+
+template<int Dim>
+void Simulation<Dim>::sync_particle_cache() {
+    if (!particle_cache.is_initialized()) {
+        particle_cache.initialize(particles);
+    } else {
+        particle_cache.sync_real_particles(particles);
+    }
+    
+    // Legacy: Keep cached_search_particles synchronized for backward compatibility
+    cached_search_particles = particle_cache.get_search_particles();
+}
+
+template<int Dim>
+void Simulation<Dim>::extend_cache_with_ghosts() {
+    particle_cache.include_ghosts(ghost_manager);
+    
+    // Legacy: Keep cached_search_particles synchronized
+    cached_search_particles = particle_cache.get_search_particles();
 }
 
 template<int Dim>

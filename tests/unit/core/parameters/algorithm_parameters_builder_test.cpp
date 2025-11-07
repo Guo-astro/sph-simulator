@@ -49,9 +49,9 @@ TEST_F(AlgorithmParametersBuilderTest, SSPH_BuildSucceedsWithViscosity) {
     
     // Then: Build succeeds and type is SSPH
     ASSERT_NE(params, nullptr);
-    EXPECT_EQ(params->type, SPHType::SSPH);
-    EXPECT_DOUBLE_EQ(params->av.alpha, 1.0);
-    EXPECT_TRUE(params->av.use_balsara_switch);
+    EXPECT_EQ(params->get_type(), SPHType::SSPH);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha, 1.0);
+    EXPECT_TRUE(params->get_av().use_balsara_switch);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, SSPH_ArtificialViscosityWithAllOptions) {
@@ -71,12 +71,12 @@ TEST_F(AlgorithmParametersBuilderTest, SSPH_ArtificialViscosityWithAllOptions) {
     auto params = ssph_builder.build();
     
     // Then: All options are set correctly
-    EXPECT_DOUBLE_EQ(params->av.alpha, 2.0);
-    EXPECT_FALSE(params->av.use_balsara_switch);
-    EXPECT_TRUE(params->av.use_time_dependent_av);
-    EXPECT_DOUBLE_EQ(params->av.alpha_max, 3.0);
-    EXPECT_DOUBLE_EQ(params->av.alpha_min, 0.05);
-    EXPECT_DOUBLE_EQ(params->av.epsilon, 0.15);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha, 2.0);
+    EXPECT_FALSE(params->get_av().use_balsara_switch);
+    EXPECT_TRUE(params->get_av().use_time_dependent_av);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha_max, 3.0);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha_min, 0.05);
+    EXPECT_DOUBLE_EQ(params->get_av().epsilon, 0.15);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, SSPH_ArtificialConductivity) {
@@ -90,8 +90,8 @@ TEST_F(AlgorithmParametersBuilderTest, SSPH_ArtificialConductivity) {
     auto params = ssph_builder.build();
     
     // Then: Conductivity is set
-    EXPECT_TRUE(params->ac.is_valid);
-    EXPECT_DOUBLE_EQ(params->ac.alpha, 1.5);
+    EXPECT_TRUE(params->get_ac().is_valid);
+    EXPECT_DOUBLE_EQ(params->get_ac().alpha, 1.5);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, SSPH_InvalidViscosityAlpha) {
@@ -144,8 +144,8 @@ TEST_F(AlgorithmParametersBuilderTest, DISPH_BuildSucceedsWithViscosity) {
     
     // Then: Build succeeds and type is DISPH
     ASSERT_NE(params, nullptr);
-    EXPECT_EQ(params->type, SPHType::DISPH);
-    EXPECT_DOUBLE_EQ(params->av.alpha, 1.0);
+    EXPECT_EQ(params->get_type(), SPHType::DISPH);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha, 1.0);
 }
 
 // ==================== GSPH Builder Tests ====================
@@ -159,7 +159,7 @@ TEST_F(AlgorithmParametersBuilderTest, GSPH_BuildSucceedsWithoutViscosity) {
     
     // Then: Build succeeds without needing artificial viscosity
     ASSERT_NE(params, nullptr);
-    EXPECT_EQ(params->type, SPHType::GSPH);
+    EXPECT_EQ(params->get_type(), SPHType::GSPH);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, GSPH_2ndOrderMUSCL) {
@@ -172,7 +172,7 @@ TEST_F(AlgorithmParametersBuilderTest, GSPH_2ndOrderMUSCL) {
     auto params = gsph_builder.build();
     
     // Then: 2nd order flag is set
-    EXPECT_TRUE(params->gsph.is_2nd_order);
+    EXPECT_TRUE(params->get_gsph().is_2nd_order);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, GSPH_1stOrderDefault) {
@@ -184,7 +184,7 @@ TEST_F(AlgorithmParametersBuilderTest, GSPH_1stOrderDefault) {
     auto params = gsph_builder.build();
     
     // Then: 1st order by default (more stable)
-    EXPECT_FALSE(params->gsph.is_2nd_order);
+    EXPECT_FALSE(params->get_gsph().is_2nd_order);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, GSPH_Disable2ndOrder) {
@@ -197,7 +197,7 @@ TEST_F(AlgorithmParametersBuilderTest, GSPH_Disable2ndOrder) {
     auto params = gsph_builder.build();
     
     // Then: 2nd order is disabled
-    EXPECT_FALSE(params->gsph.is_2nd_order);
+    EXPECT_FALSE(params->get_gsph().is_2nd_order);
 }
 
 // ==================== GSPH Does NOT Have Artificial Viscosity ====================
@@ -296,9 +296,9 @@ TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_Gravity) {
     auto params = base.as_gsph().build();
     
     // Then: Gravity is set
-    EXPECT_TRUE(params->gravity.is_valid);
-    EXPECT_DOUBLE_EQ(params->gravity.constant, 9.81);
-    EXPECT_DOUBLE_EQ(params->gravity.theta, 0.7);
+    EXPECT_TRUE(params->has_gravity());
+    EXPECT_DOUBLE_EQ(params->get_newtonian_gravity().constant, 9.81);
+    EXPECT_DOUBLE_EQ(params->get_newtonian_gravity().theta, 0.7);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_PeriodicBoundary) {
@@ -313,9 +313,9 @@ TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_PeriodicBoundary) {
     auto params = base.as_gsph().build();
     
     // Then: Periodic boundary is set
-    EXPECT_TRUE(params->periodic.is_valid);
-    EXPECT_EQ(params->periodic.range_min, min);
-    EXPECT_EQ(params->periodic.range_max, max);
+    EXPECT_TRUE(params->get_periodic().is_valid);
+    EXPECT_EQ(params->get_periodic().range_min, min);
+    EXPECT_EQ(params->get_periodic().range_max, max);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_TreeParams) {
@@ -327,8 +327,8 @@ TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_TreeParams) {
     auto params = base.as_gsph().build();
     
     // Then: Tree parameters are set
-    EXPECT_EQ(params->tree.max_level, 15);
-    EXPECT_EQ(params->tree.leaf_particle_num, 4);
+    EXPECT_EQ(params->get_tree().max_level, 15);
+    EXPECT_EQ(params->get_tree().leaf_particle_num, 4);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_IterativeSmoothingLength) {
@@ -340,7 +340,7 @@ TEST_F(AlgorithmParametersBuilderTest, BaseBuilder_IterativeSmoothingLength) {
     auto params = base.as_gsph().build();
     
     // Then: Iterative sml is disabled
-    EXPECT_FALSE(params->iterative_sml);
+    EXPECT_FALSE(params->get_iterative_sml());
 }
 
 // ==================== Integration Tests ====================
@@ -359,13 +359,13 @@ TEST_F(AlgorithmParametersBuilderTest, Integration_ShockTubeGSPH) {
         .build();
     
     // Then: All parameters are correctly set
-    EXPECT_EQ(params->type, SPHType::GSPH);
-    EXPECT_DOUBLE_EQ(params->time.start, 0.0);
-    EXPECT_DOUBLE_EQ(params->time.end, 0.15);
-    EXPECT_DOUBLE_EQ(params->cfl.sound, 0.3);
-    EXPECT_EQ(params->physics.neighbor_number, 50);
-    EXPECT_DOUBLE_EQ(params->physics.gamma, 1.4);
-    EXPECT_FALSE(params->gsph.is_2nd_order);
+    EXPECT_EQ(params->get_type(), SPHType::GSPH);
+    EXPECT_DOUBLE_EQ(params->get_time().start, 0.0);
+    EXPECT_DOUBLE_EQ(params->get_time().end, 0.15);
+    EXPECT_DOUBLE_EQ(params->get_cfl().sound, 0.3);
+    EXPECT_EQ(params->get_physics().neighbor_number, 50);
+    EXPECT_DOUBLE_EQ(params->get_physics().gamma, 1.4);
+    EXPECT_FALSE(params->get_gsph().is_2nd_order);
 }
 
 TEST_F(AlgorithmParametersBuilderTest, Integration_DamBreakSSPH) {
@@ -381,11 +381,11 @@ TEST_F(AlgorithmParametersBuilderTest, Integration_DamBreakSSPH) {
         .build();
     
     // Then: All parameters are correctly set
-    EXPECT_EQ(params->type, SPHType::SSPH);
-    EXPECT_TRUE(params->gravity.is_valid);
-    EXPECT_DOUBLE_EQ(params->gravity.constant, 9.81);
-    EXPECT_DOUBLE_EQ(params->av.alpha, 0.01);
-    EXPECT_TRUE(params->av.use_balsara_switch);
+    EXPECT_EQ(params->get_type(), SPHType::SSPH);
+    EXPECT_TRUE(params->has_gravity());
+    EXPECT_DOUBLE_EQ(params->get_newtonian_gravity().constant, 9.81);
+    EXPECT_DOUBLE_EQ(params->get_av().alpha, 0.01);
+    EXPECT_TRUE(params->get_av().use_balsara_switch);
 }
 
 // ==================== Error Message Quality Tests ====================

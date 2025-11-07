@@ -32,6 +32,7 @@
     "format": "cpp",
     "ranges": "cpp",
     "__locale": "cpp",
-    "functional": "cpp"
+    "functional": "cpp",
+    "numbers": "cpp"
   }
 }

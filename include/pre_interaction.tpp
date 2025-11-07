@@ -19,16 +19,16 @@ namespace sph
 template<int Dim>
 void PreInteraction<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
-    m_use_time_dependent_av = param->av.use_time_dependent_av;
+    m_use_time_dependent_av = param->get_av().use_time_dependent_av;
     if(m_use_time_dependent_av) {
-        m_alpha_max = param->av.alpha_max;
-        m_alpha_min = param->av.alpha_min;
-        m_epsilon = param->av.epsilon;
+        m_alpha_max = param->get_av().alpha_max;
+        m_alpha_min = param->get_av().alpha_min;
+        m_epsilon = param->get_av().epsilon;
     }
-    m_use_balsara_switch = param->av.use_balsara_switch;
-    m_adiabatic_index = param->physics.gamma;
-    m_neighbor_number = param->physics.neighbor_number;
-    m_iteration = param->iterative_sml;
+    m_use_balsara_switch = param->get_av().use_balsara_switch;
+    m_adiabatic_index = param->get_physics().gamma;
+    m_neighbor_number = param->get_physics().neighbor_number;
+    m_iteration = param->get_iterative_sml();
     if(m_iteration) {
         m_kernel_ratio = 1.2;
     } else {

@@ -1,6 +1,6 @@
 /**
  * @file plugin_3d.cpp
- * @brief 3D Sod shock tube plugin with physics-based parameters
+ * @brief 3D Sod shock tube plugin with physics-based parameters (V3 pure business logic)
  * 
  * This plugin creates a 3D shock tube simulation with:
  * - X-direction: Shock tube with density discontinuity at x=0.5
@@ -11,9 +11,11 @@
  * - Per-boundary particle spacing for accurate wall positioning
  * - Physics-based parameter estimation
  * - Morris 1997 ghost particle boundaries
+ * - V3 pure functional interface
  */
 
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
 #include "core/parameters/sph_parameters_builder_base.hpp"
 #include "core/parameters/gsph_parameters_builder.hpp"
 #include "core/parameters/parameter_estimator.hpp"
@@ -23,6 +25,7 @@
 #include "core/utilities/vector.hpp"
 #include "core/boundaries/ghost_particle_manager.hpp"
 #include "core/boundaries/boundary_types.hpp"
+#include "core/boundaries/boundary_builder.hpp"
 #include "exception.hpp"
 #include <vector>
 #include <iostream>
@@ -30,7 +33,7 @@
 
 using namespace sph;
 
-class ShockTubePlugin3D : public SimulationPlugin<3> {
+class ShockTubePlugin3D : public SimulationPluginV3<3> {
 public:
     std::string get_name() const override {
         return "shock_tube_3d";
@@ -43,9 +46,12 @@ public:
     std::string get_version() const override {
         return "1.0.0";
     }
-    
-    void initialize(std::shared_ptr<Simulation<3>> sim,
-                   std::shared_ptr<SPHParameters> params) override {
+
+    std::vector<std::string> get_source_files() const override {
+        return {"plugin_3d.cpp"};
+    }
+
+    InitialCondition<3> create_initial_condition() const override {
         static constexpr int Dim = 3;
         
         std::cout << "\n=== 3D SHOCK TUBE SIMULATION ===\n";
@@ -160,7 +166,7 @@ public:
         
         std::cout << "\n--- Building Parameters (Type-Safe API) ---\n";
         
-        auto built_params = SPHParametersBuilderBase()
+        auto params = SPHParametersBuilderBase()
             .with_time(0.0, 0.2, 0.01)
             .with_physics(suggestions.neighbor_number, gamma)
             .with_cfl(suggestions.cfl_sound, suggestions.cfl_force)
@@ -172,8 +178,6 @@ public:
             .with_2nd_order_muscl(false)  // Disable 2nd order for ghost compatibility
             
             .build();
-        
-        *params = *built_params;
         
         std::cout << "✓ Parameters built with type-safe GSPH API\n";
         std::cout << "  - GSPH uses HLL Riemann solver\n";
@@ -193,83 +197,55 @@ public:
         }
         
         // ============================================================
-        // STEP 5: SET PARTICLES
-        // ============================================================
-        
-        sim->particles = std::move(particles);
-        sim->particle_num = num;
-        
-        // ============================================================
-        // STEP 6: INITIALIZE GHOST PARTICLE SYSTEM
+        // STEP 5: BOUNDARY CONFIGURATION (TYPE-SAFE API, V3 INTERFACE)
         // ============================================================
         std::cout << "\n--- Ghost Particle System ---\n";
         
-        BoundaryConfiguration<Dim> ghost_config;
-        ghost_config.is_valid = true;
+        auto boundary_config = BoundaryBuilder<Dim>()
+            .in_range(
+                Vector<Dim>{-0.5, 0.0, 0.0},
+                Vector<Dim>{1.5, 0.5, 0.5}
+            )
+            .with_mirror_in_dimension(0, MirrorType::FREE_SLIP, dx_left, dx_right)  // X: frictionless
+            .with_mirror_in_dimension(1, MirrorType::NO_SLIP, dy, dy)               // Y: sticky walls
+            .with_mirror_in_dimension(2, MirrorType::NO_SLIP, dz, dz)               // Z: sticky walls
+            .build();
         
-        // X-direction: MIRROR with per-boundary spacing
-        ghost_config.types[0] = BoundaryType::MIRROR;
-        ghost_config.range_min[0] = -0.5;
-        ghost_config.range_max[0] = 1.5;
-        ghost_config.enable_lower[0] = true;
-        ghost_config.enable_upper[0] = true;
-        ghost_config.mirror_types[0] = MirrorType::FREE_SLIP;
-        ghost_config.spacing_lower[0] = dx_left;   // Left wall uses dense spacing
-        ghost_config.spacing_upper[0] = dx_right;  // Right wall uses sparse spacing
-        
-        // Y-direction: MIRROR with uniform spacing
-        ghost_config.types[1] = BoundaryType::MIRROR;
-        ghost_config.range_min[1] = 0.0;
-        ghost_config.range_max[1] = 0.5;
-        ghost_config.enable_lower[1] = true;
-        ghost_config.enable_upper[1] = true;
-        ghost_config.mirror_types[1] = MirrorType::NO_SLIP;
-        ghost_config.spacing_lower[1] = dy;
-        ghost_config.spacing_upper[1] = dy;
-        
-        // Z-direction: MIRROR with uniform spacing
-        ghost_config.types[2] = BoundaryType::MIRROR;
-        ghost_config.range_min[2] = 0.0;
-        ghost_config.range_max[2] = 0.5;
-        ghost_config.enable_lower[2] = true;
-        ghost_config.enable_upper[2] = true;
-        ghost_config.mirror_types[2] = MirrorType::NO_SLIP;
-        ghost_config.spacing_lower[2] = dz;
-        ghost_config.spacing_upper[2] = dz;
-        
-        sim->ghost_manager->initialize(ghost_config);
-        
-        std::cout << "✓ Ghost particle system initialized\n";
-        std::cout << "  X-boundary: MIRROR (FREE_SLIP) [" << ghost_config.range_min[0] 
-                  << ", " << ghost_config.range_max[0] << "]\n";
+        std::cout << "✓ Ghost particle system configured\n";
+        std::cout << "  X-boundary: MIRROR (FREE_SLIP) [" << boundary_config.range_min[0] 
+                  << ", " << boundary_config.range_max[0] << "]\n";
         std::cout << "    Left spacing:  " << dx_left << " → wall at " 
-                  << ghost_config.get_wall_position(0, false) << "\n";
+                  << boundary_config.get_wall_position(0, false) << "\n";
         std::cout << "    Right spacing: " << dx_right << " → wall at " 
-                  << ghost_config.get_wall_position(0, true) << "\n";
-        std::cout << "  Y-boundary: MIRROR (NO_SLIP) [" << ghost_config.range_min[1]
-                  << ", " << ghost_config.range_max[1] << "]\n";
+                  << boundary_config.get_wall_position(0, true) << "\n";
+        std::cout << "  Y-boundary: MIRROR (NO_SLIP) [" << boundary_config.range_min[1]
+                  << ", " << boundary_config.range_max[1] << "]\n";
         std::cout << "    Spacing: " << dy << "\n";
-        std::cout << "  Z-boundary: MIRROR (NO_SLIP) [" << ghost_config.range_min[2]
-                  << ", " << ghost_config.range_max[2] << "]\n";
+        std::cout << "  Z-boundary: MIRROR (NO_SLIP) [" << boundary_config.range_min[2]
+                  << ", " << boundary_config.range_max[2] << "]\n";
         std::cout << "    Spacing: " << dz << "\n";
         
+        // NOTE: V3 INTERFACE - Framework handles system initialization
+        // The Solver will:
+        //   1. Compute smoothing lengths in PreInteraction
+        //   2. Set kernel support radius based on max(sml)
+        //   3. Generate ghost particles after sml is known
+        //
+        // BUS ERROR FIX: By using V3 interface, plugins can NO LONGER access
+        // uninitialized p.sml field - compile-time safety prevents the bug!
+        
         std::cout << "\n=== Initialization Complete ===\n";
-        std::cout << "Particles: " << num << "\n";
-        std::cout << "Ready to run 3D simulation\n\n";
-    }
-    
-    std::vector<std::string> get_source_files() const override {
-        return {"plugin_3d.cpp"};
+        std::cout << "Particles: " << particles.size() << "\n";
+        std::cout << "Ghost generation deferred to Solver::initialize()\n";
+        std::cout << "Ready to return InitialCondition\n\n";
+        
+        // ============================================================
+        // V3 INTERFACE: Return InitialCondition data
+        // ============================================================
+        return InitialCondition<Dim>::with_particles(std::move(particles))
+            .with_parameters(std::move(params))
+            .with_boundaries(std::move(boundary_config));
     }
 };
 
-// Export plugin
-extern "C" {
-    SimulationPlugin<3>* create_plugin() {
-        return new ShockTubePlugin3D();
-    }
-    
-    void destroy_plugin(SimulationPlugin<3>* plugin) {
-        delete plugin;
-    }
-}
+DEFINE_SIMULATION_PLUGIN_V3(ShockTubePlugin3D, 3)

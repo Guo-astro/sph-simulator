@@ -99,11 +99,12 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                 auto params = base.as_gsph().build();
                 
                 THEN("Parameters should be correctly set") {
-                    EXPECT_EQ(params->time.start, 0.0);
-                    EXPECT_EQ(params->time.end, 0.2);
-                    EXPECT_EQ(params->cfl.sound, 0.3);
-                    EXPECT_EQ(params->physics.neighbor_number, 50);
-                    EXPECT_EQ(params->type, SPHType::GSPH);
+                    EXPECT_EQ(params->get_time().start, 0.0);
+                    EXPECT_EQ(params->get_time().end, 0.2);
+                    EXPECT_EQ(params->get_cfl().sound, 0.3);
+                    EXPECT_EQ(params->get_physics().neighbor_number, 50);
+                    EXPECT_EQ(params->get_type(), SPHType::GSPH);
+                }
                 }
             }
         }
@@ -139,8 +140,8 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                     .build();
                 
                 THEN("Should build successfully") {
-                    EXPECT_EQ(params->type, SPHType::SSPH);
-                    EXPECT_EQ(params->av.alpha, 1.0);
+                    EXPECT_EQ(params->get_type(), SPHType::SSPH);
+                    EXPECT_EQ(params->get_av().alpha, 1.0);
                 }
             }
         }
@@ -160,9 +161,9 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                     .build();
                 
                 THEN("Parameters should be set") {
-                    EXPECT_EQ(params->type, SPHType::DISPH);
-                    EXPECT_EQ(params->av.alpha, 1.0);
-                    EXPECT_TRUE(params->av.use_balsara_switch);
+                    EXPECT_EQ(params->get_type(), SPHType::DISPH);
+                    EXPECT_EQ(params->get_av().alpha, 1.0);
+                    EXPECT_TRUE(params->get_av().use_balsara_switch);
                 }
             }
         }
@@ -182,7 +183,7 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                     .build();
                 
                 THEN("Should be enabled") {
-                    EXPECT_TRUE(params->gsph.is_2nd_order);
+                    EXPECT_TRUE(params->get_gsph().is_2nd_order);
                 }
             }
         }
@@ -220,15 +221,14 @@ FEATURE(TypeSafeAlgorithmParametersBuilder) {
                     .build();
                 
                 THEN("All parameters should be set") {
-                    EXPECT_EQ(params->type, SPHType::SSPH);
-                    EXPECT_TRUE(params->gravity.is_valid);
-                    EXPECT_EQ(params->gravity.constant, 9.81);
-                    EXPECT_TRUE(params->ac.is_valid);
+                    EXPECT_EQ(params->get_type(), SPHType::SSPH);
+                    EXPECT_TRUE(params->has_gravity());
+                    EXPECT_EQ(params->get_newtonian_gravity().constant, 9.81);
+                    EXPECT_TRUE(params->get_ac().is_valid);
                 }
             }
         }
     }
-}
 
 FEATURE(PluginParameterIntegration) {
     
@@ -246,7 +246,7 @@ FEATURE(PluginParameterIntegration) {
                 
                 THEN("Plugin gets compile-time safety") {
                     EXPECT_TRUE(params != nullptr);
-                    EXPECT_EQ(params->type, SPHType::GSPH);
+                    EXPECT_EQ(params->get_type(), SPHType::GSPH);
                 }
             }
             
@@ -261,8 +261,8 @@ FEATURE(PluginParameterIntegration) {
                     .build();
                 
                 THEN("Must set artificial viscosity") {
-                    EXPECT_EQ(params->type, SPHType::SSPH);
-                    EXPECT_EQ(params->av.alpha, 1.0);
+                    EXPECT_EQ(params->get_type(), SPHType::SSPH);
+                    EXPECT_EQ(params->get_av().alpha, 1.0);
                 }
             }
         }

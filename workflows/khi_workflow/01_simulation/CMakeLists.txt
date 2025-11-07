@@ -3,10 +3,21 @@ cmake_minimum_required(VERSION 3.13)
 # Load Conan toolchain before project()
 get_filename_component(SPH_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../" ABSOLUTE)
 
-# Add SPH root to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
-list(APPEND CMAKE_PREFIX_PATH ${SPH_ROOT})
+# Add SPH root and build directory to CMAKE_PREFIX_PATH so find_package can locate Conan-generated configs
+list(APPEND CMAKE_PREFIX_PATH 
+    ${SPH_ROOT}
+    ${SPH_ROOT}/build
+    ${SPH_ROOT}/build_tests
+    ${SPH_ROOT}/build_release
+)
 
-if(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
+if(EXISTS ${SPH_ROOT}/build/conan_toolchain.cmake)
+  include(${SPH_ROOT}/build/conan_toolchain.cmake)
+elseif(EXISTS ${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+  include(${SPH_ROOT}/build_tests/conan_toolchain.cmake)
+elseif(EXISTS ${SPH_ROOT}/build_release/conan_toolchain.cmake)
+  include(${SPH_ROOT}/build_release/conan_toolchain.cmake)
+elseif(EXISTS ${SPH_ROOT}/conan_toolchain.cmake)
   include(${SPH_ROOT}/conan_toolchain.cmake)
 endif()
 
@@ -41,6 +52,15 @@ file(GLOB SPH_ALGORITHM_SOURCES "${SPH_SRC_DIR}/algorithms/riemann/*.cpp")
 file(GLOB SPH_CORE_SOURCES "${SPH_SRC_DIR}/core/*.cpp")
 list(FILTER SPH_CORE_SOURCES EXCLUDE REGEX "plugin_loader\\.cpp$")
 
+# Add algorithm registry sources
+file(GLOB SPH_ALGORITHM_REGISTRY_SOURCES "${SPH_SRC_DIR}/core/algorithms/*.cpp")
+
+# Add parameter builder sources
+file(GLOB SPH_PARAMETER_SOURCES "${SPH_SRC_DIR}/core/parameters/*.cpp")
+
+# Add boundary configuration sources
+file(GLOB SPH_BOUNDARY_SOURCES "${SPH_SRC_DIR}/core/boundaries/*.cpp")
+
 # Build plugin as shared library
 add_library(khi_plugin SHARED 
     src/plugin.cpp
@@ -48,7 +68,10 @@ add_library(khi_plugin SHARED
     ${SPH_DISPH_SOURCES}
     ${SPH_GSPH_SOURCES}
     ${SPH_ALGORITHM_SOURCES}
+    ${SPH_ALGORITHM_REGISTRY_SOURCES}
     ${SPH_CORE_SOURCES}
+    ${SPH_PARAMETER_SOURCES}
+    ${SPH_BOUNDARY_SOURCES}
 )
 
 target_compile_features(khi_plugin PUBLIC cxx_std_17)

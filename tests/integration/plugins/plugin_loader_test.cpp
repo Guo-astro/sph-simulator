@@ -4,7 +4,7 @@ static constexpr int Dim = 1;
 #include <gtest/gtest.h>
 #include "../../helpers/bdd_helpers.hpp"
 #include "core/plugins/plugin_loader.hpp"
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
 #include "core/simulation/simulation.hpp"
 #include "parameters.hpp"
 #include <memory>
@@ -12,7 +12,7 @@ static constexpr int Dim = 1;
 
 /**
  * @file plugin_loader_test.cpp
- * @brief BDD-style tests for dynamic plugin loading system
+ * @brief BDD-style tests for dynamic plugin loading system (V3 interface)
  * 
  * Feature: Plugin Loading System
  * As a simulation developer
@@ -58,12 +58,12 @@ FEATURE(PluginLoaderFeature) {
     
     SCENARIO(CreatesPluginInstance, InstantiatesPlugin) {
         GIVEN("A loaded plugin library") {
-            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             PluginLoader<Dim> loader(plugin_path);
             ASSERT_TRUE(loader.is_loaded());
             
-            WHEN("We create a plugin instance") {
-                auto plugin = loader.create_plugin();
+            WHEN("We create a plugin instance (V3)") {
+                auto plugin = loader.create_plugin_v3();
                 
                 THEN("The plugin should be created successfully") {
                     EXPECT_NE(plugin, nullptr);
@@ -83,30 +83,25 @@ FEATURE(PluginLoaderFeature) {
     }
     
     SCENARIO(InitializesSimulation, ConfiguresSimulationState) {
-        GIVEN("A plugin instance and simulation objects") {
-            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+        GIVEN("A plugin instance (V3)") {
+            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             PluginLoader<Dim> loader(plugin_path);
-            auto plugin = loader.create_plugin();
+            auto plugin = loader.create_plugin_v3();
             ASSERT_NE(plugin, nullptr);
             
-            auto params = std::make_shared<SPHParameters>();
-            auto sim = std::make_shared<Simulation<Dim>>(params);
-            
-            WHEN("We initialize the plugin") {
-                plugin->initialize(sim, params);
+            WHEN("We call create_initial_condition") {
+                auto init_cond = plugin->create_initial_condition();
                 
-                THEN("The simulation should have particles") {
-                    EXPECT_GT(sim->particle_num, 0);
+                THEN("The initial condition should have particles") {
+                    EXPECT_GT(init_cond.particles.size(), 0);
                 }
                 
                 AND("The parameters should be configured") {
-                    EXPECT_GT(params->time.end, 0.0);
-                    // TODO: Fix plugin to set periodic.is_valid properly
-                    // EXPECT_TRUE(params->periodic.is_valid);
+                    EXPECT_GT(init_cond.parameters->get_time().end, 0.0);
                 }
                 
                 AND("Particles should have valid physical properties") {
-                    const auto& particles = sim->particles;
+                    const auto& particles = init_cond.particles;
                     for (const auto& p : particles) {
                         EXPECT_GT(p.dens, 0.0) << "Density must be positive";
                         EXPECT_GT(p.mass, 0.0) << "Mass must be positive";
@@ -114,18 +109,22 @@ FEATURE(PluginLoaderFeature) {
                         EXPECT_TRUE(test_helpers::is_finite(p.ene)) << "Energy must be finite";
                     }
                 }
+                
+                AND("Boundary configuration should be valid") {
+                    EXPECT_TRUE(init_cond.boundary_config.is_valid);
+                }
             }
         }
     }
     
     SCENARIO(ManagesPluginLifetime, CleansUpResources) {
         GIVEN("A plugin loader") {
-            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             
-            WHEN("We create and destroy plugin instances") {
+            WHEN("We create and destroy plugin instances (V3)") {
                 PluginLoader<Dim> loader(plugin_path);
-                auto plugin1 = loader.create_plugin();
-                auto plugin2 = loader.create_plugin();
+                auto plugin1 = loader.create_plugin_v3();
+                auto plugin2 = loader.create_plugin_v3();
                 
                 THEN("Multiple instances can be created") {
                     EXPECT_NE(plugin1, nullptr);
@@ -145,7 +144,7 @@ FEATURE(PluginLoaderFeature) {
     
     SCENARIO(SupportsRelativePaths, ResolvesPathsCorrectly) {
         GIVEN("A relative plugin path from project root") {
-            std::string relative_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+            std::string relative_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             
             WHEN("We load the plugin with relative path") {
                 PluginLoader<Dim> loader(relative_path);
@@ -161,25 +160,9 @@ FEATURE(PluginLoaderFeature) {
 // Edge cases and error handling
 FEATURE(PluginLoaderEdgeCases) {
     
-    // Disabled: Causes segfault, plugin doesn't validate null pointers properly
-    // TODO: Fix plugin to validate null pointers before dereferencing
-    // SCENARIO(HandlesNullPointers, ValidatesInputs) {
-    //     GIVEN("A loaded plugin") {
-    //         std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
-    //         PluginLoader loader(plugin_path);
-    //         auto plugin = loader.create_plugin();
-    //         
-    //         WHEN("We pass null pointers to initialize") {
-    //             THEN("The plugin should handle gracefully or throw") {
-    //                 EXPECT_ANY_THROW(plugin->initialize(nullptr, nullptr));
-    //             }
-    //         }
-    //     }
-    // }
-    
     SCENARIO(HandlesRepeatedLoading, LoadsMultipleTimes) {
         GIVEN("A plugin path") {
-            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             
             WHEN("We load the same plugin multiple times") {
                 PluginLoader<Dim> loader1(plugin_path);
@@ -189,8 +172,8 @@ FEATURE(PluginLoaderEdgeCases) {
                     EXPECT_TRUE(loader1.is_loaded());
                     EXPECT_TRUE(loader2.is_loaded());
                     
-                    auto plugin1 = loader1.create_plugin();
-                    auto plugin2 = loader2.create_plugin();
+                    auto plugin1 = loader1.create_plugin_v3();
+                    auto plugin2 = loader2.create_plugin_v3();
                     
                     EXPECT_NE(plugin1, nullptr);
                     EXPECT_NE(plugin2, nullptr);
@@ -204,22 +187,24 @@ FEATURE(PluginLoaderEdgeCases) {
 FEATURE(PluginLoaderIntegration) {
     
     SCENARIO(WorksWithSolver, IntegratesWithMainWorkflow) {
-        GIVEN("A plugin-based solver configuration") {
-            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin.dylib";
+        GIVEN("A V3 plugin-based solver configuration") {
+            std::string plugin_path = "../workflows/shock_tube_workflow/01_simulation/lib/libshock_tube_plugin_enhanced.dylib";
             
-            WHEN("We load and initialize through solver pattern") {
+            WHEN("We load and initialize through V3 pattern") {
                 PluginLoader<Dim> loader(plugin_path);
-                auto plugin = loader.create_plugin();
-                auto params = std::make_shared<SPHParameters>();
-                auto sim = std::make_shared<Simulation<Dim>>(params);
+                auto plugin = loader.create_plugin_v3();
                 
-                plugin->initialize(sim, params);
+                auto init_cond = plugin->create_initial_condition();
                 
                 THEN("The configuration should be complete for simulation") {
-                    EXPECT_GT(sim->particle_num, 0);
-                    EXPECT_GT(params->time.end, 0.0);
-                    EXPECT_GT(params->physics.gamma, 0.0);
-                    EXPECT_GT(params->physics.neighbor_number, 0);
+                    EXPECT_GT(init_cond.particles.size(), 0);
+                    EXPECT_GT(init_cond.parameters->get_time().end, 0.0);
+                    EXPECT_GT(init_cond.parameters->get_physics().gamma, 0.0);
+                    EXPECT_GT(init_cond.parameters->get_physics().neighbor_number, 0);
+                }
+                
+                AND("Boundary configuration should be present") {
+                    EXPECT_TRUE(init_cond.boundary_config.is_valid);
                 }
             }
         }

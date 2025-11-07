@@ -7,6 +7,8 @@ static constexpr int Dim = 1;
 #include "core/boundaries/ghost_particle_manager.hpp"
 #include "core/boundaries/boundary_types.hpp"
 #include "parameters.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/parameters/gsph_parameters_builder.hpp"
 #include <memory>
 #include <vector>
 
@@ -23,12 +25,14 @@ using namespace sph;
 class ParticleInitializationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create basic SPH parameters
-        params = std::make_shared<SPHParameters>();
-        params->dimension = 1;
-        params->physics.gamma = 1.4;
-        params->physics.neighbor_number = 4;
-        params->kernel = KernelType::CUBIC_SPLINE;
+        // Create parameters using builder pattern (compile-time enforced immutability)
+        params = SPHParametersBuilderBase()
+            .with_time(0.0, 1.0, 0.01)
+            .with_cfl(0.3, 0.25)
+            .with_physics(4, 1.4)
+            .with_kernel("cubic_spline")
+            .as_gsph()
+            .build();
     }
 
     std::shared_ptr<SPHParameters> params;

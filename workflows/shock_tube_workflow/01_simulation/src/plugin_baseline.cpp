@@ -1,4 +1,5 @@
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
 #include "core/parameters/sph_parameters_builder_base.hpp"
 #include "core/parameters/ssph_parameters_builder.hpp"
 #include "core/parameters/parameter_estimator.hpp"
@@ -31,7 +32,7 @@ using namespace sph;
  * 
  * Once verified, can switch to modern mode with ghost particles enabled.
  */
-class BaselineShockTubePlugin : public SimulationPlugin<1> {
+class BaselineShockTubePlugin : public SimulationPluginV3<1> {
 public:
     std::string get_name() const override {
         return "baseline_shock_tube";
@@ -49,8 +50,7 @@ public:
         return {"plugin_baseline.cpp"};
     }
     
-    void initialize(std::shared_ptr<Simulation<1>> sim,
-                   std::shared_ptr<SPHParameters> params) override {
+    InitialCondition<1> create_initial_condition() const override {
         static constexpr int Dim = 1;
 
         std::cout << "\n=== BASELINE SHOCK TUBE (abd7353 Compatible) ===\n";
@@ -138,7 +138,7 @@ public:
         
         std::cout << "--- Building Baseline Parameters ---\n";
         
-        auto builder_params = SPHParametersBuilderBase()
+        auto params = SPHParametersBuilderBase()
             .with_time(0.0, 0.30, 0.01, 0.01)
             
             // BASELINE VALUES (NOT estimated!)
@@ -176,15 +176,13 @@ public:
             
             .build();
         
-        *params = *builder_params;
-        
         std::cout << "✓ Baseline parameters set:\n";
-        std::cout << "  neighbor_number = " << params->physics.neighbor_number << "\n";
-        std::cout << "  gamma = " << params->physics.gamma << "\n";
-        std::cout << "  CFL sound = " << params->cfl.sound << "\n";
-        std::cout << "  CFL force = " << params->cfl.force << "\n";
-        std::cout << "  iterative_sml = " << (params->iterative_sml ? "true" : "false") << "\n";
-        std::cout << "  periodic = " << (params->periodic.is_valid ? "true" : "false") << "\n";
+        std::cout << "  neighbor_number = " << params->get_physics().neighbor_number << "\n";
+        std::cout << "  gamma = " << params->get_physics().gamma << "\n";
+        std::cout << "  CFL sound = " << params->get_cfl().sound << "\n";
+        std::cout << "  CFL force = " << params->get_cfl().force << "\n";
+        std::cout << "  iterative_sml = " << (params->get_iterative_sml() ? "true" : "false") << "\n";
+        std::cout << "  periodic = " << (params->get_periodic().is_valid ? "true" : "false") << "\n";
         
         // ============================================================
         // VALIDATION
@@ -196,30 +194,16 @@ public:
             ParameterValidator::validate_all(particles, params);
             std::cout << "✓ Baseline parameters validated\n";
         } catch (const std::runtime_error& e) {
-            std::cerr << "❌ VALIDATION FAILED: " << e.what() << "\n";
+            std::cerr << "✖ VALIDATION FAILED: " << e.what() << "\n";
             THROW_ERROR("Baseline parameter validation failed");
         }
         
         // ============================================================
-        // SET PARTICLES IN SIMULATION
-        // ============================================================
-        
-        sim->particle_num = num;
-        sim->particles = std::move(particles);
-        
-        // ============================================================
         // BOUNDARY CONFIGURATION - TYPE-SAFE API
-        // ============================================================
-        // NEW: Using declarative, type-safe boundary builder
-        // - No confusing boolean parameters
-        // - Ghost particles automatically enabled for periodic
-        // - Intent is crystal clear from code
         // ============================================================
         
         std::cout << "\n--- Boundary Configuration (Type-Safe API) ---\n";
         
-        // TYPE-SAFE DECLARATIVE API:
-        // Ghost particles are AUTOMATICALLY enabled!
         auto boundary_config = BoundaryBuilder<Dim>()
             .with_periodic_boundaries()
             .in_range(
@@ -227,8 +211,6 @@ public:
                 Vector<Dim>{1.5}    // domain max
             )
             .build();
-        
-        sim->ghost_manager->initialize(boundary_config);
         
         std::cout << BoundaryBuilder<Dim>::describe(boundary_config);
         std::cout << "\nType-safe configuration:\n";
@@ -239,21 +221,20 @@ public:
         
         std::cout << "\n--- Configuration Summary ---\n";
         std::cout << "SPH Algorithm: SSPH (Standard SPH)\n";
-        std::cout << "Artificial Viscosity: α=" << params->av.alpha << "\n";
+        std::cout << "Artificial Viscosity: α=" << params->get_av().alpha << "\n";
         std::cout << "Kernel: Cubic Spline\n";
-        std::cout << "Boundary: Legacy Periodic (NO ghosts)\n";
+        std::cout << "Boundary: Periodic with Ghosts\n";
         std::cout << "\n=== Baseline Initialization Complete ===\n";
         std::cout << "Ready to run with abd7353-compatible parameters\n\n";
+        
+        // ============================================================
+        // V3 INTERFACE: Return InitialCondition data
+        // ============================================================
+        return InitialCondition<Dim>::with_particles(std::move(particles))
+            .with_parameters(std::move(params))
+            .with_boundaries(std::move(boundary_config));
     }
 };
 
-// Plugin factory
-extern "C" {
-    SimulationPlugin<1>* create_plugin() {
-        return new BaselineShockTubePlugin();
-    }
-    
-    void destroy_plugin(SimulationPlugin<1>* plugin) {
-        delete plugin;
-    }
-}
+// V3 Plugin factory
+DEFINE_SIMULATION_PLUGIN_V3(BaselineShockTubePlugin, 1)

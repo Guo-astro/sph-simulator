@@ -32,8 +32,8 @@ protected:
         
         // Create test parameters
         params = std::make_shared<SPHParameters>();
-        params->physics.gamma = 1.4;
-        params->physics.neighbor_number = 50;
+        params->get_physics().gamma = 1.4;
+        params->get_physics().neighbor_number = 50;
         params->output.directory = kTestOutputDir;
         
         // Create unit system

@@ -184,7 +184,7 @@ void ParameterValidator::validate_all(
     }
     
     // Validate CFL coefficients
-    validate_cfl(particles, params->cfl.sound, params->cfl.force);
+    validate_cfl(particles, params->get_cfl().sound, params->get_cfl().force);
     
     // Validate neighbor number
     // Determine kernel support from kernel type
@@ -192,7 +192,7 @@ void ParameterValidator::validate_all(
     
     validate_neighbor_number(
         particles, 
-        params->physics.neighbor_number, 
+        params->get_physics().neighbor_number, 
         kernel_support
     );
     

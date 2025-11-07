@@ -18,20 +18,20 @@ using namespace sph;
 // Helper function to create test parameters
 std::shared_ptr<SPHParameters> create_test_params(int dim, bool periodic = false) {
     auto params = std::make_shared<SPHParameters>();
-    params->tree.max_level = 10;
-    params->tree.leaf_particle_num = 8;
-    params->periodic.is_valid = periodic;
+    params->get_tree().max_level = 10;
+    params->get_tree().leaf_particle_num = 8;
+    params->get_periodic().is_valid = periodic;
     
     if (periodic) {
         for (int i = 0; i < 3; ++i) {
-            params->periodic.range_min[i] = 0.0;
-            params->periodic.range_max[i] = 10.0;
+            params->get_periodic().range_min[i] = 0.0;
+            params->get_periodic().range_max[i] = 10.0;
         }
     }
     
-    params->gravity.is_valid = true;
-    params->gravity.constant = 1.0;
-    params->gravity.theta = 0.5;
+    params->has_gravity() = true;
+    params->get_newtonian_gravity().constant = 1.0;
+    params->get_newtonian_gravity().theta = 0.5;
     
     return params;
 }
@@ -482,7 +482,7 @@ TEST(BHTreeTest, GravityForceCalculation1D) {
         GIVEN("A 1D BHTree with two particles") {
             BHTree<1> tree;
             auto params = create_test_params(1);
-            params->gravity.constant = 1.0;
+            params->get_newtonian_gravity().constant = 1.0;
             tree.initialize(params);
             tree.resize(2);
             

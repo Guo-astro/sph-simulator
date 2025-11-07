@@ -1,4 +1,5 @@
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
 #include "core/parameters/sph_parameters_builder_base.hpp"
 #include "core/parameters/disph_parameters_builder.hpp"
 #include "core/parameters/parameter_estimator.hpp"
@@ -29,7 +30,7 @@ using namespace sph;
  * 
  * Reference: Saitoh & Makino 2013 - Density Independent SPH
  */
-class ShockTubeDISPHPlugin : public SimulationPlugin<1> {
+class ShockTubeDISPHPlugin : public SimulationPluginV3<1> {
 public:
     std::string get_name() const override {
         return "shock_tube_disph";
@@ -47,8 +48,7 @@ public:
         return {"plugin_disph.cpp"};
     }
     
-    void initialize(std::shared_ptr<Simulation<1>> sim,
-                   std::shared_ptr<SPHParameters> params) override {
+    InitialCondition<1> create_initial_condition() const override {
         // This plugin is for 1D simulations
         static constexpr int Dim = 1;
 
@@ -159,64 +159,57 @@ public:
         // STEP 3: BUILD PARAMETERS WITH ESTIMATED VALUES
         // ============================================================
         
-        if (params->time.end == 0) {
-            std::cout << "\n--- Building Parameter Set (Type-Safe DISPH API) ---\n";
+        std::cout << "\n--- Building Parameter Set (Type-Safe DISPH API) ---\n";
+        
+        auto params = SPHParametersBuilderBase()
+            // Common parameters (time, CFL, physics, kernel)
+            .with_time(
+                0.0,    // start time
+                0.30,   // end time  
+                0.01,   // output interval
+                0.01    // energy output interval
+            )
             
-            auto builder_params = SPHParametersBuilderBase()
-                // Common parameters (time, CFL, physics, kernel)
-                .with_time(
-                    0.0,    // start time
-                    0.30,   // end time  
-                    0.01,   // output interval
-                    0.01    // energy output interval
-                )
-                
-                // Physics-based CFL (from stability analysis!)
-                .with_cfl(
-                    suggestions.cfl_sound,  // NOT hardcoded!
-                    suggestions.cfl_force   // Based on theory!
-                )
-                
-                // Physics parameters (using estimated neighbor number)
-                .with_physics(
-                    suggestions.neighbor_number,  // From kernel support
-                    gamma                         // Adiabatic index
-                )
-                
-                // Kernel type
-                .with_kernel("cubic_spline")
-                
-                // Tree parameters
-                .with_tree_params(20, 1)
-                
-                // Iterative smoothing length
-                .with_iterative_smoothing_length(true)
-                
-                // *** TRANSITION TO DISPH (Density Independent SPH) ***
-                // This enforces type safety - DISPH uses density-normalized formulation
-                // and artificial viscosity for shock capturing
-                .as_disph()
-                
-                // DISPH-specific: Artificial viscosity parameters
-                // These are the Monaghan 1992 recommended values for shock problems
-                .with_artificial_viscosity(
-                    1.0    // alpha: bulk viscosity coefficient (typical range: 0.5-2.0)
-                    // beta is deprecated - now derived as 2*alpha internally
-                    // use_balsara_switch defaults to true
-                    // use_time_dependent_av defaults to false
-                )
-                
-                .build();
+            // Physics-based CFL (from stability analysis!)
+            .with_cfl(
+                suggestions.cfl_sound,  // NOT hardcoded!
+                suggestions.cfl_force   // Based on theory!
+            )
             
-            *params = *builder_params;
+            // Physics parameters (using estimated neighbor number)
+            .with_physics(
+                suggestions.neighbor_number,  // From kernel support
+                gamma                         // Adiabatic index
+            )
             
-            std::cout << "✓ Parameters built with type-safe DISPH API\n";
-            std::cout << "  - DISPH uses density-independent formulation\n";
-            std::cout << "  - Artificial viscosity: alpha=1.0, beta=2.0\n";
-        } else {
-            std::cout << "\n--- Using Pre-Configured Parameters ---\n";
-            std::cout << "(Loaded from JSON configuration)\n";
-        }
+            // Kernel type
+            .with_kernel("cubic_spline")
+            
+            // Tree parameters
+            .with_tree_params(20, 1)
+            
+            // Iterative smoothing length
+            .with_iterative_smoothing_length(true)
+            
+            // *** TRANSITION TO DISPH (Density Independent SPH) ***
+            // This enforces type safety - DISPH uses density-normalized formulation
+            // and artificial viscosity for shock capturing
+            .as_disph()
+            
+            // DISPH-specific: Artificial viscosity parameters
+            // These are the Monaghan 1992 recommended values for shock problems
+            .with_artificial_viscosity(
+                1.0    // alpha: bulk viscosity coefficient (typical range: 0.5-2.0)
+                // beta is deprecated - now derived as 2*alpha internally
+                // use_balsara_switch defaults to true
+                // use_time_dependent_av defaults to false
+            )
+            
+            .build();
+        
+        std::cout << "✓ Parameters built with type-safe DISPH API\n";
+        std::cout << "  - DISPH uses density-independent formulation\n";
+        std::cout << "  - Artificial viscosity: alpha=1.0, beta=2.0\n";
         
         // ============================================================
         // STEP 4: VALIDATE PARAMETERS AGAINST PARTICLES
@@ -228,12 +221,12 @@ public:
             ParameterValidator::validate_all(particles, params);
             std::cout << "✓ All parameters validated - SAFE to run!\n";
             
-            // Show what timestep we'll get
+            // Show what timestep we'll get (using getter methods)
             auto config = ParameterEstimator::analyze_particle_config(particles);
-            real dt_sound = params->cfl.sound * config.avg_spacing / config.max_sound_speed;
+            real dt_sound = params->get_cfl().sound * config.avg_spacing / config.max_sound_speed;
             real dt_force = std::numeric_limits<real>::infinity();
             if (config.max_acceleration > 1e-10) {
-                dt_force = params->cfl.force * std::sqrt(config.avg_spacing / config.max_acceleration);
+                dt_force = params->get_cfl().force * std::sqrt(config.avg_spacing / config.max_acceleration);
             }
             
             std::cout << "\nExpected timestep:\n";
@@ -249,27 +242,16 @@ public:
         }
         
         // ============================================================
-        // STEP 5: SET PARTICLES IN SIMULATION
-        // ============================================================
-        
-        const int num_particles = static_cast<int>(particles.size());
-        
-        sim->particle_num = num_particles;
-        sim->particles = std::move(particles);
-        
-        // ============================================================
-        // STEP 6: INITIALIZE BOUNDARY SYSTEM (TYPE-SAFE API)
+        // STEP 5: CONFIGURE BOUNDARIES (TYPE-SAFE API)
         // ============================================================
         
         std::cout << "\n--- Ghost Particle System (Type-Safe API) ---\n";
         
         // TYPE-SAFE DECLARATIVE API for mirror boundaries
-        auto ghost_config = BoundaryBuilder<Dim>()
+        auto boundary_config = BoundaryBuilder<Dim>()
             .with_mirror_in_dimension(0, MirrorType::FREE_SLIP, dx_left, dx_right)
             .in_range(Vector<Dim>{-0.5}, Vector<Dim>{1.5})
             .build();
-        
-        sim->ghost_manager->initialize(ghost_config);
         
         std::cout << "✓ Ghost particle system configured (type-safe)\n";
         std::cout << "  ✓ MIRROR boundaries with FREE_SLIP\n";
@@ -278,28 +260,21 @@ public:
         
         std::cout << "\n--- Configuration Summary ---\n";
         std::cout << "SPH Algorithm: DISPH (Density Independent SPH)\n";
-        std::cout << "CFL coefficients: sound=" << params->cfl.sound 
-                  << ", force=" << params->cfl.force << "\n";
-        std::cout << "Neighbor number: " << params->physics.neighbor_number << "\n";
-        std::cout << "Gamma (adiabatic): " << params->physics.gamma << "\n";
-        std::cout << "Kernel: ";
-        switch(params->kernel) {
-            case KernelType::CUBIC_SPLINE: std::cout << "Cubic Spline\n"; break;
-            case KernelType::WENDLAND: std::cout << "Wendland\n"; break;
-            case KernelType::UNKNOWN: std::cout << "Unknown\n"; break;
-        }
+        std::cout << "CFL coefficients: sound=" << params->get_cfl().sound 
+                  << ", force=" << params->get_cfl().force << "\n";
+        std::cout << "Neighbor number: " << params->get_physics().neighbor_number << "\n";
+        std::cout << "Gamma (adiabatic): " << params->get_physics().gamma << "\n";
+        std::cout << "Kernel: Cubic Spline\n";
         
         std::cout << "\n=== Initialization Complete ===\n\n";
+        
+        // ============================================================
+        // V3 INTERFACE: Return InitialCondition data
+        // ============================================================
+        return InitialCondition<Dim>::with_particles(std::move(particles))
+            .with_parameters(std::move(params))
+            .with_boundaries(std::move(boundary_config));
     }
 };
 
-// Plugin factory function (C linkage for dynamic loading)
-extern "C" {
-    SimulationPlugin<1>* create_plugin() {
-        return new ShockTubeDISPHPlugin();
-    }
-    
-    void destroy_plugin(SimulationPlugin<1>* plugin) {
-        delete plugin;
-    }
-}
+DEFINE_SIMULATION_PLUGIN_V3(ShockTubeDISPHPlugin, 1)

@@ -235,12 +235,14 @@ create_custom_template() {
     local PLUGIN_NAME_UPPER=$(echo ${PLUGIN_NAME:0:1} | tr '[:lower:]' '[:upper:]')${PLUGIN_NAME:1}
     
     cat > "$FILE" << EOF
-#include "core/simulation_plugin.hpp"
-#include "core/simulation.hpp"
-#include "core/parameters.hpp"
-#include "core/particle.hpp"
-#include "utilities/exception.hpp"
-#include "utilities/defines.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
+#include "core/parameters/sph_parameters_builder_base.hpp"
+#include "core/boundaries/boundary_builder.hpp"
+#include "parameters.hpp"
+#include "core/particles/sph_particle.hpp"
+#include "exception.hpp"
+#include "defines.hpp"
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -259,27 +261,24 @@ namespace sph {
  * Initial Conditions:
  * - TODO: Describe initial setup
  */
-class ${PLUGIN_NAME_UPPER}Plugin : public SimulationPlugin {
+class ${PLUGIN_NAME_UPPER}Plugin : public SimulationPluginV3<DIM> {
 public:
     std::string get_name() const override {
         return "${PLUGIN_NAME}";
     }
     
     std::string get_description() const override {
-        return "${WORKFLOW_NAME_UPPER} - ${WORKFLOW_TYPE} simulation";
+        return "${WORKFLOW_NAME_UPPER} - ${WORKFLOW_TYPE} simulation (V3)";
     }
     
     std::string get_version() const override {
         return "1.0.0";
     }
     
-    void initialize(std::shared_ptr<Simulation> sim,
-                   std::shared_ptr<SPHParameters> param) override {
-#if DIM != $DIM
-        THROW_ERROR("${PLUGIN_NAME_UPPER} requires DIM=$DIM");
-#endif
+    InitialCondition<DIM> create_initial_condition() const override {
+        static constexpr int Dim = DIM;
 
-        std::cout << "Initializing ${WORKFLOW_NAME_UPPER} simulation...\\n";
+        std::cout << "Initializing ${WORKFLOW_NAME_UPPER} simulation (V3)...\\n";
         
         // ═══════════════════════════════════════════════════════════
         // TODO: Define simulation parameters
@@ -291,16 +290,16 @@ public:
         // Physical parameters
         const real density0 = 1.0;       // Background density
         const real pressure0 = 1.0;      // Background pressure
-        const real gamma = param->physics.gamma;  // Adiabatic index (default 5/3)
+        const real gamma = 5.0 / 3.0;    // Adiabatic index
         
         // ═══════════════════════════════════════════════════════════
         // TODO: Create particles
         // ═══════════════════════════════════════════════════════════
         
-        std::vector<SPHParticle>& particles = sim->get_particles();
+        std::vector<SPHParticle<Dim>> particles;
         
         const real dx = box_size / particles_per_dim;
-        const real mass_per_particle = density0 * std::pow(dx, DIM);
+        const real mass_per_particle = density0 * std::pow(dx, Dim);
         
         int n = 0;
 #if DIM == 1
@@ -340,11 +339,7 @@ public:
                     pp.dens = density0;
                     pp.pres = pressure0;
                     pp.ene = pressure0 / ((gamma - 1.0) * density0);
-                    pp.sml = 2.0 * dx;  // Initial smoothing length
                     pp.id = n;
-                    
-                    // Initialize volume for DISPH/GDISPH
-                    pp.volume = mass_per_particle / density0;
                     
                     particles.push_back(pp);
                     n++;
@@ -356,25 +351,43 @@ public:
 #endif
         }
         
-        sim->set_particle_num(n);
-        
         std::cout << "Created " << n << " particles\\n";
         std::cout << "  Particle mass:   " << mass_per_particle << "\\n";
-        std::cout << "  Smoothing length: " << (2.0 * dx) << "\\n";
         
         // ═══════════════════════════════════════════════════════════
-        // TODO: Set simulation parameters
+        // Build parameters with type-safe builder
         // ═══════════════════════════════════════════════════════════
         
-        param->type = SPHType::${SPH_TYPE_UPPER};
-        param->time.end = 1.0;           // End time
-        param->time.output = 0.1;        // Snapshot interval
-        param->cfl.sound = 0.3;          // CFL factor
-        param->physics.neighbor_number = 50;  // Neighbor count
+        std::shared_ptr<SPHParameters> param;
+        try {
+            param = SPHParametersBuilderBase()
+                .with_time(0.0, 1.0, 0.1, 0.1)
+                .with_cfl(0.3, 0.25)
+                .with_physics(50, gamma)
+                .with_kernel("cubic_spline")
+                .as_ssph()  // TODO: Change to .as_gsph() or .as_disph() as needed
+                .with_artificial_viscosity(1.0, true, false)
+                .build();
+        } catch (const std::exception& e) {
+            throw std::runtime_error(std::string("Parameter build failed: ") + e.what());
+        }
         
-        // TODO: Add any perturbations or special initial conditions here
+        // ═══════════════════════════════════════════════════════════
+        // Build boundary configuration
+        // ═══════════════════════════════════════════════════════════
         
-        std::cout << "Initialization complete!\\n";
+        auto boundary_config = BoundaryBuilder<Dim>()
+            .with_no_boundaries()  // TODO: Add boundaries if needed
+            .build();
+        
+        std::cout << "V3 initialization complete!\\n";
+        
+        // Return V3 initial condition
+        return InitialCondition<Dim>{
+            .particles = std::move(particles),
+            .parameters = param,
+            .boundary_config = boundary_config
+        };
     }
     
     std::vector<std::string> get_source_files() const override {
@@ -385,7 +398,7 @@ public:
 } // namespace sph
 
 // Export the plugin
-DEFINE_SIMULATION_PLUGIN(sph::${PLUGIN_NAME_UPPER}Plugin)
+DEFINE_SIMULATION_PLUGIN_V3(sph::${PLUGIN_NAME_UPPER}Plugin, DIM)
 EOF
 }
 
@@ -395,8 +408,9 @@ create_collision_template() {
     local STEP_NAME=$2
     
     cat > "$FILE" << 'EOF'
-#include "core/simulation_plugin.hpp"
-#include "core/simulation.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
+#include "core/boundary/boundary_builder.hpp"
 #include "core/parameters.hpp"
 #include "core/particle.hpp"
 #include "utilities/exception.hpp"
@@ -405,35 +419,63 @@ create_collision_template() {
 
 namespace sph {
 
-class CollisionPlugin : public SimulationPlugin {
+template<int Dim>
+class CollisionPlugin : public SimulationPluginV3<Dim> {
 public:
     std::string get_name() const override { return "collision"; }
     std::string get_description() const override { return "Cloud-cloud collision"; }
     std::string get_version() const override { return "1.0.0"; }
     
-    void initialize(std::shared_ptr<Simulation> sim,
-                   std::shared_ptr<SPHParameters> param) override {
-        std::cout << "Initializing collision simulation...\n";
+    InitialCondition<Dim> create_initial_condition() const override {
+        std::cout << "Creating collision initial condition...\n";
+        
+        std::vector<SPHParticle<Dim>> particles;
         
         // TODO: Implement cloud-cloud collision setup
-        // - Create two clouds
-        // - Set relative velocity
-        // - Position clouds for collision
+        // - Create two clouds with proper spacing
+        // - Set relative velocity for collision
+        // - Use appropriate mass/density profiles
         
-        param->type = SPHType::GDISPH;
-        param->time_end = 10.0;
-        param->output_directory = "output/collision";
+        // Example: Two uniform clouds
+        constexpr double cloud_radius = 1.0;
+        constexpr double separation = 4.0 * cloud_radius;
+        constexpr double relative_velocity = 1.0;
+        constexpr double cloud_mass = 1.0;
+        constexpr double particle_count = 1000;
+        constexpr double mass_per_particle = cloud_mass / particle_count;
+        
+        // Build parameters
+        std::shared_ptr<SPHParameters> param = SPHParametersBuilderBase()
+            .with_time(0.0, 10.0, 0.5, 0.5)
+            .with_cfl(0.3, 0.25)
+            .with_physics(50, 5.0/3.0)
+            .with_kernel("cubic_spline")
+            .as_gdisph()
+            .with_artificial_viscosity(1.0, true, false)
+            .build();
+        
+        // Build boundary configuration
+        auto boundary_config = BoundaryBuilder<Dim>()
+            .with_no_boundaries()
+            .build();
         
         std::cout << "Collision setup complete!\n";
+        
+        return InitialCondition<Dim>{
+            .particles = std::move(particles),
+            .parameters = param,
+            .boundary_config = boundary_config
+        };
+    }
+    
+    std::vector<std::string> get_source_files() const override {
+        return {"collision.cpp"};
     }
 };
 
 } // namespace sph
 
-extern "C" {
-    sph::SimulationPlugin* create_plugin() { return new sph::CollisionPlugin(); }
-    void destroy_plugin(sph::SimulationPlugin* p) { delete p; }
-}
+DEFINE_SIMULATION_PLUGIN_V3(sph::CollisionPlugin, DIM)
 EOF
 }
 

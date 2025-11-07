@@ -1,9 +1,12 @@
 /**
  * @file plugin_loader.hpp
- * @brief Dynamic plugin loading system for SPH simulations
+ * @brief Dynamic plugin loading system for SPH simulations (V3)
  * 
- * Provides functionality to load simulation plugins from shared libraries (.so, .dylib, .dll)
+ * Provides functionality to load V3 simulation plugins from shared libraries (.so, .dylib, .dll)
  * and manage their lifecycle.
+ * 
+ * V3 plugins use pure business logic interface - they return InitialCondition data
+ * instead of manipulating simulation state directly.
  */
 
 #pragma once
@@ -18,7 +21,7 @@
 namespace sph {
 
 // Forward declaration
-template<int Dim> class SimulationPlugin;
+template<int Dim> class SimulationPluginV3;
 
 /**
  * @brief Exception thrown when plugin loading fails
@@ -30,7 +33,7 @@ public:
 };
 
 /**
- * @brief Manages dynamic loading of simulation plugins
+ * @brief Manages dynamic loading of V3 simulation plugins
  * 
  * @tparam Dim Spatial dimension (1, 2, or 3)
  * 
@@ -39,16 +42,17 @@ public:
  * PluginLoader<1> loader("path/to/plugin.dylib");
  * if (loader.is_loaded()) {
  *     auto plugin = loader.create_plugin();
- *     plugin->initialize(sim, params);
+ *     auto ic = plugin->create_initial_condition();
+ *     // Framework applies ic to simulation
  * }
  * @endcode
  */
 template<int Dim>
 class PluginLoader {
 public:
-    // Function pointer types
-    using CreatePluginFunc = SimulationPlugin<Dim>* (*)();
-    using DestroyPluginFunc = void (*)(SimulationPlugin<Dim>*);
+    // Function pointer types for V3 plugins
+    using CreatePluginFunc = SimulationPluginV3<Dim>* (*)();
+    using DestroyPluginFunc = void (*)(SimulationPluginV3<Dim>*);
 
     /**
      * @brief Custom deleter for unique_ptr that uses the plugin's destroy function
@@ -56,7 +60,7 @@ public:
     struct PluginDeleter {
         DestroyPluginFunc destroy_func;
         
-        void operator()(SimulationPlugin<Dim>* plugin) {
+        void operator()(SimulationPluginV3<Dim>* plugin) {
             if (plugin && destroy_func) {
                 destroy_func(plugin);
             }
@@ -96,11 +100,11 @@ public:
     std::string get_error() const noexcept;
     
     /**
-     * @brief Create a new instance of the plugin
+     * @brief Create a new instance of the V3 plugin
      * @return Unique pointer to the plugin instance with custom deleter
      * @throws PluginLoadError if plugin creation fails
      */
-    std::unique_ptr<SimulationPlugin<Dim>, PluginDeleter> create_plugin();
+    std::unique_ptr<SimulationPluginV3<Dim>, PluginDeleter> create_plugin();
     
     /**
      * @brief Get the path to the loaded plugin
@@ -206,7 +210,7 @@ std::string PluginLoader<Dim>::get_error() const noexcept {
 }
 
 template<int Dim>
-std::unique_ptr<SimulationPlugin<Dim>, typename PluginLoader<Dim>::PluginDeleter> 
+std::unique_ptr<SimulationPluginV3<Dim>, typename PluginLoader<Dim>::PluginDeleter> 
 PluginLoader<Dim>::create_plugin() {
     if (!is_loaded()) {
         throw PluginLoadError("Plugin not loaded: " + m_error);
@@ -216,7 +220,7 @@ PluginLoader<Dim>::create_plugin() {
     dlerror();
     
     // Create plugin instance
-    SimulationPlugin<Dim>* plugin = m_create_func();
+    SimulationPluginV3<Dim>* plugin = m_create_func();
     
     if (!plugin) {
         const char* error = dlerror();
@@ -225,7 +229,7 @@ PluginLoader<Dim>::create_plugin() {
     }
     
     // Return with custom deleter
-    return std::unique_ptr<SimulationPlugin<Dim>, PluginDeleter>(plugin, PluginDeleter{m_destroy_func});
+    return std::unique_ptr<SimulationPluginV3<Dim>, PluginDeleter>(plugin, PluginDeleter{m_destroy_func});
 }
 
 template<int Dim>
@@ -238,21 +242,21 @@ void PluginLoader<Dim>::load_functions() {
     // Clear any existing error
     dlerror();
     
-    // Load create_plugin function
-    m_create_func = reinterpret_cast<CreatePluginFunc>(dlsym(m_handle, "create_plugin"));
+    // Load create_plugin_v3 function
+    m_create_func = reinterpret_cast<CreatePluginFunc>(dlsym(m_handle, "create_plugin_v3"));
     const char* error = dlerror();
     if (error) {
         std::ostringstream oss;
-        oss << "Failed to load 'create_plugin' function: " << error;
+        oss << "Failed to load 'create_plugin_v3' function: " << error;
         throw PluginLoadError(oss.str());
     }
     
-    // Load destroy_plugin function
-    m_destroy_func = reinterpret_cast<DestroyPluginFunc>(dlsym(m_handle, "destroy_plugin"));
+    // Load destroy_plugin_v3 function
+    m_destroy_func = reinterpret_cast<DestroyPluginFunc>(dlsym(m_handle, "destroy_plugin_v3"));
     error = dlerror();
     if (error) {
         std::ostringstream oss;
-        oss << "Failed to load 'destroy_plugin' function: " << error;
+        oss << "Failed to load 'destroy_plugin_v3' function: " << error;
         throw PluginLoadError(oss.str());
     }
 }

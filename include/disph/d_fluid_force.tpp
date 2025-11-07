@@ -19,7 +19,7 @@ template<int Dim>
 void FluidForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::FluidForce<Dim>::initialize(param);
-    this->m_adiabatic_index = param->physics.gamma;
+    this->m_adiabatic_index = param->get_physics().gamma;
 }
 
 // Hopkins (2013)

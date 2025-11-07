@@ -17,18 +17,23 @@ template<int Dim> class Simulation;
 template<int Dim> class Output;
 template<int Dim> class Module;
 template<int Dim> class PluginLoader;
-template<int Dim> class SimulationPlugin;
+template<int Dim> class SimulationPluginV3;
 
 /**
- * @brief Main SPH simulation orchestrator using pure plugin architecture.
+ * @brief Main SPH simulation orchestrator using V3 pure plugin architecture.
  * 
  * The Solver class manages the simulation lifecycle:
- * - Loads simulation setup from plugins (.dylib/.so/.dll)
- * - Reads SPH parameters from JSON configuration files
+ * - Loads V3 plugins that return InitialCondition data (.dylib/.so/.dll)
+ * - Applies initial conditions to simulation (framework handles system details)
  * - Orchestrates time integration using appropriate SPH method (SSPH/DISPH/GSPH)
  * 
  * Usage:
- *   sph plugin.dylib [config.json]
+ *   sph plugin.dylib [num_threads]
+ * 
+ * V3 Plugin Interface:
+ *   - Plugins return InitialCondition (particles + parameters + boundaries)
+ *   - Framework handles all system initialization automatically
+ *   - Pure business logic - no system coupling
  * 
  * @tparam Dim Spatial dimension (1, 2, or 3)
  */
@@ -46,14 +51,15 @@ class Solver {
     std::shared_ptr<Module<Dim>> m_fforce;     // Fluid forces
     std::shared_ptr<Module<Dim>> m_gforce;     // Gravity forces
 
-    // Plugin system
-    std::unique_ptr<PluginLoader<Dim>>                             m_plugin_loader;
-    std::unique_ptr<SimulationPlugin<Dim>, typename PluginLoader<Dim>::PluginDeleter> m_plugin;
-    std::string                                                     m_plugin_path;
+    // V3 Plugin system
+    std::unique_ptr<PluginLoader<Dim>>                                    m_plugin_loader;
+    std::unique_ptr<SimulationPluginV3<Dim>, typename PluginLoader<Dim>::PluginDeleter> m_plugin;
+    std::string                                                            m_plugin_path;
     
     // Private methods
     void load_plugin();
     void make_initial_condition();
+    void log_parameters();  // Log parameters after plugin configuration
     void initialize();
     void predict();
     void correct();
@@ -61,6 +67,7 @@ class Solver {
 
 public:
     Solver(int argc, char * argv[]);
+    ~Solver();
     void run();
 };
 

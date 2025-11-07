@@ -1,4 +1,5 @@
-#include "core/plugins/simulation_plugin.hpp"
+#include "core/plugins/simulation_plugin_v3.hpp"
+#include "core/plugins/initial_condition.hpp"
 #include "core/parameters/sph_parameters_builder_base.hpp"
 #include "core/parameters/gsph_parameters_builder.hpp"
 #include "core/parameters/parameter_estimator.hpp"
@@ -29,7 +30,7 @@ using namespace sph;
  * 
  * Reference: Inutsuka 2002 - GSPH with Riemann Solver
  */
-class ShockTubeGSPHPlugin : public SimulationPlugin<1> {
+class ShockTubeGSPHPlugin : public SimulationPluginV3<1> {
 public:
     std::string get_name() const override {
         return "shock_tube_gsph";
@@ -47,9 +48,7 @@ public:
         return {"plugin_gsph.cpp"};
     }
     
-    void initialize(std::shared_ptr<Simulation<1>> sim,
-                   std::shared_ptr<SPHParameters> params) override {
-        // This plugin is for 1D simulations
+    InitialCondition<1> create_initial_condition() const override {
         static constexpr int Dim = 1;
 
         std::cout << "\n=== GSPH SHOCK TUBE (Godunov SPH with HLL Riemann Solver) ===\n";
@@ -57,17 +56,6 @@ public:
         // ============================================================
         // STEP 1: INITIALIZE PARTICLES
         // ============================================================
-        // Create particles FIRST so we can analyze their configuration
-        // for physics-based parameter estimation
-        // ============================================================
-        // STEP 1: INITIALIZE PARTICLES
-        // ============================================================
-        // Sod shock tube with proper density ratio
-        // Left:  x ∈ [-0.5, 0.5], ρ=1.0,   P=1.0
-        // Right: x ∈ [0.5, 1.5],  ρ=0.125, P=0.1
-        // For uniform mass and ρ = m/dx, need dx_L/dx_R = ρ_R/ρ_L = 1/8
-        // ============================================================
-        
         const real gamma = 1.4;  // Adiabatic index for ideal gas
         
         // Right side setup (lower density, larger spacing)
@@ -95,8 +83,6 @@ public:
         int idx = 0;
         
         // Initial smoothing length estimate
-        // For cubic spline kernel in 1D: h ≈ kappa * dx
-        // kappa ≈ 1.2 ensures kernel support covers ~2-3 neighbors on each side
         constexpr real kappa = 1.2;
         const real sml_left = kappa * dx_left;
         const real sml_right = kappa * dx_right;
@@ -144,9 +130,6 @@ public:
         // ============================================================
         // STEP 2: ESTIMATE PHYSICS-BASED PARAMETERS
         // ============================================================
-        // Use ParameterEstimator to calculate CFL and neighbor_number
-        // from actual particle configuration and stability theory
-        // ============================================================
         
         std::cout << "\n--- Physics-Based Parameter Estimation ---\n";
         
@@ -166,68 +149,26 @@ public:
         // ============================================================
         // STEP 3: BUILD PARAMETERS WITH ESTIMATED VALUES
         // ============================================================
-        // Use the physics-based suggestions in the builder
-        // ============================================================
         
-        if (params->time.end == 0) {
-            std::cout << "\n--- Building Parameter Set (Type-Safe GSPH API) ---\n";
-            
-            auto builder_params = SPHParametersBuilderBase()
-                // Common parameters (time, CFL, physics, kernel)
-                .with_time(
-                    0.0,    // start time
-                    0.30,   // end time  
-                    0.01,   // output interval
-                    0.01    // energy output interval
-                )
-                
-                // Physics-based CFL (from stability analysis!)
-                .with_cfl(
-                    suggestions.cfl_sound,  // NOT hardcoded!
-                    suggestions.cfl_force   // Based on theory!
-                )
-                
-                // Physics parameters (using estimated neighbor number)
-                .with_physics(
-                    suggestions.neighbor_number,  // From kernel support
-                    gamma                         // Adiabatic index
-                )
-                
-                // Kernel type
-                .with_kernel("cubic_spline")
-                
-                // Tree parameters
-                .with_tree_params(20, 1)
-                
-                // Iterative smoothing length
-                .with_iterative_smoothing_length(true)
-                
-                // *** TRANSITION TO GSPH (Godunov SPH) ***
-                // This enforces type safety - GSPH does NOT use artificial viscosity!
-                // Instead, GSPH uses HLL Riemann solver for shock capturing
-                .as_gsph()
-                
-                // GSPH-specific: Control 2nd order MUSCL-Hancock scheme
-                // Disable 2nd order when using ghost particles
-                // (gradient arrays only exist for real particles, not ghosts)
-                .with_2nd_order_muscl(false)
-                
-                .build();
-            
-            *params = *builder_params;
-            
-            std::cout << "✓ Parameters built with type-safe GSPH API\n";
-            std::cout << "  - GSPH uses Riemann solver (HLL), NOT artificial viscosity\n";
-            std::cout << "  - 2nd order MUSCL disabled (1st order safer with ghosts)\n";
-        } else {
-            std::cout << "\n--- Using Pre-Configured Parameters ---\n";
-            std::cout << "(Loaded from JSON configuration)\n";
-        }
+        std::cout << "\n--- Building Parameter Set (Type-Safe GSPH API) ---\n";
+        
+        auto params = SPHParametersBuilderBase()
+            .with_time(0.0, 0.30, 0.01, 0.01)
+            .with_cfl(suggestions.cfl_sound, suggestions.cfl_force)
+            .with_physics(suggestions.neighbor_number, gamma)
+            .with_kernel("cubic_spline")
+            .with_tree_params(20, 1)
+            .with_iterative_smoothing_length(true)
+            .as_gsph()
+            .with_2nd_order_muscl(false)  // Disable 2nd order with ghosts
+            .build();
+        
+        std::cout << "✓ Parameters built with type-safe GSPH API\n";
+        std::cout << "  - GSPH uses Riemann solver (HLL), NOT artificial viscosity\n";
+        std::cout << "  - 2nd order MUSCL disabled (1st order safer with ghosts)\n";
         
         // ============================================================
         // STEP 4: VALIDATE PARAMETERS AGAINST PARTICLES
-        // ============================================================
-        // This catches mismatches that would cause simulation blow-up!
         // ============================================================
         
         std::cout << "\n--- Parameter Validation ---\n";
@@ -236,12 +177,12 @@ public:
             ParameterValidator::validate_all(particles, params);
             std::cout << "✓ All parameters validated - SAFE to run!\n";
             
-            // Show what timestep we'll get
+            // Show what timestep we'll get (using getter methods)
             auto config = ParameterEstimator::analyze_particle_config(particles);
-            real dt_sound = params->cfl.sound * config.avg_spacing / config.max_sound_speed;
+            real dt_sound = params->get_cfl().sound * config.avg_spacing / config.max_sound_speed;
             real dt_force = std::numeric_limits<real>::infinity();
             if (config.max_acceleration > 1e-10) {
-                dt_force = params->cfl.force * std::sqrt(config.avg_spacing / config.max_acceleration);
+                dt_force = params->get_cfl().force * std::sqrt(config.avg_spacing / config.max_acceleration);
             }
             
             std::cout << "\nExpected timestep:\n";
@@ -250,39 +191,22 @@ public:
             std::cout << "  dt_actual = " << std::min(dt_sound, dt_force) << "\n";
             
         } catch (const std::runtime_error& e) {
-            std::cerr << "\n❌ VALIDATION FAILED!\n";
+            std::cerr << "\n✖ VALIDATION FAILED!\n";
             std::cerr << e.what() << "\n";
             std::cerr << "\nSimulation will NOT run - parameters are unsafe!\n";
             THROW_ERROR("Parameter validation failed");
         }
         
         // ============================================================
-        // ============================================================
-        // STEP 5: SET PARTICLES IN SIMULATION
+        // STEP 5: CONFIGURE BOUNDARIES
         // ============================================================
         
-        const int num_particles = static_cast<int>(particles.size());
-        
-        sim->particle_num = num_particles;
-        sim->particles = std::move(particles);
-        
-        // ============================================================
-        // STEP 6: INITIALIZE GHOST PARTICLE SYSTEM
-        // ============================================================
-        // BOUNDARY CONFIGURATION (TYPE-SAFE API)
-        // ============================================================
         std::cout << "\n--- Ghost Particle System (Type-Safe API) ---\n";
         
-        // TYPE-SAFE DECLARATIVE API:
-        // - Mirror boundaries for shock tube (reflective walls, not wrapping)
-        // - Asymmetric spacing (dense left, sparse right)
-        // - Ghost particles automatically enabled
-        auto ghost_config = BoundaryBuilder<Dim>()
+        auto boundary_config = BoundaryBuilder<Dim>()
             .with_mirror_in_dimension(0, MirrorType::FREE_SLIP, dx_left, dx_right)
             .in_range(Vector<Dim>{-0.5}, Vector<Dim>{1.5})
             .build();
-        
-        sim->ghost_manager->initialize(ghost_config);
         
         std::cout << "✓ Ghost particle system configured (type-safe)\n";
         std::cout << "  ✓ MIRROR boundaries with FREE_SLIP\n";
@@ -291,28 +215,22 @@ public:
         
         std::cout << "\n--- Configuration Summary ---\n";
         std::cout << "SPH Algorithm: GSPH (Godunov SPH)\n";
-        std::cout << "CFL coefficients: sound=" << params->cfl.sound 
-                  << ", force=" << params->cfl.force << "\n";
-        std::cout << "Neighbor number: " << params->physics.neighbor_number << "\n";
-        std::cout << "Gamma (adiabatic): " << params->physics.gamma << "\n";
-        std::cout << "Kernel: ";
-        switch(params->kernel) {
-            case KernelType::CUBIC_SPLINE: std::cout << "Cubic Spline\n"; break;
-            case KernelType::WENDLAND: std::cout << "Wendland\n"; break;
-            case KernelType::UNKNOWN: std::cout << "Unknown\n"; break;
-        }
+        std::cout << "CFL coefficients: sound=" << params->get_cfl().sound 
+                  << ", force=" << params->get_cfl().force << "\n";
+        std::cout << "Neighbor number: " << params->get_physics().neighbor_number << "\n";
+        std::cout << "Gamma (adiabatic): " << params->get_physics().gamma << "\n";
+        std::cout << "Kernel: Cubic Spline\n";
         
         std::cout << "\n=== Initialization Complete ===\n\n";
+        
+        // ============================================================
+        // V3 INTERFACE: Return InitialCondition data
+        // ============================================================
+        return InitialCondition<Dim>::with_particles(std::move(particles))
+            .with_parameters(std::move(params))
+            .with_boundaries(std::move(boundary_config));
     }
 };
 
-// Plugin factory function (C linkage for dynamic loading)
-extern "C" {
-    SimulationPlugin<1>* create_plugin() {
-        return new ShockTubeGSPHPlugin();
-    }
-    
-    void destroy_plugin(SimulationPlugin<1>* plugin) {
-        delete plugin;
-    }
-}
+// V3 Plugin factory
+DEFINE_SIMULATION_PLUGIN_V3(ShockTubeGSPHPlugin, 1)
