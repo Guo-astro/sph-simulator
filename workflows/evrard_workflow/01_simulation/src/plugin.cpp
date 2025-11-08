@@ -133,7 +133,7 @@ public:
                 // Time parameters
                 .with_time(
                     /*start=*/0.0,
-                    /*end=*/3.0,
+                    /*end=*/60.0,
                     /*output=*/0.1,
                     /*energy=*/0.1  // Energy output interval
                 )

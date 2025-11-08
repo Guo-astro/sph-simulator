@@ -7,11 +7,26 @@
 #include "../boundaries/periodic.hpp"
 #include <cassert>
 #include <algorithm>
+#include <cmath>
 
 namespace sph {
 
 // Hernquist & Katz (1989) gravitational softening functions
 inline real f(const real r, const real h) {
+    // Guard against division by zero and invalid smoothing lengths
+    constexpr real r_min = 1.0e-10;
+    constexpr real h_max = 1.0e10;  // Guard against infinite sml
+    
+    if (r < r_min) {
+        const real e_safe = std::min(h, h_max) * 0.5;
+        return (-0.5 * (1.0 / 3.0) + 1.4) / e_safe;
+    }
+    
+    if (!std::isfinite(h) || h > h_max) {
+        // When sml is infinite/huge, use pure 1/r potential (no softening)
+        return 1 / r;
+    }
+    
     const real e = h * 0.5;
     const real u = r / e;
     
@@ -25,6 +40,20 @@ inline real f(const real r, const real h) {
 }
 
 inline real g(const real r, const real h) {
+    // Guard against division by zero and invalid smoothing lengths
+    constexpr real r_min = 1.0e-10;
+    constexpr real h_max = 1.0e10;  // Guard against infinite sml
+    
+    if (r < r_min) {
+        const real e_safe = std::min(h, h_max) * 0.5;
+        return (4.0 / 3.0) / (e_safe * e_safe * e_safe);
+    }
+    
+    if (!std::isfinite(h) || h > h_max) {
+        // When sml is infinite/huge, use pure 1/r^3 force (no softening)
+        return 1 / (r * r * r);
+    }
+    
     const real e = h * 0.5;
     const real u = r / e;
     
@@ -278,18 +307,31 @@ void BHTree<Dim>::BHNode::create_tree(BHNode*& nodes, int& remaind, const int ma
         pp = pnext;
     } while (pp != nullptr);
 
-    // Process child nodes
+    // Process child nodes and accumulate mass/center for this node
+    mass = 0.0;
+    m_center = Vector<Dim>();
+    
     for (int i = 0; i < nchild<Dim>(); ++i) {
         auto* child = childs[i];
         if (child) {
-            child->m_center /= child->mass;
-
+            // First recurse or mark as leaf, which properly sets child's mass and m_center
             if (child->num > leaf_particle_num && level < max_level) {
                 child->create_tree(nodes, remaind, max_level, leaf_particle_num);
             } else {
                 child->is_leaf = true;
+                // For leaf nodes, convert accumulated m_center to actual center of mass
+                child->m_center /= child->mass;
             }
+            
+            // Accumulate child's mass and center of mass to this node
+            mass += child->mass;
+            m_center += child->m_center * child->mass;
         }
+    }
+    
+    // Calculate this node's center of mass from accumulated values
+    if (mass > 0.0) {
+        m_center /= mass;
     }
 }
 
@@ -467,13 +509,14 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
                 const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
                 const real r = abs(r_ij);
                 
-                // Skip self-interaction
+                //Skip self-interaction
                 if (r < 1.0e-10) {
                     p = p->next;
                     continue;
                 }
                 
                 p_i.phi -= g_constant * p->mass * (f(r, p_i.sml) + f(r, p->sml)) * 0.5;
+                // Gravity is attractive: acceleration points from r_i toward r_j (opposite to r_ij)
                 p_i.acc -= r_ij * (g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
                 p = p->next;
             }
@@ -485,9 +528,17 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
             }
         }
     } else {
-        const real r_inv = 1.0 / std::sqrt(d2);
-        p_i.phi -= g_constant * mass * r_inv;
-        p_i.acc -= d * (g_constant * mass * pow3(r_inv));
+        // Far-field approximation: treat node as point mass at center
+        // ✅ FIX: Apply Hernquist-Katz softening even for far-field to prevent acceleration spikes
+        const real r = std::sqrt(d2);
+        
+        // Use particle's smoothing length for softening
+        // For a cluster of particles, use conservative softening based on particle sml
+        const real h_eff = p_i.sml;
+        
+        // Apply softened gravity using Hernquist & Katz (1989) functions
+        p_i.phi -= g_constant * mass * f(r, h_eff);
+        p_i.acc -= d * (g_constant * mass * g(r, h_eff));
     }
 }
 

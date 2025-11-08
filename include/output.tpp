@@ -85,7 +85,7 @@ void Output<Dim>::initialize_coordinator(std::shared_ptr<Simulation<Dim>> sim)
         for (const auto& format : pending_formats_) {
             switch (format) {
                 case OutputFormat::CSV:
-                    coordinator->add_writer(std::make_unique<CSVWriter<Dim>>(dir_name, false));
+                    coordinator->add_writer(std::make_unique<CSVWriter<Dim>>(dir_name, true));
                     WRITE_LOG << "Added CSV writer";
                     break;
                 case OutputFormat::PROTOBUF:
@@ -100,7 +100,7 @@ void Output<Dim>::initialize_coordinator(std::shared_ptr<Simulation<Dim>> sim)
         }
     } else {
         // Default: add CSV writer for backward compatibility
-        coordinator->add_writer(std::make_unique<CSVWriter<Dim>>(dir_name, false));
+        coordinator->add_writer(std::make_unique<CSVWriter<Dim>>(dir_name, true));
     }
     
     // Apply unit system

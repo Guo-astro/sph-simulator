@@ -19,25 +19,51 @@ OUTPUT_FILE = os.path.join(ANIMATIONS_DIR, "pairing_instability.mp4")
 def load_snapshot(filename):
     """Load a single snapshot CSV file."""
     try:
-        data = np.loadtxt(filename, delimiter=',', skiprows=1)
+        # Count header lines to skip and detect format
+        skip_lines = 0
+        has_id_column = False
+        with open(filename) as f:
+            for line in f:
+                if line.startswith('#'):
+                    skip_lines += 1
+                else:
+                    # First non-comment line is the header
+                    skip_lines += 1
+                    has_id_column = line.startswith('id,')
+                    break
+        
+        data = np.loadtxt(filename, delimiter=',', skiprows=skip_lines)
         if data.size == 0:
             return None
-        
-        # Expected columns for 2D: x, y, vx, vy, rho, P, h, m, u
         if data.ndim == 1:
             data = data.reshape(1, -1)
         
-        return {
-            'x': data[:, 0],
-            'y': data[:, 1],
-            'vx': data[:, 2],
-            'vy': data[:, 3],
-            'rho': data[:, 4],
-            'P': data[:, 5],
-            'h': data[:, 6],
-            'm': data[:, 7],
-            'u': data[:, 8] if data.shape[1] > 8 else np.zeros(len(data))
-        }
+        if has_id_column:
+            # New format: id,pos_x,pos_y,vel_x,vel_y,acc_x,acc_y,mass,density,pressure,energy,smoothing_length,sound_speed,neighbors
+            return {
+                'x': data[:, 1],   # pos_x
+                'y': data[:, 2],   # pos_y
+                'vx': data[:, 3],  # vel_x
+                'vy': data[:, 4],  # vel_y
+                'rho': data[:, 8], # density
+                'P': data[:, 9],   # pressure
+                'h': data[:, 11],  # smoothing_length
+                'm': data[:, 7],   # mass
+                'u': data[:, 10]   # energy
+            }
+        else:
+            # Old format: pos_x,pos_y,vel_x,vel_y,acc_x,acc_y,mass,density,pressure,energy,sound_speed,smoothing_length,...
+            return {
+                'x': data[:, 0],   # pos_x
+                'y': data[:, 1],   # pos_y
+                'vx': data[:, 2],  # vel_x
+                'vy': data[:, 3],  # vel_y
+                'rho': data[:, 7], # density
+                'P': data[:, 8],   # pressure
+                'h': data[:, 11],  # smoothing_length
+                'm': data[:, 6],   # mass
+                'u': data[:, 9]    # energy
+            }
     except Exception as e:
         print(f"Error loading {filename}: {e}")
         return None

@@ -49,13 +49,6 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
     // Use cached combined particle list (built when tree was created)
     auto & search_particles = sim->cached_search_particles;
     const int search_size = static_cast<int>(search_particles.size());
-    
-#ifndef NDEBUG
-    if (num > 0) {
-        WRITE_LOG << ">>> FluidForce START: p[0].pres=" << particles[0].pres 
-                  << ", dens=" << particles[0].dens << ", sml=" << particles[0].sml;
-    }
-#endif
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {  // Only iterate over real particles for force updates
@@ -78,16 +71,6 @@ void FluidForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         const real p_per_rho2_i = p_i.pres / sqr(p_i.dens);
         const real h_i = p_i.sml;
         const real gradh_i = p_i.gradh;
-        
-#ifndef NDEBUG
-        if (i == 0) {
-#pragma omp critical
-            {
-                WRITE_LOG << ">>> FluidForce p[0]: pres=" << p_i.pres << ", dens=" << p_i.dens 
-                          << ", sml=" << h_i << ", p_per_rho2_i=" << p_per_rho2_i;
-            }
-        }
-#endif
 
         Vector<Dim> acc{};  // Default constructor initializes to zero
         real dene = 0.0;

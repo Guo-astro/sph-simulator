@@ -86,25 +86,13 @@ void GravityForce<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
             auto& particles = sim->particles;
             const int num = sim->particle_num;
             
-#ifndef NDEBUG
-            WRITE_LOG << ">>> GravityForce::calculation: Newtonian gravity, G=" << g.constant;
-            WRITE_LOG << ">>> GravityForce START: p[0].acc=" << abs(particles[0].acc);
-#endif
-            
             auto* tree = sim->tree.get();
-#ifndef NDEBUG
-            WRITE_LOG << ">>> GravityForce: tree=" << (tree ? "valid" : "NULL");
-#endif
             
 #pragma omp parallel for
             for(int i = 0; i < num; ++i) {
                 auto& p_i = particles[i];
                 tree->tree_force(p_i);
             }
-            
-#ifndef NDEBUG
-            WRITE_LOG << ">>> GravityForce END: p[0].acc=" << abs(particles[0].acc);
-#endif
         }
         // NoGravity or ModifiedGravity: do nothing (no force calculation)
     }, m_gravity);

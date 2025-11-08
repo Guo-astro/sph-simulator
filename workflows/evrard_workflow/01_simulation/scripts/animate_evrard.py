@@ -12,30 +12,43 @@ import os
 import sys
 
 # Configuration
-RESULTS_DIR = "../results"
+RESULTS_DIR = "../output/evrard_collapse/snapshots"
 ANIMATIONS_DIR = "../results/analysis/animations"
 OUTPUT_FILE = os.path.join(ANIMATIONS_DIR, "evrard_collapse.mp4")
 
 def load_snapshot(filename):
     """Load a single snapshot CSV file."""
     try:
-        data = np.loadtxt(filename, delimiter=',', skiprows=1)
+        # Count header lines to skip (comment lines + header row)
+        skip_lines = 0
+        with open(filename) as f:
+            for line in f:
+                if line.startswith('#'):
+                    skip_lines += 1
+                else:
+                    # First non-comment line is the header
+                    skip_lines += 1
+                    break
+        
+        data = np.loadtxt(filename, delimiter=',', skiprows=skip_lines)
         if data.size == 0:
             return None
         
-        # Expected columns: x, y, z, vx, vy, vz, rho, P, h, m, u
+        # Actual CSV columns: id, pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, 
+        #                     acc_x, acc_y, acc_z, mass, density, pressure, 
+        #                     energy, smoothing_length, sound_speed, neighbors
         if data.ndim == 1:
             data = data.reshape(1, -1)
         
         return {
-            'x': data[:, 0],
-            'y': data[:, 1],
-            'z': data[:, 2],
-            'rho': data[:, 6],
-            'P': data[:, 7],
-            'h': data[:, 8],
-            'm': data[:, 9],
-            'u': data[:, 10] if data.shape[1] > 10 else np.zeros(len(data))
+            'x': data[:, 1],   # pos_x
+            'y': data[:, 2],   # pos_y
+            'z': data[:, 3],   # pos_z
+            'rho': data[:, 11], # density
+            'P': data[:, 12],  # pressure
+            'h': data[:, 14],  # smoothing_length
+            'm': data[:, 10],  # mass
+            'u': data[:, 13]   # energy
         }
     except Exception as e:
         print(f"Error loading {filename}: {e}")
@@ -48,7 +61,7 @@ def main():
     os.makedirs(ANIMATIONS_DIR, exist_ok=True)
     
     # Find snapshot files
-    snapshot_files = sorted(glob.glob(os.path.join(RESULTS_DIR, "snapshot_*.csv")))
+    snapshot_files = sorted(glob.glob(os.path.join(RESULTS_DIR, "*.csv")))
     
     if not snapshot_files:
         print(f"Error: No snapshot files found in {RESULTS_DIR}")

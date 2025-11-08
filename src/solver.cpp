@@ -392,72 +392,31 @@ void Solver<Dim>::initialize()
 template<int Dim>
 void Solver<Dim>::integrate()
 {
-#ifndef NDEBUG
-    auto & p = m_sim->particles;
-    WRITE_LOG << ">>> INTEGRATE START: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] 
-              << "), dens=" << p[0].dens << ", acc=" << abs(p[0].acc);
-#endif
-
-    // Calculate timestep based on current state
+    // Calculate timestep based on current state (t_k)
     m_timestep->calculation(m_sim);
-    
-#ifndef NDEBUG
-    WRITE_LOG << ">>> After timestep calc: dt=" << m_sim->dt << ", p[0].acc=" << abs(p[0].acc);
-#endif
 
-    // Move particles to new positions (predict step)
-    predict();
+    // DRIFT STEP (first half): Move particles to half-step positions
+    // using current velocities
+    drift_half_step();
     
-#ifndef NDEBUG
-    WRITE_LOG << ">>> After predict: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] 
-              << "), dens=" << p[0].dens;
-#endif
-    
-    // Regenerate ghost particles based on NEW particle positions
-    // This ensures Morris 1997 formula is applied to current positions:
-    //   x_ghost = 2*x_wall - x_real
-    // where x_real is the UPDATED position after predict()
+    // Regenerate ghost particles at half-step positions
     if (m_sim->ghost_manager) {
         m_sim->ghost_manager->regenerate_ghosts(m_sim->particles);
-        
-#ifndef NDEBUG
-        WRITE_LOG << "Ghost particles regenerated: " 
-                  << m_sim->ghost_manager->get_ghost_count() << " ghosts";
-#endif
-        
-        // Extend cache with regenerated ghosts (declarative API)
         m_sim->extend_cache_with_ghosts();
     }
     
-    // Rebuild spatial tree with updated particles
+    // Rebuild spatial tree at half-step positions
     m_sim->make_tree();
     
-#ifndef NDEBUG
-    WRITE_LOG << ">>> After tree build: p[0] pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] << ")";
-#endif
-    
+    // Calculate forces at half-step positions (t_k+1/2)
     m_pre->calculation(m_sim);
-    
-#ifndef NDEBUG
-    WRITE_LOG << ">>> After pre_interaction: p[0].dens=" << p[0].dens << ", sml=" << p[0].sml;
-#endif
-    
-    // Sync cache after pre_interaction updates densities (declarative API)
     m_sim->sync_particle_cache();
-    
     m_fforce->calculation(m_sim);
-    
-#ifndef NDEBUG
-    WRITE_LOG << ">>> After fluid_force: p[0].acc=" << abs(p[0].acc);
-#endif
-    
     m_gforce->calculation(m_sim);
     
 #ifndef NDEBUG
-    WRITE_LOG << ">>> After gravity_force: p[0].acc=" << abs(p[0].acc) 
-              << ", pos=(" << p[0].pos[0] << "," << p[0].pos[1] << "," << p[0].pos[2] << ")";
-    
     // Validation: Check for NaN or Inf in particle state after force calculation
+    auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
     bool found_invalid = false;
     for(int i = 0; i < num && !found_invalid; ++i) {
@@ -473,33 +432,26 @@ void Solver<Dim>::integrate()
     }
 #endif
     
-    correct();
+    // KICK STEP: Update velocities using forces at half-step positions
+    // Then DRIFT STEP (second half): Complete position update to t_k+1
+    kick_and_drift();
 }
 
 template<int Dim>
-void Solver<Dim>::predict()
+void Solver<Dim>::drift_half_step()
 {
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
     auto * periodic = m_sim->periodic.get();
     const real dt = m_sim->dt;
-    const real gamma = m_param->get_physics().gamma;
-    const real c_sound = gamma * (gamma - 1.0);
+    const real half_dt = 0.5 * dt;
 
-    // Note: p.size() may be > num if ghosts are appended
     assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
-        // k -> k+1/2
-        p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
-        p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
-
-        // k -> k+1
-        p[i].pos += p[i].vel_p * dt;
-        p[i].vel += p[i].acc * dt;
-        p[i].ene += p[i].dene * dt;
-        p[i].sound = std::sqrt(c_sound * p[i].ene);
+        // DRIFT: Move positions by half timestep using current velocity
+        p[i].pos += p[i].vel * half_dt;
 
         // Apply legacy periodic boundary condition (for backward compatibility)
         periodic->apply_periodic_condition(p[i].pos);
@@ -512,22 +464,37 @@ void Solver<Dim>::predict()
 }
 
 template<int Dim>
-void Solver<Dim>::correct()
+void Solver<Dim>::kick_and_drift()
 {
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
+    auto * periodic = m_sim->periodic.get();
     const real dt = m_sim->dt;
+    const real half_dt = 0.5 * dt;
     const real gamma = m_param->get_physics().gamma;
     const real c_sound = gamma * (gamma - 1.0);
 
-    // Note: p.size() may be > num if ghosts are appended
     assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
-        p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
-        p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
+        // KICK: Update velocity and energy using forces/dene at half-step positions
+        p[i].vel += p[i].acc * dt;
+        p[i].ene += p[i].dene * dt;
+        
+        // DRIFT: Complete position update to full timestep
+        p[i].pos += p[i].vel * half_dt;
+        
+        // Update sound speed based on new energy
         p[i].sound = std::sqrt(c_sound * p[i].ene);
+
+        // Apply legacy periodic boundary condition (for backward compatibility)
+        periodic->apply_periodic_condition(p[i].pos);
+    }
+    
+    // Apply periodic wrapping using new ghost particle system if available
+    if (m_sim->ghost_manager) {
+        m_sim->ghost_manager->apply_periodic_wrapping(p);
     }
 }
 

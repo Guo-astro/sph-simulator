@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 
 #include "parameters.hpp"
 #include "pre_interaction.hpp"
@@ -67,7 +68,23 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
         constexpr real A = Dim == 1 ? 2.0 :
                            Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim) * m_kernel_ratio;
+        
+        // CRITICAL FIX: Guard against zero or very small density (same as initial_smoothing)
+        constexpr real dens_min = 1.0e-20;
+        const real dens_safe = std::max(p_i.dens, dens_min);
+        
+        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (dens_safe * A), 1.0 / Dim) * m_kernel_ratio;
+        
+        // CRITICAL FIX: Ensure smoothing length stays finite and reasonable
+        if (!std::isfinite(p_i.sml) || p_i.sml <= 0.0 || p_i.sml > 1.0e10) {
+#pragma omp critical
+            {
+                WRITE_LOG << "WARNING: Particle id " << p_i.id << " has invalid sml=" << p_i.sml << " at timestep";
+                WRITE_LOG << "  dens=" << p_i.dens << ", mass=" << p_i.mass << ", resetting to safe value";
+            }
+            // Use previous value or reasonable default
+            p_i.sml = std::pow(p_i.mass / dens_safe, 1.0 / Dim) * m_kernel_ratio;
+        }
         
         // Create search config (declarative)
         const auto search_config = NeighborSearchConfig::create(m_neighbor_number, /*is_ij=*/false);
@@ -130,6 +147,25 @@ void PreInteraction<Dim>::calculation(std::shared_ptr<Simulation<Dim>> sim)
                 const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, p_i.vel - p_j.vel) / r;
                 if(v_sig > v_sig_max) {
                     v_sig_max = v_sig;
+                }
+            }
+        }
+
+        // CRITICAL FIX: Prevent zero density which causes sml->inf in next iteration
+        {
+            constexpr real dens_min = 1.0e-20;
+            if (dens_i < dens_min || !std::isfinite(dens_i)) {
+#pragma omp critical
+                {
+                    WRITE_LOG << "WARNING: Particle id " << p_i.id << " has invalid computed density=" << dens_i;
+                    WRITE_LOG << "  n_neighbor=" << n_neighbor << ", sml=" << p_i.sml << ", mass=" << p_i.mass;
+                    WRITE_LOG << "  Using fallback: self-density = mass * W(0, sml)";
+                }
+                // Fallback: use self-density (particle's own contribution)
+                auto* kernel = sim->kernel.get();
+                dens_i = p_i.mass * kernel->w(0.0, p_i.sml);
+                if (dens_i < dens_min) {
+                    dens_i = dens_min;  // Ultimate fallback
                 }
             }
         }
@@ -220,7 +256,23 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
         constexpr real A = Dim == 1 ? 2.0 :
                            Dim == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
-        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / Dim);
+        
+        // CRITICAL FIX: Guard against zero or very small density
+        constexpr real dens_min = 1.0e-20;
+        const real dens_safe = std::max(p_i.dens, dens_min);
+        
+        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (dens_safe * A), 1.0 / Dim);
+        
+        // CRITICAL FIX: Ensure smoothing length is finite and reasonable
+        if (!std::isfinite(p_i.sml) || p_i.sml <= 0.0 || p_i.sml > 1.0e10) {
+#pragma omp critical
+            {
+                WRITE_LOG << "WARNING: Particle id " << p_i.id << " has invalid initial sml=" << p_i.sml;
+                WRITE_LOG << "  dens=" << p_i.dens << ", mass=" << p_i.mass;
+            }
+            // Use a reasonable default based on typical particle spacing
+            p_i.sml = std::pow(p_i.mass / dens_safe, 1.0 / Dim);
+        }
         
         // neighbor search (searches in real + ghost particles)
 #ifdef EXHAUSTIVE_SEARCH_ONLY_FOR_DEBUG
@@ -245,6 +297,22 @@ void PreInteraction<Dim>::initial_smoothing(std::shared_ptr<Simulation<Dim>> sim
             }
 
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
+        }
+
+        // CRITICAL FIX: Prevent zero density (same as main loop above)
+        {
+            constexpr real dens_min = 1.0e-20;
+            if (dens_i < dens_min || !std::isfinite(dens_i)) {
+#pragma omp critical
+                {
+                    WRITE_LOG << "WARNING: Particle id " << p_i.id << " has invalid initial density=" << dens_i;
+                    WRITE_LOG << "  Using self-density fallback";
+                }
+                dens_i = p_i.mass * kernel->w(0.0, p_i.sml);
+                if (dens_i < dens_min) {
+                    dens_i = dens_min;
+                }
+            }
         }
 
         p_i.dens = dens_i;
@@ -318,7 +386,37 @@ real PreInteraction<Dim>::newton_raphson(
         const real f = dens * powh<Dim>(h_i) - b;
         const real df = ddens * powh<Dim>(h_i) + Dim * dens * powh_<Dim>(h_i);
 
-        h_i -= f / df;
+        // CRITICAL FIX: Guard against division by zero or very small derivative
+        // This prevents h_i from becoming infinite when df -> 0
+        constexpr real df_min = 1.0e-30;
+        if (std::abs(df) < df_min) {
+#pragma omp critical
+            {
+                WRITE_LOG << "WARNING: Particle id " << p_i.id << " has df close to zero: df=" << df;
+                WRITE_LOG << "  dens=" << dens << ", ddens=" << ddens << ", h_i=" << h_i;
+                WRITE_LOG << "  Returning initial guess to avoid inf/nan";
+            }
+            return p_i.sml / m_kernel_ratio;  // Return safe initial guess
+        }
+
+        const real dh = f / df;
+        
+        // CRITICAL FIX: Limit the step size to prevent runaway
+        // Max change per iteration: 20% of current value
+        const real max_dh = 0.2 * h_i;
+        const real dh_limited = std::max(-max_dh, std::min(max_dh, dh));
+        
+        h_i -= dh_limited;
+        
+        // CRITICAL FIX: Ensure h_i stays positive and finite
+        if (!std::isfinite(h_i) || h_i <= 0.0) {
+#pragma omp critical
+            {
+                WRITE_LOG << "ERROR: Particle id " << p_i.id << " has invalid h_i=" << h_i;
+                WRITE_LOG << "  Returning initial guess";
+            }
+            return p_i.sml / m_kernel_ratio;  // Return safe initial guess
+        }
 
         if(std::abs(h_i - h_b) < (h_i + h_b) * epsilon) {
             return h_i;
