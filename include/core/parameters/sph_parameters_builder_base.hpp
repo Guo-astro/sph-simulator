@@ -81,6 +81,32 @@ public:
     /// @param enable Whether to use iterative method (default true)
     SPHParametersBuilderBase& with_iterative_smoothing_length(bool enable = true);
     
+    /// Configure minimum smoothing length enforcement policy
+    /// 
+    /// Three policies available:
+    /// 1. NO_MIN: No enforcement - h can collapse to arbitrarily small values (default)
+    /// 2. CONSTANT_MIN: Enforce h >= h_min_constant (for testing/debugging)
+    /// 3. PHYSICS_BASED: Enforce h_min = coeff * (m/rho_max)^(1/dim) to prevent unphysical resolution
+    /// 
+    /// @param policy Enforcement policy (default NO_MIN for backward compatibility)
+    /// @param h_min_constant Constant minimum h (used when policy == CONSTANT_MIN)
+    /// @param expected_max_density Expected maximum density in simulation (used for PHYSICS_BASED)
+    /// @param h_min_coefficient Coefficient α in h_min formula (default 2.0, typically 1.5-2.5)
+    /// 
+    /// Example for Evrard collapse (rho_max ~ 250):
+    ///   .with_smoothing_length_limits(
+    ///       SPHParameters::SmoothingLengthPolicy::PHYSICS_BASED,
+    ///       0.0,      // unused for PHYSICS_BASED
+    ///       250.0,    // expected max density from Evrard paper
+    ///       2.0       // conservative coefficient
+    ///   )
+    SPHParametersBuilderBase& with_smoothing_length_limits(
+        SPHParameters::SmoothingLengthPolicy policy = SPHParameters::SmoothingLengthPolicy::NO_MIN,
+        real h_min_constant = 0.0,
+        real expected_max_density = 1.0,
+        real h_min_coefficient = 2.0
+    );
+    
     // JSON loading - common for all algorithms
     
     /// Load parameters from JSON file

@@ -36,6 +36,13 @@ void PreInteraction<Dim>::initialize(std::shared_ptr<SPHParameters> param)
         m_kernel_ratio = 1.0;
     }
     m_first = true;
+    
+    // Extract smoothing length minimum enforcement configuration
+    const auto& sml_config = param->get_smoothing_length();
+    m_sml_policy = sml_config.policy;
+    m_sml_h_min_constant = sml_config.h_min_constant;
+    m_sml_expected_max_density = sml_config.expected_max_density;
+    m_sml_h_min_coefficient = sml_config.h_min_coefficient;
 }
 
 template<int Dim>
@@ -419,7 +426,32 @@ real PreInteraction<Dim>::newton_raphson(
         }
 
         if(std::abs(h_i - h_b) < (h_i + h_b) * epsilon) {
-            return h_i;
+            // Apply minimum smoothing length policy if configured
+            real h_result = h_i;
+            
+            switch (m_sml_policy) {
+                case SPHParameters::SmoothingLengthPolicy::NO_MIN:
+                    // No enforcement - allow natural collapse
+                    h_result = h_i;
+                    break;
+                    
+                case SPHParameters::SmoothingLengthPolicy::CONSTANT_MIN:
+                    // Enforce constant minimum
+                    h_result = std::max(h_i, m_sml_h_min_constant);
+                    break;
+                    
+                case SPHParameters::SmoothingLengthPolicy::PHYSICS_BASED: {
+                    // Physics-based minimum: h_min = coeff * (m/rho_max)^(1/dim)
+                    // This prevents h from collapsing below the physical resolution
+                    // set by particle mass and maximum expected density
+                    const real d_min = std::pow(p_i.mass / m_sml_expected_max_density, 1.0 / Dim);
+                    const real h_min_physical = m_sml_h_min_coefficient * d_min;
+                    h_result = std::max(h_i, h_min_physical);
+                    break;
+                }
+            }
+            
+            return h_result;
         }
     }
 
@@ -430,7 +462,27 @@ real PreInteraction<Dim>::newton_raphson(
                   << ", dens: " << p_i.dens << ", mass: " << p_i.mass;
     }
 
-    return p_i.sml / m_kernel_ratio;
+    // Apply minimum policy even if not converged
+    real h_result = p_i.sml / m_kernel_ratio;
+    
+    switch (m_sml_policy) {
+        case SPHParameters::SmoothingLengthPolicy::NO_MIN:
+            h_result = p_i.sml / m_kernel_ratio;
+            break;
+            
+        case SPHParameters::SmoothingLengthPolicy::CONSTANT_MIN:
+            h_result = std::max(p_i.sml / m_kernel_ratio, m_sml_h_min_constant);
+            break;
+            
+        case SPHParameters::SmoothingLengthPolicy::PHYSICS_BASED: {
+            const real d_min = std::pow(p_i.mass / m_sml_expected_max_density, 1.0 / Dim);
+            const real h_min_physical = m_sml_h_min_coefficient * d_min;
+            h_result = std::max(p_i.sml / m_kernel_ratio, h_min_physical);
+            break;
+        }
+    }
+    
+    return h_result;
 }
 
 }

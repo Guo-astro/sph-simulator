@@ -24,6 +24,12 @@ SPHParametersBuilderBase::SPHParametersBuilderBase()
     
     params->iterative_sml = true;
     
+    // Default: No minimum smoothing length enforcement (backward compatible)
+    params->smoothing_length.policy = SPHParameters::SmoothingLengthPolicy::NO_MIN;
+    params->smoothing_length.h_min_constant = 0.0;
+    params->smoothing_length.expected_max_density = 1.0;
+    params->smoothing_length.h_min_coefficient = 2.0;
+    
     params->periodic.is_valid = false;
     for (std::size_t i = 0; i < 3; ++i) {
         params->periodic.range_min[i] = 0.0;
@@ -135,6 +141,33 @@ SPHParametersBuilderBase& SPHParametersBuilderBase::with_periodic_boundary(
 
 SPHParametersBuilderBase& SPHParametersBuilderBase::with_iterative_smoothing_length(bool enable) {
     params->iterative_sml = enable;
+    return *this;
+}
+
+SPHParametersBuilderBase& SPHParametersBuilderBase::with_smoothing_length_limits(
+    SPHParameters::SmoothingLengthPolicy policy,
+    real h_min_constant,
+    real expected_max_density,
+    real h_min_coefficient
+) {
+    params->smoothing_length.policy = policy;
+    params->smoothing_length.h_min_constant = h_min_constant;
+    params->smoothing_length.expected_max_density = expected_max_density;
+    params->smoothing_length.h_min_coefficient = h_min_coefficient;
+    
+    // Validation
+    if (policy == SPHParameters::SmoothingLengthPolicy::CONSTANT_MIN && h_min_constant <= 0.0) {
+        THROW_ERROR("CONSTANT_MIN policy requires h_min_constant > 0");
+    }
+    if (policy == SPHParameters::SmoothingLengthPolicy::PHYSICS_BASED) {
+        if (expected_max_density <= 0.0) {
+            THROW_ERROR("PHYSICS_BASED policy requires expected_max_density > 0");
+        }
+        if (h_min_coefficient <= 0.0) {
+            THROW_ERROR("PHYSICS_BASED policy requires h_min_coefficient > 0");
+        }
+    }
+    
     return *this;
 }
 

@@ -392,32 +392,46 @@ void Solver<Dim>::initialize()
 template<int Dim>
 void Solver<Dim>::integrate()
 {
-    // Calculate timestep based on current state (t_k)
-    m_timestep->calculation(m_sim);
-
-    // DRIFT STEP (first half): Move particles to half-step positions
-    // using current velocities
-    drift_half_step();
+    // Standard leapfrog integrator with proper time centering
+    // Velocities are stored at half-integer timesteps: v^{n-1/2}, v^{n+1/2}
+    // Positions and accelerations at integer timesteps: x^n, a^n
     
-    // Regenerate ghost particles at half-step positions
+    // Calculate timestep
+    m_timestep->calculation(m_sim);
+    const real dt = m_sim->dt;
+
+    auto & p = m_sim->particles;
+    const int num = m_sim->particle_num;
+    const real gamma = m_param->get_physics().gamma;
+    const real c_sound = gamma * (gamma - 1.0);
+
+    // Step 1: KICK (first half) - Update velocity from v^{n-1/2} to v^n using a^n
+#pragma omp parallel for
+    for(int i = 0; i < num; ++i) {
+        p[i].vel += p[i].acc * (0.5 * dt);
+        p[i].ene += p[i].dene * (0.5 * dt);
+    }
+    
+    // Step 2: DRIFT - Update position from x^n to x^{n+1} using v^n
+    drift_half_step();  // This now does a FULL drift with current vel
+    
+    // Regenerate ghost particles at new positions
     if (m_sim->ghost_manager) {
         m_sim->ghost_manager->regenerate_ghosts(m_sim->particles);
         m_sim->extend_cache_with_ghosts();
     }
     
-    // Rebuild spatial tree at half-step positions
+    // Rebuild spatial tree at new positions
     m_sim->make_tree();
     
-    // Calculate forces at half-step positions (t_k+1/2)
+    // Calculate NEW forces at x^{n+1}
     m_pre->calculation(m_sim);
     m_sim->sync_particle_cache();
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
     
 #ifndef NDEBUG
-    // Validation: Check for NaN or Inf in particle state after force calculation
-    auto & p = m_sim->particles;
-    const int num = m_sim->particle_num;
+    // Validation: Check for NaN or Inf
     bool found_invalid = false;
     for(int i = 0; i < num && !found_invalid; ++i) {
         if(!std::isfinite(abs(p[i].acc)) || !std::isfinite(p[i].dens) || 
@@ -432,9 +446,13 @@ void Solver<Dim>::integrate()
     }
 #endif
     
-    // KICK STEP: Update velocities using forces at half-step positions
-    // Then DRIFT STEP (second half): Complete position update to t_k+1
-    kick_and_drift();
+    // Step 3: KICK (second half) - Update velocity from v^n to v^{n+1/2} using a^{n+1}
+#pragma omp parallel for
+    for(int i = 0; i < num; ++i) {
+        p[i].vel += p[i].acc * (0.5 * dt);
+        p[i].ene += p[i].dene * (0.5 * dt);
+        p[i].sound = std::sqrt(c_sound * p[i].ene);
+    }
 }
 
 template<int Dim>
@@ -444,55 +462,19 @@ void Solver<Dim>::drift_half_step()
     const int num = m_sim->particle_num;
     auto * periodic = m_sim->periodic.get();
     const real dt = m_sim->dt;
-    const real half_dt = 0.5 * dt;
 
     assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
-        // DRIFT: Move positions by half timestep using current velocity
-        p[i].pos += p[i].vel * half_dt;
+        // DRIFT: Full timestep position update using current velocity
+        p[i].pos += p[i].vel * dt;
 
-        // Apply legacy periodic boundary condition (for backward compatibility)
+        // Apply legacy periodic boundary condition
         periodic->apply_periodic_condition(p[i].pos);
     }
     
-    // Apply periodic wrapping using new ghost particle system if available
-    if (m_sim->ghost_manager) {
-        m_sim->ghost_manager->apply_periodic_wrapping(p);
-    }
-}
-
-template<int Dim>
-void Solver<Dim>::kick_and_drift()
-{
-    auto & p = m_sim->particles;
-    const int num = m_sim->particle_num;
-    auto * periodic = m_sim->periodic.get();
-    const real dt = m_sim->dt;
-    const real half_dt = 0.5 * dt;
-    const real gamma = m_param->get_physics().gamma;
-    const real c_sound = gamma * (gamma - 1.0);
-
-    assert(p.size() >= static_cast<size_t>(num));
-
-#pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        // KICK: Update velocity and energy using forces/dene at half-step positions
-        p[i].vel += p[i].acc * dt;
-        p[i].ene += p[i].dene * dt;
-        
-        // DRIFT: Complete position update to full timestep
-        p[i].pos += p[i].vel * half_dt;
-        
-        // Update sound speed based on new energy
-        p[i].sound = std::sqrt(c_sound * p[i].ene);
-
-        // Apply legacy periodic boundary condition (for backward compatibility)
-        periodic->apply_periodic_condition(p[i].pos);
-    }
-    
-    // Apply periodic wrapping using new ghost particle system if available
+    // Apply periodic wrapping
     if (m_sim->ghost_manager) {
         m_sim->ghost_manager->apply_periodic_wrapping(p);
     }

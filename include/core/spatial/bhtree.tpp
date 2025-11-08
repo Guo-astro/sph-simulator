@@ -501,6 +501,7 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
         return;  // Skip this node if distance is too small
     }
 
+    // Barnes-Hut opening criterion: l/d > theta, or l² > theta² * d²
     if (l2 > theta2 * d2) {
         if (is_leaf) {
             auto* p = first;
@@ -529,16 +530,12 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
         }
     } else {
         // Far-field approximation: treat node as point mass at center
-        // ✅ FIX: Apply Hernquist-Katz softening even for far-field to prevent acceleration spikes
         const real r = std::sqrt(d2);
         
-        // Use particle's smoothing length for softening
-        // For a cluster of particles, use conservative softening based on particle sml
-        const real h_eff = p_i.sml;
-        
         // Apply softened gravity using Hernquist & Katz (1989) functions
-        p_i.phi -= g_constant * mass * f(r, h_eff);
-        p_i.acc -= d * (g_constant * mass * g(r, h_eff));
+        // SPH smoothing length h is now enforced to have physical minimum
+        p_i.phi -= g_constant * mass * f(r, p_i.sml);
+        p_i.acc -= d * (g_constant * mass * g(r, p_i.sml));
     }
 }
 

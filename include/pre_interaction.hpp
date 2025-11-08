@@ -3,6 +3,7 @@
 #include "module.hpp"
 #include "core/utilities/vector.hpp"
 #include "core/particles/sph_particle.hpp"
+#include "parameters.hpp"  // For SPHParameters::SmoothingLengthPolicy
 
 namespace sph
 {
@@ -22,6 +23,12 @@ protected:
     bool m_iteration;
     real m_kernel_ratio;
     bool m_first;
+    
+    // Smoothing length minimum enforcement configuration
+    SPHParameters::SmoothingLengthPolicy m_sml_policy;
+    real m_sml_h_min_constant;
+    real m_sml_expected_max_density;
+    real m_sml_h_min_coefficient;
 
 protected:
     void initial_smoothing(std::shared_ptr<Simulation<Dim>> sim);

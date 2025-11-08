@@ -62,7 +62,6 @@ class Solver {
     void log_parameters();  // Log parameters after plugin configuration
     void initialize();
     void drift_half_step();
-    void kick_and_drift();
     void integrate();
 
 public:

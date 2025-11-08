@@ -96,6 +96,24 @@ private:
 
     bool iterative_sml;
 
+public:
+    // ==================== SMOOTHING LENGTH POLICY ====================
+    
+    /// Smoothing length minimum enforcement policy
+    enum class SmoothingLengthPolicy {
+        NO_MIN,          ///< No minimum - allow h to collapse naturally
+        CONSTANT_MIN,    ///< Enforce constant h_min (for testing/debugging)
+        PHYSICS_BASED    ///< Physics-based h_min = alpha * (m/rho_max)^(1/dim)
+    };
+
+private:
+    struct SmoothingLength {
+        SmoothingLengthPolicy policy;
+        real h_min_constant;           ///< Used when policy == CONSTANT_MIN
+        real expected_max_density;     ///< Used when policy == PHYSICS_BASED
+        real h_min_coefficient;        ///< Coefficient α in h_min = α*(m/ρ_max)^(1/dim), typically 2.0
+    } smoothing_length;
+
     // Legacy periodic boundary (maintained for backward compatibility)
     struct Periodic {
         bool is_valid;
@@ -163,6 +181,7 @@ public:
     const Periodic& get_periodic() const { return periodic; }
     const Boundary& get_boundary() const { return boundary; }
     const GSPH& get_gsph() const { return gsph; }
+    const SmoothingLength& get_smoothing_length() const { return smoothing_length; }
     
     int get_dimension() const { return dimension; }
     SPHType get_type() const { return type; }

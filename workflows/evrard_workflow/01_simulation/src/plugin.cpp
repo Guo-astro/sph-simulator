@@ -165,6 +165,16 @@ public:
                     /*leaf_particle_num=*/1     // Particles per leaf
                 )
                 
+                // Smoothing length minimum enforcement
+                // Physics-based: prevents h from collapsing below resolution
+                // ρ_max ≈ 250 from Evrard (1988) at peak compression
+                .with_smoothing_length_limits(
+                    SPHParameters::SmoothingLengthPolicy::PHYSICS_BASED,
+                    /*h_min_constant=*/0.0,           // unused for PHYSICS_BASED
+                    /*expected_max_density=*/250.0,   // from Evrard (1988) paper
+                    /*h_min_coefficient=*/2.0         // conservative (typical 1.5-2.5)
+                )
+                
                 // Transition to Standard SPH
                 .as_ssph()
                 
