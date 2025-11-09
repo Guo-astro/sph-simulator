@@ -61,7 +61,8 @@ class Solver {
     void make_initial_condition();
     void log_parameters();  // Log parameters after plugin configuration
     void initialize();
-    void drift_half_step();
+    void predict();
+    void correct();
     void integrate();
 
 public:

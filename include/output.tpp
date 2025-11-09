@@ -116,7 +116,7 @@ void Output<Dim>::output_particle(std::shared_ptr<Simulation<Dim>> sim)
     initialize_coordinator(sim);
     coordinator->write_particles(sim);
     
-    WRITE_LOG << "Snapshot " << m_count << " written at t=" << sim->time;
+    WRITE_LOG_ALWAYS << "Snapshot " << m_count << " written at t=" << sim->time;
     ++m_count;
 }
 
@@ -125,6 +125,8 @@ void Output<Dim>::output_energy(std::shared_ptr<Simulation<Dim>> sim)
 {
     initialize_coordinator(sim);
     coordinator->write_energy(sim);
+    
+    WRITE_LOG_ALWAYS << "Energy data written at t=" << sim->time;
 }
 
 template<int Dim>

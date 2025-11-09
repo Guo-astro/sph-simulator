@@ -75,7 +75,7 @@ def main():
     os.makedirs(ANIMATIONS_DIR, exist_ok=True)
     
     # Find snapshot files
-    snapshot_files = sorted(glob.glob(os.path.join(RESULTS_DIR, "snapshot_*.csv")))
+    snapshot_files = sorted(glob.glob(os.path.join(RESULTS_DIR, "*.csv")))
     
     if not snapshot_files:
         print(f"Error: No snapshot files found in {RESULTS_DIR}")

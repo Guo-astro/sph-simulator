@@ -60,19 +60,6 @@ void GravityForce<Dim>::initialize(std::shared_ptr<SPHParameters> param)
 {
     // ✅ TYPE-SAFE: Store gravity variant directly - no binary flags
     m_gravity = param->get_gravity();
-    
-#ifndef NDEBUG
-    std::visit([](auto&& g) {
-        using T = std::decay_t<decltype(g)>;
-        if constexpr (std::is_same_v<T, SPHParameters::NewtonianGravity>) {
-            WRITE_LOG << ">>> GravityForce::initialize: Newtonian gravity, G=" << g.constant << ", theta=" << g.theta;
-        } else if constexpr (std::is_same_v<T, SPHParameters::ModifiedGravity>) {
-            WRITE_LOG << ">>> GravityForce::initialize: Modified gravity (not yet implemented)";
-        } else {
-            WRITE_LOG << ">>> GravityForce::initialize: No gravity";
-        }
-    }, m_gravity);
-#endif
 }
 
 template<int Dim>

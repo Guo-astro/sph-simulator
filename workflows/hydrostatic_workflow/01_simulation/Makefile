@@ -21,7 +21,7 @@ ANIMATIONS_DIR := $(ANALYSIS_DIR)/animations
 SCRIPTS_DIR := scripts
 OUTPUT_DIR := output
 
-.PHONY: all clean clean-all clean-outputs build run animate viz help full full-clean
+.PHONY: all clean clean-all clean-outputs build run animate animate-3d viz help full full-clean
 
 # Default target
 all: build
@@ -35,8 +35,9 @@ help:
 	@echo "  make clean-outputs - Clean all outputs (results, plots, animations)"
 	@echo "  make clean-all     - Clean everything (build + outputs)"
 	@echo "  make run           - Run simulation"
-	@echo "  make animate       - Generate animation"
-	@echo "  make viz           - Generate all visualizations"
+	@echo "  make animate       - Generate 2D animation"
+	@echo "  make animate-3d    - Generate 3D animation"
+	@echo "  make viz           - Generate all visualizations (2D + 3D)"
 	@echo "  make full          - Build + Run + Visualize (incremental build)"
 	@echo "  make full-clean    - Full workflow with clean rebuild from scratch"
 
@@ -98,8 +99,16 @@ animate:
 	@cd $(SCRIPTS_DIR) && python3 animate_hydrostatic.py
 	@echo "✓ Animation saved: $(ANIMATIONS_DIR)/hydrostatic.mp4"
 
+# Generate 3D animation
+animate-3d:
+	@echo "=== Generating 3D Animation ==="
+	@mkdir -p $(ANIMATIONS_DIR)
+	@echo "Creating hydrostatic equilibrium 3D animation..."
+	@cd $(SCRIPTS_DIR) && python3 animate_hydrostatic_3d.py
+	@echo "✓ 3D Animation saved: $(ANIMATIONS_DIR)/hydrostatic_3d.mp4"
+
 # Generate all visualizations
-viz: animate
+viz: animate animate-3d
 	@echo "✓ All visualizations complete"
 
 # Full workflow (incremental build - no clean)

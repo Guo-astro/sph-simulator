@@ -1,5 +1,0 @@
---------------SPH simulation-------------
-
-Error: First argument must be a plugin file (.dylib/.so/.dll)
-All configuration is now in the plugin source file.
-JSON configuration files are no longer supported.

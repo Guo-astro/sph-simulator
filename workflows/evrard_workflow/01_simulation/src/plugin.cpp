@@ -89,6 +89,18 @@ public:
         std::cout << "  Particle mass: " << mass << "\n";
         std::cout << "  Thermal energy: " << u << "\n";
         
+        // Evrard test: M=1, R=1, ρ(r) = M/(2πR²) * (R/r) for r < R
+        // This gives total mass M when integrated over the sphere
+        // With R=1: ρ(r) = 1/(2π) * (1/r) for r < 1
+        // To ensure M_total = 1: ρ_0 = M/(2π R²) = 1/(2π)
+        // So ρ(r) = ρ_0 / r = 1/(2πr)
+        // But we need to ensure the SPH density sum matches this!
+        
+        // For SPH, we set uniform particle mass and let density computation handle it
+        // Initial density estimate based on Evrard profile
+        const real M_total = 1.0;
+        const real R_sphere = 1.0;
+        
         // Set particle properties
         int i = 0;
         for(auto & p_i : particles) {
@@ -101,13 +113,16 @@ public:
             real r_mag = std::sqrt(inner_product(p_i.pos, p_i.pos));
             
             // Guard against division by zero at center
-            constexpr real epsilon = 1.0e-10;
+            constexpr real epsilon = 1.0e-3;  // Increased to avoid extreme densities
             if (r_mag < epsilon) {
                 r_mag = epsilon;
             }
             
             // Evrard initial conditions: ρ(r) ∝ 1/r
-            p_i.dens = 1.0 / (2.0 * M_PI * r_mag);
+            // Normalized so integrated mass = M_total
+            // ρ(r) = M_total/(2π R²) * (R/r) for r ≤ R
+            const real rho_0 = M_total / (2.0 * M_PI * R_sphere * R_sphere);
+            p_i.dens = rho_0 * R_sphere / r_mag;
             p_i.ene = u;
             p_i.pres = (gamma - 1.0) * p_i.dens * u;
             p_i.id = i;
@@ -133,15 +148,16 @@ public:
                 // Time parameters
                 .with_time(
                     /*start=*/0.0,
-                    /*end=*/60.0,
-                    /*output=*/0.1,
-                    /*energy=*/0.1  // Energy output interval
+                    /*end=*/3.0,     // Short test run for verification
+                    /*output=*/0.3,  // More frequent outputs for better analysis
+                    /*energy=*/0.3   // Energy output interval
                 )
                 
                 // CFL parameters (stability)
+                // Reference: sphcode_bk uses sound=0.3, force=0.125
                 .with_cfl(
-                    /*sound=*/0.3,  // CFL for sound speed
-                    /*force=*/0.25  // CFL for force term
+                    /*sound=*/0.3,   // CFL for sound speed
+                    /*force=*/0.125  // CFL for force term (critical for energy conservation)
                 )
                 
                 // Physical parameters

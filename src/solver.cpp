@@ -72,8 +72,8 @@ Solver<Dim>::Solver(int argc, char * argv[])
     // Initialize parameters (will be configured by plugin)
     m_param = std::make_shared<SPHParameters>();
     
-    // Set output directory
-    m_output_dir = "output/" + m_plugin->get_name();
+    // Set output directory (relative to executable, goes up to workflow root)
+    m_output_dir = "../output/" + m_plugin->get_name();
     
     Logger::open(m_output_dir);
 
@@ -169,6 +169,8 @@ void Solver<Dim>::run()
     m_output->output_particle(m_sim);
     m_output->output_energy(m_sim);
 
+    WRITE_LOG_ALWAYS << "Starting simulation: t=0.0 -> t=" << t_end;
+
     const auto start = std::chrono::system_clock::now();
     auto t_cout_i = start;
     int loop = 0;
@@ -187,7 +189,7 @@ void Solver<Dim>::run()
         const auto t_cout_f = std::chrono::system_clock::now();
         const real t_cout_s = std::chrono::duration_cast<std::chrono::seconds>(t_cout_f - t_cout_i).count();
         if(t_cout_s >= 1.0) {
-            WRITE_LOG << "loop: " << loop << ", time: " << t << ", dt: " << dt << ", num: " << num;
+            WRITE_LOG_ALWAYS << "Progress: loop=" << loop << ", t=" << t << ", dt=" << dt;
             t_cout_i = std::chrono::system_clock::now();
         } else {
             WRITE_LOG_ONLY << "loop: " << loop << ", time: " << t << ", dt: " << dt << ", num: " << num;
@@ -205,8 +207,8 @@ void Solver<Dim>::run()
     }
     const auto end = std::chrono::system_clock::now();
     const real calctime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    WRITE_LOG << "\ncalculation is finished";
-    WRITE_LOG << "calculation time: " << calctime << " ms";
+    WRITE_LOG_ALWAYS << "\nSimulation completed successfully";
+    WRITE_LOG_ALWAYS << "Total calculation time: " << calctime / 1000.0 << " seconds";
 }
 
 template<int Dim>
@@ -217,7 +219,7 @@ void Solver<Dim>::initialize()
         THROW_ERROR("No plugin loaded. Plugin is required for simulation.");
     }
     
-    WRITE_LOG << "Initializing simulation from plugin: " << m_plugin->get_name();
+    WRITE_LOG_ALWAYS << "Initializing simulation from plugin: " << m_plugin->get_name();
     
     // ===== V3 INTERFACE: Plugin returns InitialCondition data =====
     auto initial_condition = m_plugin->create_initial_condition();
@@ -227,7 +229,7 @@ void Solver<Dim>::initialize()
         THROW_ERROR("Plugin returned invalid initial condition (no particles or parameters)");
     }
     
-    WRITE_LOG << "Plugin returned " << initial_condition.particle_count() << " particles";
+    WRITE_LOG_ALWAYS << "Plugin returned " << initial_condition.particle_count() << " particles";
     
     // Step 2: Apply SPH parameters BEFORE creating Simulation
     // Use std::move to transfer ownership and avoid copy issues with complex members
@@ -339,17 +341,7 @@ void Solver<Dim>::initialize()
     
     // Calculate initial forces
     m_fforce->calculation(m_sim);
-    
-#ifndef NDEBUG
-    auto & p_init = m_sim->particles;
-    WRITE_LOG << ">>> INITIALIZE after fluid_force: p[0].acc=" << abs(p_init[0].acc);
-#endif
-    
     m_gforce->calculation(m_sim);
-    
-#ifndef NDEBUG
-    WRITE_LOG << ">>> INITIALIZE after gravity_force: p[0].acc=" << abs(p_init[0].acc);
-#endif
     
     // Generate ghost particles AFTER all force calculations are complete
     // This ensures densities, pressures, and accelerations are all computed
@@ -392,28 +384,9 @@ void Solver<Dim>::initialize()
 template<int Dim>
 void Solver<Dim>::integrate()
 {
-    // Standard leapfrog integrator with proper time centering
-    // Velocities are stored at half-integer timesteps: v^{n-1/2}, v^{n+1/2}
-    // Positions and accelerations at integer timesteps: x^n, a^n
-    
-    // Calculate timestep
     m_timestep->calculation(m_sim);
-    const real dt = m_sim->dt;
 
-    auto & p = m_sim->particles;
-    const int num = m_sim->particle_num;
-    const real gamma = m_param->get_physics().gamma;
-    const real c_sound = gamma * (gamma - 1.0);
-
-    // Step 1: KICK (first half) - Update velocity from v^{n-1/2} to v^n using a^n
-#pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        p[i].vel += p[i].acc * (0.5 * dt);
-        p[i].ene += p[i].dene * (0.5 * dt);
-    }
-    
-    // Step 2: DRIFT - Update position from x^n to x^{n+1} using v^n
-    drift_half_step();  // This now does a FULL drift with current vel
+    predict();
     
     // Regenerate ghost particles at new positions
     if (m_sim->ghost_manager) {
@@ -421,56 +394,38 @@ void Solver<Dim>::integrate()
         m_sim->extend_cache_with_ghosts();
     }
     
-    // Rebuild spatial tree at new positions
     m_sim->make_tree();
-    
-    // Calculate NEW forces at x^{n+1}
     m_pre->calculation(m_sim);
     m_sim->sync_particle_cache();
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
-    
-#ifndef NDEBUG
-    // Validation: Check for NaN or Inf
-    bool found_invalid = false;
-    for(int i = 0; i < num && !found_invalid; ++i) {
-        if(!std::isfinite(abs(p[i].acc)) || !std::isfinite(p[i].dens) || 
-           !std::isfinite(p[i].pres) || !std::isfinite(p[i].ene)) {
-            WRITE_LOG << "WARNING: Particle " << i << " has invalid state:";
-            WRITE_LOG << "  pos = (" << p[i].pos[0] << ", " << p[i].pos[1] 
-                      << (Dim >= 3 ? ", " + std::to_string(p[i].pos[2]) : "") << ")";
-            WRITE_LOG << "  acc = " << abs(p[i].acc) << ", dens = " << p[i].dens 
-                      << ", pres = " << p[i].pres << ", ene = " << p[i].ene;
-            found_invalid = true;
-        }
-    }
-#endif
-    
-    // Step 3: KICK (second half) - Update velocity from v^n to v^{n+1/2} using a^{n+1}
-#pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        p[i].vel += p[i].acc * (0.5 * dt);
-        p[i].ene += p[i].dene * (0.5 * dt);
-        p[i].sound = std::sqrt(c_sound * p[i].ene);
-    }
+    correct();
 }
 
 template<int Dim>
-void Solver<Dim>::drift_half_step()
+void Solver<Dim>::predict()
 {
     auto & p = m_sim->particles;
     const int num = m_sim->particle_num;
     auto * periodic = m_sim->periodic.get();
     const real dt = m_sim->dt;
+    const real gamma = m_param->get_physics().gamma;
+    const real c_sound = gamma * (gamma - 1.0);
 
     assert(p.size() >= static_cast<size_t>(num));
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
-        // DRIFT: Full timestep position update using current velocity
-        p[i].pos += p[i].vel * dt;
+        // k -> k+1/2
+        p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
+        p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
 
-        // Apply legacy periodic boundary condition
+        // k -> k+1
+        p[i].pos += p[i].vel_p * dt;
+        p[i].vel += p[i].acc * dt;
+        p[i].ene += p[i].dene * dt;
+        p[i].sound = std::sqrt(c_sound * p[i].ene);
+
         periodic->apply_periodic_condition(p[i].pos);
     }
     
@@ -479,6 +434,27 @@ void Solver<Dim>::drift_half_step()
         m_sim->ghost_manager->apply_periodic_wrapping(p);
     }
 }
+
+template<int Dim>
+void Solver<Dim>::correct()
+{
+    auto & p = m_sim->particles;
+    const int num = m_sim->particle_num;
+    const real dt = m_sim->dt;
+    const real gamma = m_param->get_physics().gamma;
+    const real c_sound = gamma * (gamma - 1.0);
+
+    assert(p.size() >= static_cast<size_t>(num));
+
+#pragma omp parallel for
+    for(int i = 0; i < num; ++i) {
+        p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
+        p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
+        p[i].sound = std::sqrt(c_sound * p[i].ene);
+    }
+}
+
+
 
 template<int Dim>
 void Solver<Dim>::log_parameters()

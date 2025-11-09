@@ -100,10 +100,6 @@ void BHTree<Dim>::initialize(std::shared_ptr<SPHParameters> param) {
     m_periodic = std::make_shared<Periodic<Dim>>();
     m_periodic->initialize(param);
 
-#ifndef NDEBUG
-    WRITE_LOG << ">>> BHTree::initialize: About to pattern match on gravity variant";
-#endif
-
     // ✅ TYPE-SAFE: Pattern matching with std::visit
     std::visit([this](auto&& g) {
         using T = std::decay_t<decltype(g)>;
@@ -111,16 +107,9 @@ void BHTree<Dim>::initialize(std::shared_ptr<SPHParameters> param) {
             m_g_constant = g.constant;
             m_theta = g.theta;
             m_theta2 = m_theta * m_theta;
-#ifndef NDEBUG
-            WRITE_LOG << ">>> BHTree::initialize: Newtonian gravity, G=" << m_g_constant << ", theta=" << m_theta;
-#endif
         }
         // NoGravity: tree can still be used for neighbor search
     }, param->get_gravity());
-
-#ifndef NDEBUG
-    WRITE_LOG << ">>> BHTree::initialize: After pattern match, m_g_constant=" << m_g_constant;
-#endif
 }
 
 template<int Dim>
@@ -129,10 +118,6 @@ void BHTree<Dim>::resize(const int particle_num, const int tree_size) {
 
     m_node_size = particle_num * tree_size;
     m_nodes = std::shared_ptr<BHNode>(new BHNode[m_node_size], std::default_delete<BHNode[]>());
-
-#ifndef NDEBUG
-    WRITE_LOG << ">>> BHTree::resize: m_g_constant=" << m_g_constant << ", m_theta=" << m_theta;
-#endif
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -314,16 +299,17 @@ void BHTree<Dim>::BHNode::create_tree(BHNode*& nodes, int& remaind, const int ma
     for (int i = 0; i < nchild<Dim>(); ++i) {
         auto* child = childs[i];
         if (child) {
-            // First recurse or mark as leaf, which properly sets child's mass and m_center
+            // CRITICAL: Normalize m_center for ALL children before recursion/leaf marking
+            child->m_center /= child->mass;
+            
             if (child->num > leaf_particle_num && level < max_level) {
                 child->create_tree(nodes, remaind, max_level, leaf_particle_num);
             } else {
                 child->is_leaf = true;
-                // For leaf nodes, convert accumulated m_center to actual center of mass
-                child->m_center /= child->mass;
             }
             
             // Accumulate child's mass and center of mass to this node
+            // Note: child->m_center is already normalized, so we multiply by mass
             mass += child->mass;
             m_center += child->m_center * child->mass;
         }
@@ -483,13 +469,6 @@ void BHTree<Dim>::BHNode::find_neighbors_recursive(const SPHParticle<Dim>& p_i,
 template<int Dim>
 void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, const real g_constant,
                                       const Periodic<Dim>* periodic) {
-#ifndef NDEBUG
-    static int call_count = 0;
-    if (call_count++ < 5) {
-        WRITE_LOG << ">>> BHNode::calc_force called: g_constant=" << g_constant << ", theta2=" << theta2 << ", mass=" << mass;
-    }
-#endif
-    
     const Vector<Dim>& r_i = p_i.pos;
     const real l2 = edge * edge;
     const Vector<Dim> d = periodic->calc_r_ij(r_i, m_center);
@@ -510,12 +489,6 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
                 const Vector<Dim> r_ij = periodic->calc_r_ij(r_i, r_j);
                 const real r = abs(r_ij);
                 
-                //Skip self-interaction
-                if (r < 1.0e-10) {
-                    p = p->next;
-                    continue;
-                }
-                
                 p_i.phi -= g_constant * p->mass * (f(r, p_i.sml) + f(r, p->sml)) * 0.5;
                 // Gravity is attractive: acceleration points from r_i toward r_j (opposite to r_ij)
                 p_i.acc -= r_ij * (g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
@@ -530,12 +503,10 @@ void BHTree<Dim>::BHNode::calc_force(SPHParticle<Dim>& p_i, const real theta2, c
         }
     } else {
         // Far-field approximation: treat node as point mass at center
-        const real r = std::sqrt(d2);
-        
-        // Apply softened gravity using Hernquist & Katz (1989) functions
-        // SPH smoothing length h is now enforced to have physical minimum
-        p_i.phi -= g_constant * mass * f(r, p_i.sml);
-        p_i.acc -= d * (g_constant * mass * g(r, p_i.sml));
+        // Use pure Newtonian gravity (NO softening) for far-field
+        const real r_inv = 1.0 / std::sqrt(d2);
+        p_i.phi -= g_constant * mass * r_inv;
+        p_i.acc -= d * (g_constant * mass * r_inv * r_inv * r_inv);
     }
 }
 

@@ -38,13 +38,7 @@ void Logger::open(const char * output_dir)
         is_mkdir = true;
     }
 
-    std::time_t now = std::time(nullptr);
-    std::tm * pnow = std::localtime(&now);
-    std::string logfile = output_dir + (boost::format("/%04d%02d%02d%02d%02d%02d.log") % (pnow->tm_year + 1900) % (pnow->tm_mon + 1) % pnow->tm_mday % pnow->tm_hour % pnow->tm_min % pnow->tm_sec).str();
-    log_io.open(logfile);
-    if(is_mkdir) {
-        log_io << "mkdir " << output_dir << std::endl;
-    }
+    // Log file creation disabled - console output only
     dir_name = output_dir;
     open_flag = true;
 }

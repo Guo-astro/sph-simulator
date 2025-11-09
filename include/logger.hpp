@@ -18,7 +18,7 @@ class Logger {
 public:
     Logger(bool log_only = false) : m_log_only(log_only) {}
     ~Logger() {
-        log_io << m_msg.str() << std::endl;
+        // No log file output - console only
         if(!m_log_only) {
             std::cout << m_msg.str() << std::endl;
         }
@@ -39,6 +39,9 @@ public:
 // ✅ LOG LEVEL SYSTEM: Conditional logging based on build type
 // Production build (NDEBUG defined): Only errors and critical messages
 // Debug build (NDEBUG undefined): All debug messages enabled
+
+// WRITE_LOG_ALWAYS: Always outputs to console and log (production + debug)
+#define WRITE_LOG_ALWAYS sph::Logger()
 
 #ifdef NDEBUG
     // Production: No debug logs, suppress output

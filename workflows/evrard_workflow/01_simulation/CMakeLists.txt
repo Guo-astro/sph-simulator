@@ -83,11 +83,13 @@ target_compile_options(evrard_plugin PRIVATE
 
 target_include_directories(evrard_plugin PUBLIC 
     ${SPH_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(evrard_plugin PUBLIC
     OpenMP::OpenMP_CXX
     Boost::headers
+    Boost::boost
     nlohmann_json::nlohmann_json
 )
 
